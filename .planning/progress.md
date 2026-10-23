@@ -80,3 +80,8 @@ Re-validation run 22: PASS 47, WARNING 1. Autotrader is unchanged.
 
 AUTH-004 and CLI-001 are done. `pnpm check` passes on Node 24 and 26 with 556 tests. `ApprovalRequest` gained a non-digested `display` field (schemas regenerated). `ApprovalStore` gained `findOpenRequest`, `listOpenRequests` and `listRecentApprovals`. `grantApproval` and `serverEnvironmentOf` live in `packages/workflow` so the server and the CLI share them; `WorkflowPorts` moved to `workflow/src/ports.ts` to break an import cycle. Cross-app tests live in the root `test/e2e/` (apps may not import each other). The CLI tests use an injected terminal rather than a pseudo-TTY (no pty library; adding one needs approval).
 Re-validation run 23: PASS 47, WARNING 1. Autotrader is unchanged.
+
+2026-10-23 (Phase 1 completion plan, approved): finish Phase 1 and package for macOS/Linux installs from a `.tgz` (esbuild and git init approved).
+M0: git initialized (`main`, initial commit), esbuild 0.28.2 added (RL-038), CI workflow written (OPS-002 partial: no remote, never run).
+M1: E2E-001 and FL-001 – FL-005 done; the Flutter adapter is built into the server. `pnpm check` passes on Node 24 and 26 with 594 tests. Fixed: the probe parser now tolerates Flutter's first-run banner, and `inspect` no longer reports a version range as resolved.
+Re-validation run 24: PASS 47, WARNING 1. Autotrader is unchanged.

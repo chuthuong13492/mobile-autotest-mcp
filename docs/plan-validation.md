@@ -310,6 +310,8 @@ Phase 0 discovery tasks were executed after the baseline validation above. The d
 
 **Re-validation (run 23, after AUTH-004 and CLI-001).** Exit 0, PASS 47, WARNING 1 (VAL-10, unchanged). The Autotrader SHA-256 manifest (2,966 files) is still identical to the before-snapshot.
 
+**Re-validation (run 24, after git init, E2E-001 and FL-001 – FL-005).** Exit 0, PASS 47, WARNING 1 (VAL-10, unchanged). The validator's file walk now skips `.git/` and accepts the implementation folders `.github/`, `release/`, `plugin/`, `evals/` and `security/`; before that change it raised VAL-01b warnings for those paths only. The Autotrader SHA-256 manifest (2,966 files) is still identical to the before-snapshot.
+
 **Environment changes outside the workspace.** These were needed for Phase 0. None is a product dependency.
 
 | Change | Detail |

@@ -20,11 +20,13 @@
     "depcruise:negative": "node scripts/check-boundaries-negative.ts"
   },
   "devDependencies": {
+    "@autotest/adapter-flutter": "workspace:*",
     "@autotest/adapter-sdk": "workspace:*",
     "@autotest/cli": "workspace:*",
     "@autotest/core": "workspace:*",
     "@autotest/mcp-server": "workspace:*",
     "@autotest/policy": "workspace:*",
+    "@autotest/workspace": "workspace:*",
     "@eslint/js": "10.0.1",
     "@types/node": "24.19.2",
     "@vitest/coverage-v8": "5.0.5",

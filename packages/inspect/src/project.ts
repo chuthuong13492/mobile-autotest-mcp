@@ -145,6 +145,9 @@ function mergePlatforms(
     .map(([platform, v]) => ({ platform, status: v.status, evidence: [...v.evidence].sort().slice(0, 10) }));
 }
 
+/** `3.38.4`, `3.10.4-1.0.dev`, `3.47.1+hotfix.2`: an exact version, not a constraint. */
+const EXACT_VERSION = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
+
 function resolveToolchains(detected: readonly DetectionResult[], limitations: Limitation[]): ToolchainResolution[] {
   const by = new Map<string, Map<string, string>>();
   for (const d of detected) {
@@ -160,7 +163,8 @@ function resolveToolchains(detected: readonly DetectionResult[], limitations: Li
       const versionsBySource = [...sources.entries()]
         .sort(([a], [b]) => (a < b ? -1 : 1))
         .map(([source, value]) => ({ source, value }));
-      const values = [...new Set(versionsBySource.map((s) => s.value))];
+      // Only exact versions resolve or conflict; a range such as `>=3.5.0 <4.0.0` is recorded but names no version.
+      const values = [...new Set(versionsBySource.map((s) => s.value).filter((v) => EXACT_VERSION.test(v)))];
       if (values.length <= 1) return { tool, versionsBySource, resolved: values[0] ?? null, conflicts: [] };
       const firstSourceOf = (v: string) => versionsBySource.find((s) => s.value === v)!.source.split(':')[0]!;
       const conflicts: string[] = [];

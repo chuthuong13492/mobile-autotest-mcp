@@ -44,6 +44,32 @@ describe('INS-001 inspectProject', () => {
     ).toEqual(r);
   });
 
+  it('a version range is recorded but never resolved or compared', async () => {
+    const a = fakeAdapter('alpha', {
+      toolchains: [
+        {
+          tool: 'dart',
+          versionsBySource: [
+            { source: 'pubspec.yaml', value: '>=3.5.0 <4.0.0' },
+            { source: 'probe:flutter --version --machine', value: '3.13.1' },
+          ],
+          resolved: '3.13.1',
+          conflicts: [],
+        },
+      ],
+    });
+    const only = fakeAdapter('beta', {
+      toolchains: [
+        { tool: 'kotlin', versionsBySource: [{ source: 'gradle', value: '^2.0.0' }], resolved: null, conflicts: [] },
+      ],
+    });
+    const r = await inspectProject({ registry: createAdapterRegistry([a, only]), workspace: ws, host, maxFiles: 1000 });
+    expect(r.toolchains.map((t) => [t.tool, t.resolved, t.conflicts])).toEqual([
+      ['dart', '3.13.1', []],
+      ['kotlin', null, []],
+    ]);
+  });
+
   it('resolves agreeing toolchain sources and reports conflicts without picking one', async () => {
     const a = fakeAdapter('alpha', {
       toolchains: [

@@ -15,6 +15,7 @@ import {
   type MetricsRegistry,
 } from '@autotest/core';
 import { createAdapterRegistry, type PlatformAdapter } from '@autotest/adapter-sdk';
+import { createFlutterAdapter } from '@autotest/adapter-flutter';
 import { launchSupervisor } from '@autotest/execution';
 import { loadPolicyConfig, type PolicyLoadResult } from '@autotest/policy';
 import { loadOrCreateKey, openDataRoot } from '@autotest/storage';
@@ -39,7 +40,7 @@ export interface ComposeOptions {
   readonly stderr?: ServerLoggerOptions['stderr'];
   /** Replace the use cases entirely (tests). */
   readonly useCases?: (ports: WorkflowPorts, policy: PolicyLoadResult) => UseCases;
-  /** Platform adapters to register (none ship in this build yet; FL-001 adds Flutter). */
+  /** Platform adapters to register (default: the built-in adapters, currently Flutter). */
   readonly adapters?: readonly PlatformAdapter[];
   /** This server's environment for approval bindings (default `local:<hostname>`). */
   readonly serverEnvironment?: { readonly id: string; readonly kind: 'local' | 'ci' };
@@ -55,6 +56,11 @@ export interface Composed {
   /** The middleware-wrapped tool surface (what the MCP server calls). */
   readonly call: ToolPipeline;
   close(): Promise<void>;
+}
+
+/** Adapters shipped with this build (FL-001: Flutter host tests). */
+export function builtInAdapters(): PlatformAdapter[] {
+  return [createFlutterAdapter()];
 }
 
 export function resolveDataRoot(env: Readonly<Record<string, string | undefined>>): string {
@@ -105,7 +111,7 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
     execution: { startSupervisor: async (runId) => launchSupervisor(dataRoot, runId) },
     cursors: createCursorCodec(loadOrCreateKey(dataRoot, 'cursor'), clock),
   };
-  const registry = createAdapterRegistry(opts.adapters ?? []);
+  const registry = createAdapterRegistry(opts.adapters ?? builtInAdapters());
   const host = {
     os:
       process.platform === 'darwin'
