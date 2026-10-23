@@ -774,7 +774,10 @@ export async function cancelRun(
 export type ReconcileAction = 'queued' | 'reattach' | 'import_terminal' | 'supervisor_lost' | 'orphan_unverified';
 
 /** ADR-0007 §7, applied to every non-terminal run on startup. Returns the action taken per run. */
-export async function reconcileRuns(deps: RunDeps): Promise<Record<string, ReconcileAction>> {
+export async function reconcileRuns(
+  deps: RunDeps,
+  opts: { readonly pump?: boolean } = {},
+): Promise<Record<string, ReconcileAction>> {
   const { ports } = deps;
   const out: Record<string, ReconcileAction> = {};
   for (const run of await ports.runs.listNonTerminal()) {
@@ -801,7 +804,7 @@ export async function reconcileRuns(deps: RunDeps): Promise<Record<string, Recon
       subjectRefs: [run.id],
       data: { action, runId: run.id },
     });
-    if (action === 'import_terminal') await syncRun(deps, run.id);
+    if (action === 'import_terminal') await syncRun(deps, run.id, { pump: false });
     else {
       const updated = await ports.runs.update(run.id, {
         state: 'infra_error',
@@ -812,6 +815,7 @@ export async function reconcileRuns(deps: RunDeps): Promise<Record<string, Recon
       await importResults(deps, updated);
     }
   }
-  await pumpQueue(deps);
+  // The CLI reconciles without starting queued runs: only a server dispatches (it can launch supervisors).
+  if (opts.pump !== false) await pumpQueue(deps);
   return out;
 }

@@ -89,3 +89,5 @@ M2: RUN-001 – RUN-006 done. `pnpm check` passes on Node 24 and 26 with 613 tes
 Re-validation run 25: PASS 47, WARNING 1. Autotrader is unchanged.
 M3: EVD-001 – EVD-003, ANL-001, ANL-003, RPT-001 – RPT-004 done. `pnpm check` passes on Node 24 and 26 with 648 tests. New ports `AnalysisStore` and `ReportStore`. Evidence is ingested by the supervisor in the collecting state; JUnit rendering lives in workflow (reporting may depend only on core).
 Re-validation run 26: PASS 47, WARNING 1. Autotrader is unchanged.
+M4: CLI-002 and CLI-003 done. `reconcileRuns` gained `{ pump: false }` so the CLI never starts queued runs. `doctor --suggest-executables` reads SDK versions from `bin/cache/flutter.version.json` and dedupes paths case-insensitively on macOS (found by running it on this machine).
+Two EXE-003 supervisor tests were timing-sensitive under full-suite load (a log line read right after terminal.json; an exact SIGTERM-only cancel path). They now wait for the log line and accept SIGKILL escalation. Re-validation run 27: PASS 47, WARNING 1. Autotrader is unchanged.

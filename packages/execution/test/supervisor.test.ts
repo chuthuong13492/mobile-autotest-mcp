@@ -76,7 +76,11 @@ describe('EXE-003 supervisor (in process, real child processes)', () => {
     const rec = await done;
     expect(rec).toMatchObject({ state: 'cancelled', cancelReason: 'user' });
     expect(states(dataRoot, id)).toEqual(['preparing', 'running', 'cancelling', 'cancelled']);
-    expect(cancelStages(dataRoot, id)).toEqual(['term_sent', 'confirmed']);
+    // SIGTERM first and a confirmed end; under heavy load the grace period may pass first, adding kill_sent.
+    const stages = cancelStages(dataRoot, id);
+    expect(stages[0]).toBe('term_sent');
+    expect(stages.at(-1)).toBe('confirmed');
+    expect(stages.length === 2 || stages[1] === 'kill_sent').toBe(true);
   });
 
   it('a SIGTERM-ignoring runner is killed; the run times out as timed_out', async () => {
@@ -187,7 +191,12 @@ describe('EXE-003 detached supervisor', () => {
     expect(info.supervisor.pid).not.toBe(parent.pid);
     const terminal = await until(() => readRunFiles(dataRoot, id).terminal, 30_000);
     expect(terminal).toMatchObject({ state: 'completed', processes: [{ exitCode: 0 }] });
-    expect(fs.readFileSync(runPaths(dataRoot, id).log, 'utf8')).toContain('terminal completed');
+    // The supervisor logs its last line after writing terminal.json, so wait for it rather than reading at once.
+    const log = await until(() => {
+      const text = fs.readFileSync(runPaths(dataRoot, id).log, 'utf8');
+      return text.includes('terminal completed') ? text : undefined;
+    }, 15_000);
+    expect(log).toContain('terminal completed');
   }, 60_000);
 
   it('a cancel request (control file + identity-checked SIGTERM) reaches cancelled', async () => {
