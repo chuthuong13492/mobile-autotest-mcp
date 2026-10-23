@@ -8,8 +8,7 @@ spikes/**/build/
 spikes/**/.dart_tool/
 .dart_tool/
 build/
-release/dist/
-release/*.tgz
+release/out/
 *.log
 .env
 .env.*

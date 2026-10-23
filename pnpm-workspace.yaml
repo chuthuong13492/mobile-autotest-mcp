@@ -3,5 +3,9 @@ packages:
   - apps/*
 # Supply-chain posture (SR-018, OPS-001): dependency lifecycle scripts are not run unless listed here.
 onlyBuiltDependencies: []
+# esbuild's postinstall only re-validates its platform binary, which pnpm already installs from the
+# matching optional @esbuild/<platform> package; it is safe and preferable to skip it (RL-038).
+ignoredBuiltDependencies:
+  - esbuild
 strictDepBuilds: true
 engineStrict: true

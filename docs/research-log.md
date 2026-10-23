@@ -587,3 +587,13 @@ These findings come from experiments in `spikes/` and captured fixtures in `fixt
   - **No build step for development.** REL-001 still decides the packaging for distribution: whether to ship TypeScript sources for Node ≥24 or emit JavaScript.
   - **TypeScript 7 adoption** waits for typescript-eslint support (related to RK-02; tracked in REL-001).
 - **Follow-up:** REL-001 packaging decision.
+
+### RL-038 — Distribution packaging: bundling with esbuild
+- **Source:** Node.js documentation on type stripping (files under `node_modules` are not stripped: `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`); npm registry metadata for `esbuild` (`npm view esbuild time`), checked on 2026-10-23; executed install in the workspace.
+- **Finding:**
+  - An installed package lives under `node_modules`, so the TypeScript sources cannot be shipped as-is: a JavaScript build is required for distribution.
+  - **esbuild 0.28.2** (MIT, released 2026-08-08; the latest release) is pinned as a root devDependency, chosen with the developer on 2026-10-23. It bundles the server, the CLI and the run supervisor into self-contained ESM files, so the release package has no runtime dependencies and no install scripts.
+  - esbuild ships its binary as an optional `@esbuild/<platform>` package. Its own postinstall only re-checks that binary, so it is listed under `ignoredBuiltDependencies` and the `strictDepBuilds` posture is unchanged.
+- **Confidence:** High.
+- **Architectural impact:** Development still runs TypeScript directly; only release builds are bundled (`scripts/build-release.ts`). Code that locates sibling files at run time (the supervisor entry) must resolve both layouts.
+- **Follow-up:** REL-001 (remaining release work), SEC-005 (SBOM, provenance).
