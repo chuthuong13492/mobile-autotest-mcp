@@ -10,3 +10,5 @@ skills
 packages/contracts/schemas
 test/boundaries-negative
 test/lint-negative
+release/out
+evals/skill/results

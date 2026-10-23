@@ -1,6 +1,6 @@
 {
   "name": "mobile-autotest-mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Mobile AutoTest MCP: PR-driven, policy-governed mobile test orchestration (MCP server + CLI + Agent Skill).",
@@ -17,7 +17,9 @@
     "format:check": "prettier --check .",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm depcruise && pnpm depcruise:negative && pnpm test",
     "depcruise": "depcruise --config .dependency-cruiser.cjs packages apps && node scripts/check-boundaries.ts",
-    "depcruise:negative": "node scripts/check-boundaries-negative.ts"
+    "depcruise:negative": "node scripts/check-boundaries-negative.ts",
+    "release:build": "node scripts/build-release.ts",
+    "release:pack": "node scripts/build-release.ts --pack"
   },
   "devDependencies": {
     "@autotest/adapter-flutter": "workspace:*",

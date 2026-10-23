@@ -29,7 +29,8 @@
     "@autotest/reporting": "workspace:*",
     "@autotest/github": "workspace:*",
     "@autotest/storage": "workspace:*",
-    "@autotest/workflow": "workspace:*"
+    "@autotest/workflow": "workspace:*",
+    "yaml": "2.9.1"
   },
   "bin": {
     "autotest": "./src/main.ts"

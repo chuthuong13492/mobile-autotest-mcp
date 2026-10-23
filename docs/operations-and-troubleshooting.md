@@ -1,23 +1,26 @@
 # Operations and Troubleshooting
 
-This document covers installation, configuration, diagnostics, recovery, orphan cleanup and how to handle platform-specific failures. It describes **planned** behavior. The commands and flags listed here become real as the CLI tasks (CLI-001 … CLI-004) land, and OPS-007 drills each procedure before v1.0.
+This document covers installation, configuration, diagnostics, recovery, orphan cleanup and how to handle platform-specific failures. `init`, `setup`, `doctor`, `approve`, `revoke`, `approvals`, `cleanup` and `uninstall-claude` exist in v0.1; `doctor --stats`, `doctor --repair`, `cleanup --devices` and the CI commands are still planned (CLI-004, OPS-004), and OPS-007 drills each procedure before v1.0.
 
-## 1. Installation (planned)
+## 1. Installation
 
-1. **Install the prerequisites.**
-   - Node.js 26 (its Active LTS line is scheduled to begin on 2026-10-28) or Node.js 24.
-   - Flutter, for Flutter projects.
-   - Xcode and the Android SDK (v1.1+).
-2. **Install AutoTest** from the release registry (REL-001). This provides the `autotest-mcp` and `autotest` commands.
-3. **Run `autotest init`.** It creates `~/.autotest/` with mode `0700` and writes `config.yaml` with comments.
-4. **Edit `config.yaml`:**
-   - `workspaces[]`: allowlisted repositories.
-   - `executables`: absolute paths. `autotest doctor --suggest-executables` proposes these from your PATH, and you confirm each one.
-   - `github`: hosts and credential references.
-   - `approvals`: minimum assurance levels.
-   - `retention`.
-5. **Configure Claude Code.** Add the `.mcp.json` entry shown in [local-and-ci-execution §1.2](local-and-ci-execution.md#12-mcp-client-configuration-claude-code). Then install the Skill, either as a project skill or as a plugin.
-6. **Run `autotest doctor`.** All checks should pass, or report a remediation.
+Version 0.1 is distributed as an npm tarball (`mobile-autotest-mcp-<version>.tgz`, built with `pnpm release:pack`;
+no registry yet). The full guide ships in the package as `README.md` (source: `release/INSTALL.md`).
+
+1. **Prerequisites.** Node.js 24 or newer (it need not be the default `node`); macOS or Linux (Linux needs `ps`
+   from procps); a Flutter SDK for Flutter projects, with dependencies resolved (`flutter pub get`); Claude Code.
+2. **Install.** `npm install -g ./mobile-autotest-mcp-0.1.0.tgz` (with Node 24+). The bins refuse older Node
+   versions with a clear message.
+3. **Set up.** `autotest setup --workspace /path/to/repo [--flutter /abs/path/to/flutter]`. It creates
+   `~/.autotest` and its config, allowlists the repository and the Flutter SDK, registers the server with Claude
+   Code at user scope using the absolute path of the Node that ran it, copies the Skill to
+   `~/.claude/skills/pr-mobile-autotest`, prints the deny rules below, and runs `doctor`.
+4. **Check.** `autotest doctor` (each problem with its fix; `--suggest-executables` lists local Flutter SDKs).
+5. **Plugin alternative.** The package also contains `plugin/` (Skill + `.mcp.json` starting `autotest-mcp` from
+   `PATH`). It needs the package's bin directory on `PATH` and Node 24+ as the default `node`.
+
+Verification scripts: `scripts/verify-macos.sh <flutter>` and `scripts/verify-linux.sh` (Docker) install the tarball
+on a clean prefix and run setup, doctor and a real Flutter run (`scripts/release-smoke.mjs`).
 
 ### Recommended Claude Code permission rules
 

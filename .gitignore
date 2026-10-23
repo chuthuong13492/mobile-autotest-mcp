@@ -12,3 +12,4 @@ release/out/
 *.log
 .env
 .env.*
+evals/skill/results/

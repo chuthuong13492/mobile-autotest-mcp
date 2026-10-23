@@ -318,6 +318,8 @@ Phase 0 discovery tasks were executed after the baseline validation above. The d
 
 **Re-validation (run 27, after CLI-002 and CLI-003).** Exit 0, PASS 47, WARNING 1 (VAL-10, unchanged). The Autotrader SHA-256 manifest (2,966 files) is still identical to the before-snapshot.
 
+**Re-validation (run 28, after SKL-001/002 and the release packaging).** Exit 0, PASS 47, WARNING 1 (VAL-10, unchanged). The Autotrader SHA-256 manifest (2,966 files) is identical to the before-snapshot. **Incident:** during this stage one shell command wrote a new file (`CHANGELOG.md`) into the Autotrader root after a failed `cd`. It was detected immediately (the file is absent from the before-snapshot), moved out, and the manifest re-verified identical; the root folder's modification time is the only lasting trace. See `.planning/progress.md`.
+
 **Environment changes outside the workspace.** These were needed for Phase 0. None is a product dependency.
 
 | Change | Detail |

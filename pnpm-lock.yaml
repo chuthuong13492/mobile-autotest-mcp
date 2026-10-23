@@ -131,6 +131,9 @@ importers:
       '@autotest/workspace':
         specifier: workspace:*
         version: link:../../packages/workspace
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
 
   apps/mcp-server:
     dependencies:

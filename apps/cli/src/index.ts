@@ -8,3 +8,5 @@ export { CONFIG_TEMPLATE } from './commands/init.ts';
 export * from './commands/doctor.ts';
 export * from './commands/cleanup.ts';
 export * from './adapters.ts';
+export * from './commands/setup.ts';
+export * from './paths.ts';

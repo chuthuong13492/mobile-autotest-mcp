@@ -5,10 +5,13 @@ import { cleanup } from './commands/cleanup.ts';
 import { doctor } from './commands/doctor.ts';
 import { init } from './commands/init.ts';
 import { revoke } from './commands/revoke.ts';
+import { parseSetupFlags, setup, uninstallClaude } from './commands/setup.ts';
 import { openCli, type CliEnv } from './context.ts';
 import type { Io } from './io.ts';
 
 export const USAGE = `usage:
+  autotest setup [--workspace <path>]... [--flutter <path>] [--yes] [--skip-claude]
+  autotest uninstall-claude
   autotest init
   autotest doctor [--audit | --suggest-executables]
   autotest cleanup [--dry-run]
@@ -22,6 +25,11 @@ const APPROVAL_ID = /^appr_[0-9A-HJKMNP-TV-Z]{26}$/;
 export async function run(argv: readonly string[], io: Io, e: CliEnv): Promise<number> {
   const [cmd, arg, ...rest] = argv;
   if (cmd === 'init' && arg === undefined) return init(e, io);
+  if (cmd === 'setup') {
+    const f = parseSetupFlags(argv.slice(1));
+    if (f) return setup(e, io, f);
+  }
+  if (cmd === 'uninstall-claude' && arg === undefined) return uninstallClaude(e, io);
   const flags = argv.slice(1);
   if (cmd === 'doctor' && flags.length <= 1 && flags.every((f) => f === '--audit' || f === '--suggest-executables'))
     return doctor(e, io, flags);

@@ -10,6 +10,8 @@ export default tseslint.config(
       'spikes/**',
       'fixtures/**',
       'docs/**',
+      'release/out/**',
+      'evals/skill/results/**',
       'test/boundaries-negative/**',
       'test/lint-negative/**',
       '.dependency-cruiser.cjs',
