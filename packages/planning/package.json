@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "@autotest/core": "workspace:*",
-    "markdown-it": "15.0.2"
+    "markdown-it": "15.0.3"
   }
 }
