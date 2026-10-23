@@ -98,3 +98,4 @@ Incident (2026-10-23, during M7): a shell command whose `cd` into a not-yet-crea
 Re-validation run 28: PASS 47, WARNING 1. Autotrader manifest identical (after the incident above).
 M6: SEC-001 – SEC-003 and E2E-002 done. `pnpm check` passes on Node 24 and 26 with 692 tests. Fixes found by the suites: integrity failures (tampered approval file, tampered plan snapshot) surfaced as E_INTERNAL and now return E_STORAGE_CORRUPT; denial precedence now reports a failed gate before request-shape reasons.
 Re-validation run 29: PASS 47, WARNING 1. Autotrader is unchanged.
+M8 (final): release tarball rebuilt from the final code (sha256 3ba51f62840650db4f3825a3bb4db0355e2c07c1eb04ea30c5cfcd1438a1bbce); scripts/verify-macos.sh passes on it (temp prefix and HOME, setup, doctor 0 failures, real Flutter 3.47.1 run, report pass, audit chain verified). Linux remains NOT VERIFIED until a Docker daemon is available (scripts/verify-linux.sh).
