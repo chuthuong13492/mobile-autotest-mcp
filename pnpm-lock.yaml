@@ -20,12 +20,24 @@ importers:
       '@autotest/core':
         specifier: workspace:*
         version: link:packages/core
+      '@autotest/evidence':
+        specifier: workspace:*
+        version: link:packages/evidence
+      '@autotest/exec':
+        specifier: workspace:*
+        version: link:packages/exec
       '@autotest/mcp-server':
         specifier: workspace:*
         version: link:apps/mcp-server
       '@autotest/policy':
         specifier: workspace:*
         version: link:packages/policy
+      '@autotest/storage':
+        specifier: workspace:*
+        version: link:packages/storage
+      '@autotest/workflow':
+        specifier: workspace:*
+        version: link:packages/workflow
       '@autotest/workspace':
         specifier: workspace:*
         version: link:packages/workspace

@@ -28,6 +28,7 @@ import {
   PortError,
   statusCategoryOf,
   toolError,
+  type Approval,
   type AuthorizationReason,
   type CancelReason,
   type ErrorCode,
@@ -144,12 +145,18 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
       : undefined;
   const targetIds =
     (a.refs && a.refs.length > 0 ? resolvePlanTargets(a.plan, a.refs) : defaultPlanTargets(a.plan)) ?? [];
-  const approvals =
-    targetIds.length > 0
-      ? await ports.approvals.listByScopeDigest(
-          planExecutionScope({ planHash: a.plan.planHash, environment: a.environment, targetIds }).digest,
-        )
-      : [];
+  // A tampered or forged approval record fails its integrity check: nothing for this scope is usable (fail closed).
+  let approvals: Approval[] = [];
+  let approvalIntegrity = true;
+  if (targetIds.length > 0)
+    try {
+      approvals = await ports.approvals.listByScopeDigest(
+        planExecutionScope({ planHash: a.plan.planHash, environment: a.environment, targetIds }).digest,
+      );
+    } catch (e) {
+      if (!(e instanceof PortError && e.code === 'integrity')) throw e;
+      approvalIntegrity = false;
+    }
   const workspace =
     policy && a.plan.repository.localPath
       ? findWorkspace(fsp, resolveWorkspaces(fsp, policy.config.workspaces), a.plan.repository.localPath)
@@ -163,6 +170,10 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
   if (targetIds.length > 0 && targets.length !== targetIds.length)
     problem = toolError('E_PLAN_NOT_FOUND', "some plan targets are missing from the plan's inventory snapshot", [
       'Re-run inspect_test_inventory and generate a new plan version',
+    ]);
+  if (!problem && !approvalIntegrity)
+    problem = toolError('E_STORAGE_CORRUPT', 'an approval record for this scope failed its integrity check', [
+      'Revoke the affected approval (`autotest approvals`, `autotest revoke`), approve again, and review the audit log',
     ]);
   const adapterIds = [...new Set(targets.map((t) => t.adapterId))];
   if (!problem && adapterIds.length > 1)
@@ -274,15 +285,15 @@ export function denialError(
     ['policy_unavailable', 'E_POLICY_UNAVAILABLE', 'Fix ~/.autotest/config.yaml, then run `autotest doctor`'],
     ['plan_hash_mismatch', 'E_PLAN_HASH_MISMATCH', 'Use the planHash returned by generate_test_plan'],
     ['superseded', 'E_PLAN_HASH_MISMATCH', 'A newer plan version exists: validate and run that version'],
-    // What the request asks for is outside policy: reported before coverage or approval problems.
+    ['coverage_missing', 'E_COVERAGE_MISSING', 'Call validate_test_coverage first'],
+    ['coverage_stale', 'E_COVERAGE_STALE', 'Call validate_test_coverage again for this plan version'],
+    ['coverage_failed', 'E_COVERAGE_FAILED', 'Fix the blocker findings and generate a new plan version'],
+    // What the request asks for is outside policy: after coverage (fix the gate first), before approvals.
     ['target_not_eligible', 'E_POLICY_DENIED', 'Select eligible targets of this plan (or omit targets)'],
     ['environment_not_allowed', 'E_POLICY_DENIED', 'Omit environment to use this server'],
     ['workspace_not_allowed', 'E_POLICY_DENIED', "Add the plan's workspace to config.yaml (not read-only)"],
     ['device_not_allowed', 'E_POLICY_DENIED', 'Use an allowlisted device'],
     ['command_denied', 'E_POLICY_DENIED', 'Allowlist the executable in config.yaml (`autotest doctor`)'],
-    ['coverage_missing', 'E_COVERAGE_MISSING', 'Call validate_test_coverage first'],
-    ['coverage_stale', 'E_COVERAGE_STALE', 'Call validate_test_coverage again for this plan version'],
-    ['coverage_failed', 'E_COVERAGE_FAILED', 'Fix the blocker findings and generate a new plan version'],
     ['approval_required', 'E_APPROVAL_REQUIRED', 'Call request_approval; a human approves with `autotest approve`'],
     ['approval_stale', 'E_APPROVAL_STALE', 'Request a new approval for the current plan hash'],
     ['approval_expired', 'E_APPROVAL_EXPIRED', 'Request a new approval'],

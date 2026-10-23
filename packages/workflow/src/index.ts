@@ -5,7 +5,7 @@
  * {@link bindUseCases} validates every input against the tool's Zod schema before a use case runs and every output
  * after it returns, so both apps share one enforcement point (ADR-0003, NFR-013).
  */
-import { TOOLS, toolError, type ToolInput, type ToolName, type ToolOutput } from '@autotest/core';
+import { PortError, TOOLS, toolError, type ToolInput, type ToolName, type ToolOutput } from '@autotest/core';
 
 export type { CallContext, WorkflowPorts } from './ports.ts';
 import type { CallContext } from './ports.ts';
@@ -29,7 +29,8 @@ const pointer = (path: readonly PropertyKey[]): string =>
  * Wraps use cases with contract enforcement:
  * - input failing its schema → `E_VALIDATION` with JSON-pointer issues (the use case never runs);
  * - output failing its schema → `E_INTERNAL` (a server bug; the invalid output is never returned);
- * - a thrown exception → `E_INTERNAL` with a correlation id, never the raw message.
+ * - a thrown integrity failure → `E_STORAGE_CORRUPT`; any other thrown exception → `E_INTERNAL` with a correlation
+ *   id, never the raw message.
  */
 export function bindUseCases(useCases: UseCases): Workflow {
   const missing = TOOLS.map((t) => t.name).filter(
@@ -58,7 +59,15 @@ export function bindUseCases(useCases: UseCases): Workflow {
       let result: UseCaseResult<unknown>;
       try {
         result = await useCase(parsed.data, ctx);
-      } catch {
+      } catch (e) {
+        // A stored record that fails its integrity check (tampered file, forged index row) fails closed with its
+        // own code, so the user learns what to repair; anything else is an internal error.
+        if (e instanceof PortError && e.code === 'integrity')
+          return fail(
+            toolError('E_STORAGE_CORRUPT', `a stored record failed its integrity check in ${tool.name}`, [
+              'Run `autotest doctor`, revoke or regenerate the affected record, and review the audit log',
+            ]),
+          );
         return fail(
           toolError('E_INTERNAL', `Unexpected error in ${tool.name}`, ['Report this with the correlation id'], {
             correlationId: ctx.toolCallId,

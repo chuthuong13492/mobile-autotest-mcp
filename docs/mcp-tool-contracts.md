@@ -860,7 +860,7 @@ output = z.object({
 - **Preconditions:** A current coverage decision. A usable approval if the decision is `needs_review`. Prerequisites satisfied.
 - **Postconditions:** The run row and authorization decision are persisted **before** the response. A `plan_execution` approval use is consumed at dispatch, not at creation, so that a run cancelled while queued does not consume it.
 - **Implementation notes (RUN-001 – RUN-006):**
-  - Denials map to error codes in this order: policy unavailable, plan hash/superseded, request-shape reasons (`target_not_eligible`, `environment_not_allowed`, `workspace_not_allowed`, `device_not_allowed`, `command_denied` → `E_POLICY_DENIED`), coverage, approval, prerequisites. `details.reasons` lists every reason.
+  - Denials map to error codes in this order: policy unavailable, plan hash/superseded, coverage, request-shape reasons (`target_not_eligible`, `environment_not_allowed`, `workspace_not_allowed`, `device_not_allowed`, `command_denied` → `E_POLICY_DENIED`), approval, prerequisites. `details.reasons` lists every reason.
   - Unresolved dependencies (Flutter: no `.dart_tool/package_config.json`) refuse the run with `E_PREREQUISITE_MISSING` and `details.prerequisites: ["pub_get"]`.
   - `retry.maxAttempts` defaults to `1 + execution.maxRetries` and may not exceed it; `timeouts.runMs` may not exceed `execution.defaultTimeoutMs`. Both are refused with `E_POLICY_DENIED`.
   - Dispatch re-evaluates authorization and compares a binding digest (plan id, version and hash, environment, policy version, workspace, targets, spec digests) with the one recorded at creation; a difference or a denial cancels the run with `authorization_invalidated`.
