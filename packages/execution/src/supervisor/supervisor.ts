@@ -10,7 +10,8 @@
  * `cancel_pending`, re-checked with back-off until the verification window ends in `infra_error(cancel_unconfirmed)`.
  * `cancelled`/`timed_out` are written only after termination was confirmed.
  *
- * Dispatch-time re-authorization and evidence collection are hooks: RUN-002 supplies the full re-evaluation.
+ * Dispatch-time re-authorization, per-attempt parsing with bounded retries (RUN-005) and evidence collection are
+ * hooks; the app's supervisor entrypoint supplies the full re-evaluation (RUN-002) and the adapters.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,6 +25,7 @@ import {
   type RunEvent,
   type RunEventInput,
   type RunStatus,
+  type TestTarget,
 } from '@autotest/core';
 import {
   nodeExecPort,
@@ -44,8 +46,12 @@ import {
   readJson,
   RunHeader,
   runPaths,
+  AttemptResultsFile,
   type TerminalRecord,
 } from './files.ts';
+import { countOutcomes } from '@autotest/adapter-sdk';
+import type { AttemptHooks, AttemptParse } from '../attemptHooks.ts';
+import { selectRetryTargets } from '../retry.ts';
 
 export interface DispatchAuthorization {
   readonly result: 'authorized' | 'denied';
@@ -64,6 +70,10 @@ export interface SupervisorHooks {
     stdoutPath: string;
     stderrPath: string;
   }): SpawnContext | undefined;
+  /** Adapter-driven later-attempt specs and per-attempt parsing (absent: one attempt, no results file). */
+  readonly attempts?: AttemptHooks;
+  /** Evidence ingestion in the `collecting` state (EVD-001); a throw ends the run in `infra_error(storage_error)`. */
+  collect?(header: RunHeader): Promise<void>;
 }
 
 export interface SupervisorOptions {
@@ -165,74 +175,95 @@ export async function runSupervisor(opts: SupervisorOptions): Promise<TerminalRe
       requestCancel('resource_quota'),
     );
 
-    // ---- running: one attempt (bounded retries arrive with RUN-003)
-    const attemptNo = 1;
-    const attemptDir = paths.attemptDir(attemptNo);
-    fs.mkdirSync(attemptDir, { recursive: true, mode: 0o700 });
-    atomicWriteJson(path.join(attemptDir, 'spec.json'), header.specs);
-    emit({ t: 'attempt.start', ts: ts(), attemptNo, specDigests: header.specs.map((s) => digest(s)) });
+    // ---- running: attempt 1 runs the authorized specs; later attempts re-run only retryable targets (RUN-005)
+    const exec = header.execution;
+    const maxAttempts = exec && opts.hooks.attempts ? exec.maxAttempts : 1;
+    let targets = exec?.targets ?? [];
     let crashed = false;
-    let current: ProcessIdentity | undefined;
-    for (const [index, spec] of header.specs.entries()) {
-      if (cancelReason) break;
-      const ctx = opts.hooks.spawnContext({
-        header,
-        attemptNo,
-        index,
-        stdoutPath: path.join(attemptDir, `stdout-${index}.log`),
-        stderrPath: path.join(attemptDir, `stderr-${index}.log`),
-      });
-      let spawned: Awaited<ReturnType<typeof spawnSpec>> | undefined;
-      try {
-        spawned = ctx ? await spawnSpec(spec, { ...ctx, port }) : undefined;
-      } catch {
-        spawned = undefined;
+    for (let attemptNo = 1; attemptNo <= maxAttempts; attemptNo++) {
+      const specs = attemptNo === 1 ? header.specs : opts.hooks.attempts!.buildSpecs(header, attemptNo, targets);
+      if (specs.length === 0) break;
+      const attemptDir = paths.attemptDir(attemptNo);
+      fs.mkdirSync(path.join(attemptDir, 'runner'), { recursive: true, mode: 0o700 });
+      atomicWriteJson(path.join(attemptDir, 'spec.json'), specs);
+      emit({ t: 'attempt.start', ts: ts(), attemptNo, specDigests: specs.map((s) => digest(s)) });
+      const attemptProcesses: { exitCode?: number; signal?: string }[] = [];
+      let current: ProcessIdentity | undefined;
+      for (const [index, spec] of specs.entries()) {
+        if (cancelReason) break;
+        const ctx = opts.hooks.spawnContext({
+          header,
+          attemptNo,
+          index,
+          stdoutPath: path.join(attemptDir, `stdout-${index}.log`),
+          stderrPath: path.join(attemptDir, `stderr-${index}.log`),
+        });
+        let spawned: Awaited<ReturnType<typeof spawnSpec>> | undefined;
+        try {
+          spawned = ctx ? await spawnSpec(spec, { ...ctx, port }) : undefined;
+        } catch {
+          spawned = undefined;
+        }
+        if (!spawned?.ok) {
+          // Policy changed between dry run and spawn, or the spawn itself failed.
+          crashed = true;
+          break;
+        }
+        const p = spawned.process;
+        current = p.identity;
+        emit({
+          t: 'process.start',
+          ts: ts(),
+          pid: p.identity.pid,
+          pgid: p.identity.pgid,
+          startTime: p.identity.startTime,
+          executable: p.identity.executable,
+          role: 'runner',
+        });
+        const exit = await Promise.race([p.exited, cancelled.then(() => undefined)]);
+        if (!exit) break;
+        current = undefined;
+        emit({
+          t: 'process.exit',
+          ts: ts(),
+          pid: p.identity.pid,
+          ...(exit.exitCode === undefined ? {} : { exitCode: exit.exitCode }),
+          ...(exit.signal ? { signal: exit.signal } : {}),
+        });
+        const rec = {
+          ...(exit.exitCode === undefined ? {} : { exitCode: exit.exitCode }),
+          ...(exit.signal ? { signal: exit.signal } : {}),
+        };
+        attemptProcesses.push(rec);
+        processes.push({ pid: p.identity.pid, ...rec });
       }
-      if (!spawned?.ok) {
-        // Policy changed between dry run and spawn, or the spawn itself failed.
-        crashed = true;
-        break;
-      }
-      const p = spawned.process;
-      current = p.identity;
-      emit({
-        t: 'process.start',
-        ts: ts(),
-        pid: p.identity.pid,
-        pgid: p.identity.pgid,
-        startTime: p.identity.startTime,
-        executable: p.identity.executable,
-        role: 'runner',
-      });
-      const exit = await Promise.race([p.exited, cancelled.then(() => undefined)]);
-      if (!exit) break;
-      current = undefined;
-      emit({
-        t: 'process.exit',
-        ts: ts(),
-        pid: p.identity.pid,
-        ...(exit.exitCode === undefined ? {} : { exitCode: exit.exitCode }),
-        ...(exit.signal ? { signal: exit.signal } : {}),
-      });
-      processes.push({
-        pid: p.identity.pid,
-        ...(exit.exitCode === undefined ? {} : { exitCode: exit.exitCode }),
-        ...(exit.signal ? { signal: exit.signal } : {}),
-      });
-    }
 
-    if (cancelReason) {
-      await cancelSequence(current);
-      emit({ t: 'attempt.end', ts: ts(), attemptNo, summary: {} });
-      return finish({ processes });
+      if (cancelReason) await cancelSequence(current);
+      const parsed =
+        exec && opts.hooks.attempts && !crashed
+          ? parseAttempt(attemptNo, targets, attemptProcesses, cancelReason !== undefined)
+          : undefined;
+      emit({ t: 'attempt.end', ts: ts(), attemptNo, summary: parsed ? countOutcomes(parsed.results) : {} });
+      if (cancelReason) return finish({ processes });
+      if (crashed || !parsed || !exec) break;
+      targets = selectRetryTargets(parsed.results, targets, exec.retryOn);
+      if (targets.length === 0) break;
     }
-    emit({ t: 'attempt.end', ts: ts(), attemptNo, summary: {} });
     if (crashed) {
       move({ type: 'runner_crashed' });
       return finish({ processes });
     }
     move({ type: 'attempts_finished' });
-    // Evidence ingestion (EVD-*) and analysis (ANL-*) plug in here.
+    // Evidence ingestion (EVD-*) and analysis (ANL-*) run in the collecting and analyzing states.
+    if (opts.hooks.collect) {
+      try {
+        await opts.hooks.collect(header);
+      } catch (e) {
+        fs.appendFileSync(paths.log, `${ts()} evidence collection failed: ${(e as Error).message}\n`);
+        move({ type: 'storage_error' });
+        return finish({ processes });
+      }
+    }
     move({ type: 'evidence_collected' });
     move({ type: 'analysis_done' });
     return finish({ processes });
@@ -247,6 +278,40 @@ export async function runSupervisor(opts: SupervisorOptions): Promise<TerminalRe
     runTimer?.cancel();
     quota?.stop();
     if (opts.listenSignals) process.off('SIGTERM', onSigterm);
+  }
+
+  /** Parses one attempt through the adapter hooks and records `attempts/<n>/results.json`. */
+  function parseAttempt(
+    attemptNo: number,
+    targets: readonly TestTarget[],
+    attemptProcesses: readonly { exitCode?: number; signal?: string }[],
+    interrupted: boolean,
+  ): AttemptParse | undefined {
+    try {
+      const parsed = opts.hooks.attempts!.parseAttempt({
+        header: header!,
+        runDir: paths.dir,
+        attemptNo,
+        targets,
+        processes: attemptProcesses,
+        interrupted,
+      });
+      atomicWriteJson(
+        path.join(paths.attemptDir(attemptNo), 'results.json'),
+        AttemptResultsFile.parse({
+          attemptNo,
+          targetIds: targets.map((x) => x.id),
+          interrupted,
+          ...(parsed.protocol ? { protocol: parsed.protocol.slice(0, 64) } : {}),
+          results: parsed.results,
+          diagnostics: parsed.diagnostics.slice(0, 100),
+        }),
+      );
+      return parsed;
+    } catch (e) {
+      fs.appendFileSync(paths.log, `${ts()} parsing attempt ${attemptNo} failed: ${(e as Error).message}\n`);
+      return undefined;
+    }
   }
 
   /** cancelling → (cancelled | timed_out | cancel_pending → … ) with identity-checked termination. */

@@ -15,11 +15,21 @@ import {
   type MetricsRegistry,
 } from '@autotest/core';
 import { createAdapterRegistry, type PlatformAdapter } from '@autotest/adapter-sdk';
-import { createFlutterAdapter } from '@autotest/adapter-flutter';
 import { launchSupervisor } from '@autotest/execution';
+import { builtInAdapters } from './adapters.ts';
+import { supervisorEntryPath } from './supervisorPath.ts';
+import { runUseCases } from './tools/runs.ts';
 import { loadPolicyConfig, type PolicyLoadResult } from '@autotest/policy';
 import { loadOrCreateKey, openDataRoot } from '@autotest/storage';
-import { bindUseCases, serverEnvironmentOf, type UseCases, type WorkflowPorts } from '@autotest/workflow';
+import {
+  bindUseCases,
+  pumpQueue,
+  reconcileRuns,
+  serverEnvironmentOf,
+  type RunDeps,
+  type UseCases,
+  type WorkflowPorts,
+} from '@autotest/workflow';
 import type { McpServer } from '@modelcontextprotocol/server';
 import { createServerLogger, type ServerLoggerOptions } from './log.ts';
 import { createToolPipeline, type ToolPipeline } from './middleware/pipeline.ts';
@@ -42,6 +52,10 @@ export interface ComposeOptions {
   readonly useCases?: (ports: WorkflowPorts, policy: PolicyLoadResult) => UseCases;
   /** Platform adapters to register (default: the built-in adapters, currently Flutter). */
   readonly adapters?: readonly PlatformAdapter[];
+  /** Absolute path of the supervisor entrypoint (tests; default: the app's own). */
+  readonly supervisorEntry?: string;
+  /** Skip startup reconciliation and the queue timer (tests that drive them explicitly). */
+  readonly background?: boolean;
   /** This server's environment for approval bindings (default `local:<hostname>`). */
   readonly serverEnvironment?: { readonly id: string; readonly kind: 'local' | 'ci' };
 }
@@ -56,11 +70,6 @@ export interface Composed {
   /** The middleware-wrapped tool surface (what the MCP server calls). */
   readonly call: ToolPipeline;
   close(): Promise<void>;
-}
-
-/** Adapters shipped with this build (FL-001: Flutter host tests). */
-export function builtInAdapters(): PlatformAdapter[] {
-  return [createFlutterAdapter()];
 }
 
 export function resolveDataRoot(env: Readonly<Record<string, string | undefined>>): string {
@@ -108,7 +117,10 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
     clock,
     ids,
     ...domainStores,
-    execution: { startSupervisor: async (runId) => launchSupervisor(dataRoot, runId) },
+    execution: {
+      startSupervisor: async (runId) =>
+        launchSupervisor(dataRoot, runId, supervisorEnv(env), undefined, opts.supervisorEntry ?? supervisorEntryPath()),
+    },
     cursors: createCursorCodec(loadOrCreateKey(dataRoot, 'cursor'), clock),
   };
   const registry = createAdapterRegistry(opts.adapters ?? builtInAdapters());
@@ -136,10 +148,12 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
   const serverEnvironment = opts.serverEnvironment ?? serverEnvironmentOf(env);
   const coverage = coverageUseCases({ ports, policy, serverEnvironment });
   const approvals = approvalUseCases({ ports, policy, serverEnvironment });
+  const runDeps: RunDeps = { ports, policy, registry, serverEnvironment, dataRoot, host };
+  const runs = runUseCases(runDeps);
   const workflow = bindUseCases(
     opts.useCases
       ? opts.useCases(ports, policy)
-      : withUseCases(notImplementedUseCases(), { ...implemented, ...planning, ...coverage, ...approvals }),
+      : withUseCases(notImplementedUseCases(), { ...implemented, ...planning, ...coverage, ...approvals, ...runs }),
   );
   const sessionId = ids.newId('ses');
   const metrics = createMetricsRegistry();
@@ -168,6 +182,18 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
         : Promise.resolve(result),
   });
 
+  // RUN-006: reconcile runs left by an earlier server, then keep the queue moving while this server lives.
+  let pumpTimer: ReturnType<typeof setInterval> | undefined;
+  if (opts.background !== false && policy.ok) {
+    try {
+      await reconcileRuns(runDeps);
+    } catch (e) {
+      logger.warn('reconcile.failed', { data: { error: (e as Error).name } });
+    }
+    pumpTimer = setInterval(() => void pumpQueue(runDeps).catch(() => undefined), 2000);
+    pumpTimer.unref();
+  }
+
   let closed = false;
   return {
     server,
@@ -180,9 +206,16 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
     async close() {
       if (closed) return;
       closed = true;
+      if (pumpTimer) clearInterval(pumpTimer);
       await server.close();
       sql.close();
       logger.info('server.stopped');
     },
   };
+}
+
+/** The variables a supervisor needs from the server: the host id (shared environment binding) and nothing else. */
+function supervisorEnv(env: Readonly<Record<string, string | undefined>>): Record<string, string> {
+  const id = env['AUTOTEST_HOST_ID'];
+  return id && /^[A-Za-z0-9._-]{1,64}$/.test(id) ? { AUTOTEST_HOST_ID: id } : {};
 }

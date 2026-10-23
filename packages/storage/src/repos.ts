@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import {
   CoverageDecision,
   EvidenceArtifact,
+  ExecutionAuthorizationDecision,
   PortError,
   PRContext,
   ProjectProfile,
@@ -25,6 +26,7 @@ import {
   canonicalize,
   verifyPlanHash,
   type ArtifactIndex,
+  type AuthorizationStore,
   type DecisionBinding,
   type DecisionStore,
   type InventoryStore,
@@ -310,6 +312,70 @@ export class SqliteDecisionStore implements DecisionStore {
   }
 }
 
+export class SqliteAuthorizationStore implements AuthorizationStore {
+  private readonly sql: SqlPort;
+  constructor(sql: SqlPort) {
+    this.sql = sql;
+  }
+  async put(decision: ExecutionAuthorizationDecision): Promise<void> {
+    const d = ExecutionAuthorizationDecision.parse(decision);
+    const doc = canonicalize(d);
+    const prev = await this.get(d.id);
+    if (prev) {
+      if (canonicalize(prev) !== doc)
+        throw new PortError('conflict', `authorization ${d.id} exists with different content`);
+      return;
+    }
+    this.sql.run(
+      'INSERT INTO authorization_decisions (id, run_id, phase, result, reasons, inputs_digest, evaluated_at) VALUES (?,?,?,?,?,?,?)',
+      d.id,
+      d.runId ?? null,
+      d.phase,
+      d.result,
+      JSON.stringify(d.reasons),
+      d.inputsDigest,
+      d.evaluatedAt,
+    );
+  }
+  async get(id: string): Promise<ExecutionAuthorizationDecision | undefined> {
+    const row = this.sql.get<AuthorizationRow>('SELECT * FROM authorization_decisions WHERE id = ?', id);
+    return row && fromAuthorizationRow(row);
+  }
+  async listByRun(runId: string): Promise<ExecutionAuthorizationDecision[]> {
+    return this.sql
+      .all<AuthorizationRow>(
+        'SELECT * FROM authorization_decisions WHERE run_id = ? ORDER BY evaluated_at, rowid',
+        runId,
+      )
+      .map(fromAuthorizationRow);
+  }
+}
+
+interface AuthorizationRow {
+  id: string;
+  run_id: string | null;
+  phase: string;
+  result: string;
+  reasons: string;
+  inputs_digest: string;
+  evaluated_at: string;
+}
+
+function fromAuthorizationRow(r: AuthorizationRow): ExecutionAuthorizationDecision {
+  const parsed = ExecutionAuthorizationDecision.safeParse({
+    id: r.id,
+    schemaVersion: 1,
+    ...(r.run_id ? { runId: r.run_id } : {}),
+    phase: r.phase,
+    result: r.result,
+    reasons: JSON.parse(r.reasons) as unknown,
+    inputsDigest: r.inputs_digest,
+    evaluatedAt: r.evaluated_at,
+  });
+  if (!parsed.success) throw new PortError('integrity', `authorization ${r.id} failed validation`);
+  return parsed.data;
+}
+
 export class SqliteRunStore implements RunStore {
   private readonly sql: SqlPort;
   constructor(sql: SqlPort) {
@@ -461,6 +527,7 @@ export function createStores(sql: SqlPort, root: string) {
     requirements: new SqliteRequirementStore(sql),
     decisions: new SqliteDecisionStore(sql),
     approvals: new SqliteApprovalStore(sql, root),
+    authorizations: new SqliteAuthorizationStore(sql),
     runs: new SqliteRunStore(sql),
     results: new SqliteResultStore(sql),
     artifacts: new SqliteArtifactIndex(sql),

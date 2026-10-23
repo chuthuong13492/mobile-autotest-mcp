@@ -5,13 +5,13 @@
  * {@link bindUseCases} validates every input against the tool's Zod schema before a use case runs and every output
  * after it returns, so both apps share one enforcement point (ADR-0003, NFR-013).
  */
-import { TOOLS, toolError, type ToolError, type ToolInput, type ToolName, type ToolOutput } from '@autotest/core';
+import { TOOLS, toolError, type ToolInput, type ToolName, type ToolOutput } from '@autotest/core';
 
 export type { CallContext, WorkflowPorts } from './ports.ts';
 import type { CallContext } from './ports.ts';
 
-export type UseCaseResult<O> =
-  { readonly ok: true; readonly value: O } | { readonly ok: false; readonly error: ToolError };
+import { fail, ok, type UseCaseResult } from './result.ts';
+export { fail, ok, type UseCaseResult } from './result.ts';
 export type UseCase<I, O> = (input: I, ctx: CallContext) => Promise<UseCaseResult<O>>;
 
 /** One use case per catalog tool; the mapped type makes a missing or mistyped tool a compile error. */
@@ -20,9 +20,6 @@ export type UseCases = { readonly [N in ToolName]: UseCase<ToolInput<N>, ToolOut
 export type Workflow = {
   readonly [N in ToolName]: (rawInput: unknown, ctx: CallContext) => Promise<UseCaseResult<ToolOutput<N>>>;
 };
-
-export const ok = <O>(value: O): UseCaseResult<O> => ({ ok: true, value });
-export const fail = <O = never>(error: ToolError): UseCaseResult<O> => ({ ok: false, error });
 
 /** JSON pointer for a Zod issue path (e.g. `/draft/testCases/0/steps`). */
 const pointer = (path: readonly PropertyKey[]): string =>
@@ -89,3 +86,4 @@ export function bindUseCases(useCases: UseCases): Workflow {
 export * from './intake.ts';
 export * from './environment.ts';
 export * from './approvals.ts';
+export * from './run.ts';

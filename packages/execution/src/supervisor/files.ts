@@ -12,11 +12,14 @@ import { z } from 'zod';
 import {
   CancelReason,
   ExecutionSpec,
+  FailureKind,
   InfraReason,
   RunEvent,
   RunId,
   RunState,
   Sha256,
+  TestOutcome,
+  TestTarget,
   Timestamp,
   type RunEvent as RunEventT,
 } from '@autotest/core';
@@ -61,8 +64,47 @@ export const RunHeader = z.strictObject({
     .int()
     .min(1024)
     .max(1024 ** 3),
+  /**
+   * Adapter-driven execution (RUN-002/005): the targets to run, so the supervisor can build specs for later
+   * attempts, parse each attempt with the adapter and retry only retryable failures. `specs` stays the attempt-1
+   * command set authorized at creation. Absent for plain spec runs (EXE-003).
+   */
+  execution: z
+    .strictObject({
+      adapterId: z.string().regex(/^[a-z0-9-]{1,64}$/),
+      targets: z.array(TestTarget).min(1).max(2000),
+      coverage: z.boolean(),
+      maxAttempts: z.number().int().min(1).max(3),
+      retryOn: z.array(z.enum(['flaky', 'infrastructure'])).max(2),
+    })
+    .optional(),
 });
 export type RunHeader = z.infer<typeof RunHeader>;
+
+/** `attempts/<n>/results.json`: one attempt's normalized results, written by the supervisor after parsing. */
+export const AttemptResultsFile = z.strictObject({
+  attemptNo: z.number().int().min(1),
+  targetIds: z.array(z.string()).max(2000),
+  interrupted: z.boolean(),
+  protocol: z.string().max(64).optional(),
+  results: z
+    .array(
+      z.strictObject({
+        targetId: z.string().max(128),
+        name: z.string().min(1).max(500),
+        suitePath: z.string().max(1024).optional(),
+        outcome: TestOutcome,
+        failureKind: FailureKind.optional(),
+        blockedReason: z.string().max(200).optional(),
+        durationMs: z.number().int().min(0).optional(),
+        messageExcerpt: z.string().max(2048).optional(),
+        rawStatus: z.string().max(64),
+      }),
+    )
+    .max(100_000),
+  diagnostics: z.array(z.strictObject({ code: z.string().max(64), message: z.string().max(500) })).max(100),
+});
+export type AttemptResultsFile = z.infer<typeof AttemptResultsFile>;
 
 /** `control.json`: cancel requests from the server. */
 export const ControlFile = z.strictObject({ cancel: z.literal(true), reason: CancelReason, requestedAt: Timestamp });

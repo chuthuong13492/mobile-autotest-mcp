@@ -3,6 +3,7 @@ import type {
   ApprovalStore,
   ArtifactIndex,
   AuditSink,
+  AuthorizationStore,
   Clock,
   CursorCodec,
   DecisionStore,
@@ -29,6 +30,7 @@ export interface WorkflowPorts {
   readonly requirements: RequirementStore;
   readonly decisions: DecisionStore;
   readonly approvals: ApprovalStore;
+  readonly authorizations: AuthorizationStore;
   readonly runs: RunStore;
   readonly results: ResultStore;
   readonly artifacts: ArtifactIndex;

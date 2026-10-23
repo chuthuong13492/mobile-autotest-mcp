@@ -10,6 +10,7 @@ import {
   InMemoryDecisionStore,
   InMemoryPlanStore,
   InMemoryResultStore,
+  InMemoryAuthorizationStore,
   InMemoryRunStore,
   approvalStoreCases,
   auditSinkCases,
@@ -20,6 +21,7 @@ import {
   decisionStoreCases,
   planStoreCases,
   resultStoreCases,
+  authorizationStoreCases,
   runStoreCases,
 } from '@autotest/core/testing';
 
@@ -27,6 +29,7 @@ const suites = [
   ...planStoreCases(() => new InMemoryPlanStore()),
   ...decisionStoreCases(() => new InMemoryDecisionStore()),
   ...approvalStoreCases(() => new InMemoryApprovalStore()),
+  ...authorizationStoreCases(() => new InMemoryAuthorizationStore()),
   ...runStoreCases(() => new InMemoryRunStore()),
   ...resultStoreCases(() => new InMemoryResultStore()),
   ...auditSinkCases(() => new InMemoryAuditSink()),

@@ -8,6 +8,7 @@ import type {
   AuditEvent,
   CoverageDecision,
   EvidenceArtifact,
+  ExecutionAuthorizationDecision,
   PRContext,
   ProcessIdentity,
   ProjectProfile,
@@ -109,6 +110,15 @@ export interface ApprovalStore {
   listRecentApprovals(limit: number): Promise<Approval[]>;
   /** Lazy expiry sweep: `approved` approvals and `open` requests at or past their expiry become `expired`. */
   expireDue(at: Date): Promise<{ approvals: number; requests: number }>;
+}
+
+/** Execution authorization decisions (ADR-0006 §4), persisted before the run they authorize or deny is reported. */
+export interface AuthorizationStore {
+  /** Throws `conflict` when the id exists with different content; an identical re-put is a no-op. */
+  put(decision: ExecutionAuthorizationDecision): Promise<void>;
+  get(id: string): Promise<ExecutionAuthorizationDecision | undefined>;
+  /** Decisions recorded for a run, oldest first. */
+  listByRun(runId: string): Promise<ExecutionAuthorizationDecision[]>;
 }
 
 export interface RunStore {

@@ -85,3 +85,5 @@ Re-validation run 23: PASS 47, WARNING 1. Autotrader is unchanged.
 M0: git initialized (`main`, initial commit), esbuild 0.28.2 added (RL-038), CI workflow written (OPS-002 partial: no remote, never run).
 M1: E2E-001 and FL-001 – FL-005 done; the Flutter adapter is built into the server. `pnpm check` passes on Node 24 and 26 with 594 tests. Fixed: the probe parser now tolerates Flutter's first-run banner, and `inspect` no longer reports a version range as resolved.
 Re-validation run 24: PASS 47, WARNING 1. Autotrader is unchanged.
+M2: RUN-001 – RUN-006 done. `pnpm check` passes on Node 24 and 26 with 613 tests. New `AuthorizationStore` port, optional `PlatformAdapter.prerequisites`, a supervisor entry in the server app (`supervisorBoot.ts` → `supervisorEntry.ts`) wiring the adapters and dispatch-time re-authorization. Fixed during testing: a cancel during supervisor start-up killed it silently; the queue now refreshes slot holders before dispatching. Real Flutter 3.47.1 run of the fixture through `run_tests` completed, with the flaky test passing on attempt 2.
+Re-validation run 25: PASS 47, WARNING 1. Autotrader is unchanged.

@@ -12,3 +12,6 @@ export * from './tools/planning.ts';
 export * from './tools/coverage.ts';
 export * from './tools/approvals.ts';
 export * from './elicitation.ts';
+export * from './tools/runs.ts';
+export * from './adapters.ts';
+export * from './supervisorPath.ts';

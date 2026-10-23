@@ -127,3 +127,15 @@ export function targetId(adapterId: string, relPath: string, selector = ''): str
     .digest('hex');
   return `TT-${adapterId}-${digest.slice(0, 12)}`;
 }
+
+/**
+ * A handle derived from a seed instead of the clock: the same seed always yields the same id. Used where a record
+ * may be written by more than one process and must land exactly once (run results import, RUN-003).
+ */
+export function derivedId(prefix: string, seed: string): string {
+  if (!/^[a-z]{2,8}$/.test(prefix)) throw new Error(`invalid id prefix: ${prefix}`);
+  const bytes = createHash('sha256').update(seed, 'utf8').digest();
+  let out = '';
+  for (let i = 0; i < 26; i++) out += CROCKFORD[bytes[i]! % 32];
+  return `${prefix}_${out}`;
+}

@@ -9,6 +9,7 @@ import type {
   AuditEvent,
   CoverageDecision,
   EvidenceArtifact,
+  ExecutionAuthorizationDecision,
   PRContext,
   ProjectProfile,
   RequirementSet,
@@ -27,6 +28,7 @@ import {
   type ApprovalStore,
   type ArtifactIndex,
   type AuditAppend,
+  type AuthorizationStore,
   type AuditSink,
   type Clock,
   type DecisionBinding,
@@ -219,6 +221,23 @@ export class InMemoryApprovalStore implements ApprovalStore {
       }
     }
     return { approvals, requests };
+  }
+}
+
+export class InMemoryAuthorizationStore implements AuthorizationStore {
+  private readonly decisions = new Map<string, ExecutionAuthorizationDecision>();
+  async put(decision: ExecutionAuthorizationDecision): Promise<void> {
+    const prev = this.decisions.get(decision.id);
+    if (prev && canonicalize(prev) !== canonicalize(decision))
+      throw new PortError('conflict', `authorization ${decision.id} exists with different content`);
+    this.decisions.set(decision.id, clone(decision));
+  }
+  async get(id: string): Promise<ExecutionAuthorizationDecision | undefined> {
+    const d = this.decisions.get(id);
+    return d && clone(d);
+  }
+  async listByRun(runId: string): Promise<ExecutionAuthorizationDecision[]> {
+    return [...this.decisions.values()].filter((d) => d.runId === runId).map(clone);
   }
 }
 

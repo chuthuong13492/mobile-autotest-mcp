@@ -186,6 +186,12 @@ export interface CleanupContext {
   readonly attemptNo: number;
 }
 
+/** Whether a workspace is ready to run (e.g. dependencies resolved); checked before a run is authorized. */
+export interface PrerequisiteReport {
+  readonly satisfied: boolean;
+  readonly missing: readonly { readonly code: string; readonly message: string }[];
+}
+
 export interface PlatformAdapter {
   readonly id: string;
   readonly version: string;
@@ -198,4 +204,6 @@ export interface PlatformAdapter {
   evidenceHints(outputs: RunnerOutputs): EvidenceHint[];
   failureSignals(results: readonly NormalizedResult[], outputs: RunnerOutputs): FailureSignal[];
   cleanupSpecs?(ctx: CleanupContext): ExecutionSpec[];
+  /** Runtime prerequisites; absent means none beyond the allowlisted executable. */
+  prerequisites?(ctx: DetectContext): Promise<PrerequisiteReport>;
 }

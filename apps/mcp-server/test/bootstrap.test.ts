@@ -62,12 +62,14 @@ describe('MCP-001 bootstrap (SDK client, in process)', () => {
     expect(bad.structuredContent).toMatchObject({
       error: { code: 'E_VALIDATION', recoverable: true, details: { issues: [{ pointer: '/runId' }] } },
     });
-    const stub = await client.callTool({
+    const stub = await client.callTool({ name: 'list_devices', arguments: {} });
+    expect(stub).toMatchObject({ isError: true, structuredContent: { error: { code: 'E_CAPABILITY_UNAVAILABLE' } } });
+    expect((stub.content as { text: string }[])[0]!.text).toMatch(/^E_CAPABILITY_UNAVAILABLE: /);
+    const missing = await client.callTool({
       name: 'get_run_status',
       arguments: { runId: 'run_01JCAAAAAAAAAAAAAAAAAAAAAA' },
     });
-    expect(stub).toMatchObject({ isError: true, structuredContent: { error: { code: 'E_CAPABILITY_UNAVAILABLE' } } });
-    expect((stub.content as { text: string }[])[0]!.text).toMatch(/^E_CAPABILITY_UNAVAILABLE: /);
+    expect(missing).toMatchObject({ isError: true, structuredContent: { error: { code: 'E_RUN_NOT_FOUND' } } });
     await client.close();
     await composed.close();
   });

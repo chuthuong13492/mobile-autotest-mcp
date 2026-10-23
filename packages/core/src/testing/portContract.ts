@@ -3,7 +3,7 @@
  * in-memory fakes and the SQLite repositories (STO-003) run the identical semantics checks.
  */
 import assert from 'node:assert/strict';
-import { computePlanHash } from '@autotest/contracts';
+import { computePlanHash, type ExecutionAuthorizationDecision } from '@autotest/contracts';
 import { verifyAuditChain } from '../audit.ts';
 import {
   PortError,
@@ -13,6 +13,7 @@ import {
   type PlanStore,
   type ResultStore,
   type RunStore,
+  type AuthorizationStore,
   type IdempotencyRecord,
   type IdempotencyStore,
   type InventoryStore,
@@ -229,6 +230,49 @@ export function approvalStoreCases(make: () => ApprovalStore): ContractCase[] {
           [a.id],
         );
         assert.deepEqual(await s.listByScopeDigest(sha('0')), []);
+      },
+    },
+  ];
+}
+
+export function authorizationStoreCases(make: () => AuthorizationStore): ContractCase[] {
+  const decision = (
+    id: string,
+    runId: string | undefined,
+    phase: 'create' | 'dispatch',
+    at: string,
+  ): ExecutionAuthorizationDecision => ({
+    id,
+    schemaVersion: 1,
+    ...(runId ? { runId } : {}),
+    phase,
+    result: phase === 'create' ? 'authorized' : 'denied',
+    reasons: phase === 'create' ? [] : ['approval_revoked' as const],
+    inputsDigest: `sha256:${'b'.repeat(64)}`,
+    evaluatedAt: at,
+  });
+  return [
+    {
+      name: 'authorization store: round-trips, lists by run in order, identical re-put ok, different content conflicts',
+      run: async () => {
+        const s = make();
+        const run = 'run_01JC000000000000000000000A';
+        await s.put(decision('authz_01JC0000000000000000000001', run, 'create', '2026-10-23T10:00:00Z'));
+        await s.put(decision('authz_01JC0000000000000000000002', run, 'dispatch', '2026-10-23T10:00:05Z'));
+        await s.put(decision('authz_01JC0000000000000000000003', undefined, 'create', '2026-10-23T10:00:01Z'));
+        await s.put(decision('authz_01JC0000000000000000000001', run, 'create', '2026-10-23T10:00:00Z'));
+        assert.deepEqual(
+          (await s.listByRun(run)).map((d) => [d.id, d.phase, d.result, d.reasons]),
+          [
+            ['authz_01JC0000000000000000000001', 'create', 'authorized', []],
+            ['authz_01JC0000000000000000000002', 'dispatch', 'denied', ['approval_revoked']],
+          ],
+        );
+        assert.equal((await s.get('authz_01JC0000000000000000000003'))?.runId, undefined);
+        await assert.rejects(
+          s.put(decision('authz_01JC0000000000000000000001', run, 'create', '2026-10-23T11:00:00Z')),
+          (e: unknown) => e instanceof PortError && e.code === 'conflict',
+        );
       },
     },
   ];

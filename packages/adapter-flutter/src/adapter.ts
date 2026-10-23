@@ -47,5 +47,20 @@ export function createFlutterAdapter(): PlatformAdapter {
     evidenceHints: flutterEvidenceHints,
     failureSignals: (results) => flutterFailureSignals(results),
     cleanupSpecs: () => [],
+    async prerequisites(ctx) {
+      // Runs use --no-pub (SR-014): dependencies must already be resolved in the workspace.
+      const resolved = ctx.workspace.exists('.dart_tool/package_config.json');
+      return resolved
+        ? { satisfied: true, missing: [] }
+        : {
+            satisfied: false,
+            missing: [
+              {
+                code: 'pub_get',
+                message: 'dependencies are not resolved: run `flutter pub get` in the workspace, then retry',
+              },
+            ],
+          };
+    },
   };
 }

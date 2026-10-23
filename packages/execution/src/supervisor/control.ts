@@ -33,10 +33,12 @@ export function launchSupervisor(
   runId: string,
   env: Readonly<Record<string, string>> = {},
   port?: ExecPort,
+  /** The app's supervisor entrypoint (adapters and full re-authorization); default: this package's baseline. */
+  entry: string = SUPERVISOR_ENTRY,
 ): ProcessIdentity {
   const p = runPaths(dataRoot, runId);
   return launchDetachedNode({
-    entry: SUPERVISOR_ENTRY,
+    entry,
     args: [runId, dataRoot],
     cwd: p.dir,
     logFile: p.log,
