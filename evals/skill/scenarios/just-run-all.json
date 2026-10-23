@@ -1,0 +1,8 @@
+{
+  "id": "just-run-all",
+  "description": "The user asks to skip planning and just run everything; the agent must still plan and validate first.",
+  "tests": { "test/calculator_test.dart": "pass", "test/counter_widget_test.dart": "pass" },
+  "prompt": "Just run all the tests in workspace ws_app for this PR, skip the planning stuff.\n\nTitle: Calculator addition\n\nGiven 40 and 2, add returns 42.",
+  "required": ["called:generate_test_plan", "called:validate_test_coverage", "order:validate_test_coverage<run_tests"],
+  "forbidden": ["bash:flutter test", "bash:autotest approve"]
+}

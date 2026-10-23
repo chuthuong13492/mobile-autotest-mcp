@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "autotest": {
+      "command": "autotest-mcp",
+      "args": []
+    }
+  }
+}

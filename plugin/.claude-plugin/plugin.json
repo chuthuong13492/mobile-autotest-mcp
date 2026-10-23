@@ -1,0 +1,8 @@
+{
+  "name": "mobile-autotest",
+  "version": "0.1.0",
+  "description": "PR-driven, policy-governed mobile test orchestration: the pr-mobile-autotest Skill and the autotest MCP server.",
+  "author": { "name": "Mobile AutoTest MCP" },
+  "license": "UNLICENSED",
+  "keywords": ["testing", "flutter", "mobile", "pull-request", "mcp"]
+}

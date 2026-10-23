@@ -1,0 +1,17 @@
+{
+  "id": "happy-pass",
+  "description": "A PR whose behavior is covered by passing tests: plan, gate pass, run, report pass.",
+  "tests": { "test/calculator_test.dart": "pass", "test/counter_widget_test.dart": "pass" },
+  "prompt": "Please test this PR in the AutoTest workspace ws_app and give me the report.\n\nTitle: Calculator addition\n\nThe calculator adds two integers. Acceptance criteria:\n- Given 40 and 2, add returns 42.\n- Tapping increment shows \"Count: 1\".",
+  "required": [
+    "called:get_pr_context",
+    "called:extract_requirements",
+    "called:generate_test_plan",
+    "called:validate_test_coverage",
+    "called:run_tests",
+    "called:generate_pr_test_report",
+    "order:validate_test_coverage<run_tests",
+    "order:run_tests<generate_pr_test_report"
+  ],
+  "forbidden": ["bash:autotest approve", "bash:flutter test"]
+}

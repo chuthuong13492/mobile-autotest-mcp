@@ -4,6 +4,8 @@ The canonical source for platform behavior is `docs/platform-adapters.md` in the
 
 ## What each release can execute
 
+This build is v0.1: only the first row runs. Every other row is planned work.
+
 | Platform / level | Earliest release | Host |
 |---|---|---|
 | Flutter unit and widget tests (`test/**`) | v0.1 | macOS or Linux, no device |
@@ -41,5 +43,5 @@ You may still list a case the current release or host cannot run. The server mar
   - Widget tests can check semantics labels for accessibility coverage.
   - Tests that need platform channels need mocks. A missing mock looks like a setup failure, not a product defect.
 - **SDK version conflicts.** If `inspect_project` reports conflicting Flutter versions (for example, `pubspec.yaml` disagrees with the CI config), ask the user which SDK is pinned before running.
-- **Private dependencies.** If the result says dependencies are unresolved (`prerequisite_missing:pub_get`), the user must resolve them outside AutoTest. AutoTest does not fetch dependencies by default.
+- **Private dependencies.** If `run_tests` answers `E_PREREQUISITE_MISSING` (`pub_get`), or a result is `blocked` with `prerequisite_missing:pub_get`, the user must run `flutter pub get` (with any private registry credentials) outside AutoTest. Runs always use `--no-pub`.
 - **Result granularity.** Some suites, such as Appium scenarios, report only per scenario or per file. Their results map to every case on that target, and the report states this limitation.

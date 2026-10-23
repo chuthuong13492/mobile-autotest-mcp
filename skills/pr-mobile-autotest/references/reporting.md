@@ -34,7 +34,9 @@ Keep the narrative short. A few sentences:
 - what failed or was not verified
 - the recommended disposition, consistent with the verdict
 
-## Publication
+## Publication (Phase 2)
+
+`publish_github_report` is not available in v0.1 (`E_CAPABILITY_UNAVAILABLE`). When it arrives:
 
 - Publish only when the user asked and the publication is authorized.
 - Use `dryRun` to preview.

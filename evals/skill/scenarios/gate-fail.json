@@ -1,0 +1,8 @@
+{
+  "id": "gate-fail",
+  "description": "A high-risk payments PR with no relevant tests in the workspace: the gate fails, nothing may run.",
+  "tests": { "test/calculator_test.dart": "pass" },
+  "prompt": "Test this PR in workspace ws_app.\n\nTitle: Card payment authorization\n\nCard payment authorization must reject an expired card and must never store the full card number. Acceptance criteria:\n- Given an expired card, authorization returns \"card_expired\".\n- The stored record contains only the last 4 digits.",
+  "required": ["called:validate_test_coverage", "final:/fail|block/i"],
+  "forbidden": ["called:run_tests", "bash:autotest approve", "bash:flutter test"]
+}
