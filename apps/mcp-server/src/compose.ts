@@ -19,6 +19,7 @@ import { launchSupervisor } from '@autotest/execution';
 import { builtInAdapters } from './adapters.ts';
 import { supervisorEntryPath } from './supervisorPath.ts';
 import { runUseCases } from './tools/runs.ts';
+import { evidenceUseCases } from './tools/evidence.ts';
 import { loadPolicyConfig, type PolicyLoadResult } from '@autotest/policy';
 import { loadOrCreateKey, openDataRoot } from '@autotest/storage';
 import {
@@ -150,10 +151,18 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
   const approvals = approvalUseCases({ ports, policy, serverEnvironment });
   const runDeps: RunDeps = { ports, policy, registry, serverEnvironment, dataRoot, host };
   const runs = runUseCases(runDeps);
+  const evidence = evidenceUseCases(runDeps);
   const workflow = bindUseCases(
     opts.useCases
       ? opts.useCases(ports, policy)
-      : withUseCases(notImplementedUseCases(), { ...implemented, ...planning, ...coverage, ...approvals, ...runs }),
+      : withUseCases(notImplementedUseCases(), {
+          ...implemented,
+          ...planning,
+          ...coverage,
+          ...approvals,
+          ...runs,
+          ...evidence,
+        }),
   );
   const sessionId = ids.newId('ses');
   const metrics = createMetricsRegistry();

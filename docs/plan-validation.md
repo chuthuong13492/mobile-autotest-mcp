@@ -314,6 +314,8 @@ Phase 0 discovery tasks were executed after the baseline validation above. The d
 
 **Re-validation (run 25, after RUN-001 – RUN-006).** Exit 0, PASS 47, WARNING 1 (VAL-10, unchanged). The Autotrader SHA-256 manifest (2,966 files) is still identical to the before-snapshot.
 
+**Re-validation (run 26, after EVD, ANL and RPT tasks).** Exit 0, PASS 47, WARNING 1 (VAL-10, unchanged). The Autotrader SHA-256 manifest (2,966 files) is still identical to the before-snapshot.
+
 **Environment changes outside the workspace.** These were needed for Phase 0. None is a product dependency.
 
 | Change | Detail |

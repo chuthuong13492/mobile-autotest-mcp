@@ -698,6 +698,15 @@ export async function importResults(deps: RunDeps, run: Run): Promise<Run> {
       ),
   ];
   const plan = await ports.plans.getByHash(run.planHash);
+  // Each result links the redacted runner output and logs of the attempt that decided it (max 10).
+  const artifacts = (await ports.artifacts.list(run.id)).filter(
+    (a) => !a.quarantined && (a.kind === 'runner_json' || a.kind === 'stdout' || a.kind === 'stderr'),
+  );
+  const refsFor = (attemptNo: number) =>
+    artifacts
+      .filter((a) => a.attemptNo === attemptNo)
+      .slice(0, 10)
+      .map((a) => a.id);
   const casesFor = (targetId: string) =>
     (plan?.testCases ?? []).filter((c) => c.targetRef === targetId && c.eligibility === 'eligible').map((c) => c.id);
   const results: TestResult[] = all.map((r, i) => ({
@@ -714,7 +723,7 @@ export async function importResults(deps: RunDeps, run: Run): Promise<Run> {
     ...('durationMs' in r && r.durationMs !== undefined ? { durationMs: r.durationMs } : {}),
     flaky: r.flaky,
     ...('messageExcerpt' in r && r.messageExcerpt ? { messageExcerpt: r.messageExcerpt } : {}),
-    artifactRefs: [],
+    artifactRefs: refsFor(r.attemptNo),
     rawStatus: r.rawStatus,
   }));
   try {

@@ -10,7 +10,9 @@ import type {
   CoverageDecision,
   EvidenceArtifact,
   ExecutionAuthorizationDecision,
+  FailureAnalysis,
   PRContext,
+  PRReport,
   ProjectProfile,
   RequirementSet,
   Run,
@@ -26,6 +28,7 @@ import { createIdGenerator } from '../ids.ts';
 import {
   PortError,
   type ApprovalStore,
+  type AnalysisStore,
   type ArtifactIndex,
   type AuditAppend,
   type AuthorizationStore,
@@ -43,6 +46,7 @@ import {
   type InventoryStore,
   type PrContextStore,
   type ProfileStore,
+  type ReportStore,
 } from '../ports.ts';
 
 const clone = <T>(v: T): T => structuredClone(v);
@@ -238,6 +242,38 @@ export class InMemoryAuthorizationStore implements AuthorizationStore {
   }
   async listByRun(runId: string): Promise<ExecutionAuthorizationDecision[]> {
     return [...this.decisions.values()].filter((d) => d.runId === runId).map(clone);
+  }
+}
+
+export class InMemoryAnalysisStore implements AnalysisStore {
+  private readonly rows = new Map<string, { analysis: FailureAnalysis; ruleset: string }>();
+  async putMany(analyses: readonly FailureAnalysis[], rulesetVersion: string): Promise<void> {
+    for (const a of analyses) {
+      const prev = this.rows.get(a.id);
+      if (prev && (canonicalize(prev.analysis) !== canonicalize(a) || prev.ruleset !== rulesetVersion))
+        throw new PortError('conflict', `analysis ${a.id} exists with different content`);
+    }
+    for (const a of analyses) this.rows.set(a.id, { analysis: clone(a), ruleset: rulesetVersion });
+  }
+  async listByRun(runId: string, rulesetVersion: string): Promise<FailureAnalysis[]> {
+    return [...this.rows.values()]
+      .filter((r) => r.analysis.runId === runId && r.ruleset === rulesetVersion)
+      .map((r) => clone(r.analysis));
+  }
+}
+
+export class InMemoryReportStore implements ReportStore {
+  private readonly reports = new Map<string, PRReport>();
+  async put(report: PRReport): Promise<PRReport> {
+    const same = [...this.reports.values()].find((r) => r.reportHash === report.reportHash);
+    if (same) return clone(same);
+    if (this.reports.has(report.id)) throw new PortError('conflict', `report ${report.id} exists`);
+    this.reports.set(report.id, clone(report));
+    return clone(report);
+  }
+  async get(id: string): Promise<PRReport | undefined> {
+    const r = this.reports.get(id);
+    return r && clone(r);
   }
 }
 

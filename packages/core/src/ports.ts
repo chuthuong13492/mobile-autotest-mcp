@@ -9,6 +9,8 @@ import type {
   CoverageDecision,
   EvidenceArtifact,
   ExecutionAuthorizationDecision,
+  FailureAnalysis,
+  PRReport,
   PRContext,
   ProcessIdentity,
   ProjectProfile,
@@ -119,6 +121,20 @@ export interface AuthorizationStore {
   get(id: string): Promise<ExecutionAuthorizationDecision | undefined>;
   /** Decisions recorded for a run, oldest first. */
   listByRun(runId: string): Promise<ExecutionAuthorizationDecision[]>;
+}
+
+/** Failure analyses (TL-16), keyed by run, result and ruleset version: a new ruleset re-analyzes, the old stays. */
+export interface AnalysisStore {
+  /** Stores analyses; an existing id with identical content is a no-op, different content is a `conflict`. */
+  putMany(analyses: readonly FailureAnalysis[], rulesetVersion: string): Promise<void>;
+  listByRun(runId: string, rulesetVersion: string): Promise<FailureAnalysis[]>;
+}
+
+/** PR reports (TL-17). Report content is immutable; the same content hash is the same report. */
+export interface ReportStore {
+  /** Returns the stored report: `report` itself, or the existing one with the same `reportHash`. */
+  put(report: PRReport): Promise<PRReport>;
+  get(id: string): Promise<PRReport | undefined>;
 }
 
 export interface RunStore {

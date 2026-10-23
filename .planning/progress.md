@@ -87,3 +87,5 @@ M1: E2E-001 and FL-001 – FL-005 done; the Flutter adapter is built into the se
 Re-validation run 24: PASS 47, WARNING 1. Autotrader is unchanged.
 M2: RUN-001 – RUN-006 done. `pnpm check` passes on Node 24 and 26 with 613 tests. New `AuthorizationStore` port, optional `PlatformAdapter.prerequisites`, a supervisor entry in the server app (`supervisorBoot.ts` → `supervisorEntry.ts`) wiring the adapters and dispatch-time re-authorization. Fixed during testing: a cancel during supervisor start-up killed it silently; the queue now refreshes slot holders before dispatching. Real Flutter 3.47.1 run of the fixture through `run_tests` completed, with the flaky test passing on attempt 2.
 Re-validation run 25: PASS 47, WARNING 1. Autotrader is unchanged.
+M3: EVD-001 – EVD-003, ANL-001, ANL-003, RPT-001 – RPT-004 done. `pnpm check` passes on Node 24 and 26 with 648 tests. New ports `AnalysisStore` and `ReportStore`. Evidence is ingested by the supervisor in the collecting state; JUnit rendering lives in workflow (reporting may depend only on core).
+Re-validation run 26: PASS 47, WARNING 1. Autotrader is unchanged.

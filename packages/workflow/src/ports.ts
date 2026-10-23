@@ -1,5 +1,6 @@
 /** Ports and call context shared by every use case (CORE-006). Separate from `index.ts` to keep imports acyclic. */
 import type {
+  AnalysisStore,
   ApprovalStore,
   ArtifactIndex,
   AuditSink,
@@ -14,6 +15,7 @@ import type {
   PrContextStore,
   ProfileStore,
   Publisher,
+  ReportStore,
   RequirementStore,
   ResultStore,
   RunStore,
@@ -33,6 +35,8 @@ export interface WorkflowPorts {
   readonly authorizations: AuthorizationStore;
   readonly runs: RunStore;
   readonly results: ResultStore;
+  readonly analyses: AnalysisStore;
+  readonly reports: ReportStore;
   readonly artifacts: ArtifactIndex;
   readonly audit: AuditSink;
   readonly execution: ExecutionBackend;

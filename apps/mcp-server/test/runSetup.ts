@@ -6,7 +6,9 @@
  * - `pass`, `fail`, `error`, `skip`: one test with that outcome;
  * - `flaky`: fails on the first attempt of a run and passes after (marker file in the run's TMPDIR);
  * - `slow`: runs for 60 s; `ignore-term`: ignores SIGTERM and runs for 60 s;
- * - `load_error`: the file fails to load; `many N`: N passing tests.
+ * - `load_error`: the file fails to load; `many N`: N passing tests;
+ * - `noisy`: passes and prints secret-looking values to stdout and stderr; `binary`: writes NUL bytes into the
+ *   reporter file (the run's runner output must be quarantined).
  * A run with no `done` event can be forced with `// fake: crash` (the runner exits mid-stream).
  */
 import fs from 'node:fs';
@@ -49,6 +51,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       const t = ++id;
       ev({ test: { id: t, name: count > 1 ? 'case ' + i : mode + ' test', suiteID: s, groupIDs: [] }, type: 'testStart' });
       if (mode === 'crash') process.exit(3);
+      if (mode === 'noisy') {
+        console.log('stdout token=ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8');
+        console.error('stderr password: "hunter2-very-secret"');
+      }
+      if (mode === 'binary') fs.writeSync(out, Buffer.from([0, 1, 2, 0xff, 0, 10]));
       if (mode === 'slow' || mode === 'ignore-term') {
         if (mode === 'ignore-term') process.on('SIGTERM', () => {});
         await sleep(60000);

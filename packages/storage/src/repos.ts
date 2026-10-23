@@ -14,7 +14,9 @@ import {
   CoverageDecision,
   EvidenceArtifact,
   ExecutionAuthorizationDecision,
+  FailureAnalysis,
   PortError,
+  PRReport,
   PRContext,
   ProjectProfile,
   RequirementSet,
@@ -25,8 +27,10 @@ import {
   TestResult,
   canonicalize,
   verifyPlanHash,
+  type AnalysisStore,
   type ArtifactIndex,
   type AuthorizationStore,
+  type ReportStore,
   type DecisionBinding,
   type DecisionStore,
   type InventoryStore,
@@ -376,6 +380,79 @@ function fromAuthorizationRow(r: AuthorizationRow): ExecutionAuthorizationDecisi
   return parsed.data;
 }
 
+export class SqliteAnalysisStore implements AnalysisStore {
+  private readonly sql: SqlPort;
+  constructor(sql: SqlPort) {
+    this.sql = sql;
+  }
+  async putMany(analyses: readonly FailureAnalysis[], rulesetVersion: string): Promise<void> {
+    const parsed = analyses.map((a) => FailureAnalysis.parse(a));
+    this.sql.transaction(() => {
+      for (const a of parsed) {
+        const doc = canonicalize(a);
+        const prev = this.sql.get<{ doc: string; ruleset_version: string }>(
+          'SELECT doc, ruleset_version FROM failure_analyses WHERE id = ?',
+          a.id,
+        );
+        if (prev) {
+          if (prev.doc !== doc || prev.ruleset_version !== rulesetVersion)
+            throw new PortError('conflict', `analysis ${a.id} exists with different content`);
+          continue;
+        }
+        this.sql.run(
+          'INSERT INTO failure_analyses (id, run_id, result_id, ruleset_version, class, doc) VALUES (?,?,?,?,?,?)',
+          a.id,
+          a.runId,
+          a.resultId,
+          rulesetVersion,
+          a.class,
+          doc,
+        );
+      }
+    });
+  }
+  async listByRun(runId: string, rulesetVersion: string): Promise<FailureAnalysis[]> {
+    return this.sql
+      .all<{ doc: string; id: string }>(
+        'SELECT doc, id FROM failure_analyses WHERE run_id = ? AND ruleset_version = ? ORDER BY rowid',
+        runId,
+        rulesetVersion,
+      )
+      .map((r) => parseDoc(FailureAnalysis, r.doc, `analysis ${r.id}`));
+  }
+}
+
+export class SqliteReportStore implements ReportStore {
+  private readonly sql: SqlPort;
+  constructor(sql: SqlPort) {
+    this.sql = sql;
+  }
+  async put(report: PRReport): Promise<PRReport> {
+    const r = PRReport.parse(report);
+    const same = this.sql.get<{ doc: string; id: string }>(
+      'SELECT doc, id FROM reports WHERE report_hash = ?',
+      r.reportHash,
+    );
+    if (same) return parseDoc(PRReport, same.doc, `report ${same.id}`);
+    conflictOnConstraint(`report ${r.id}`, () =>
+      this.sql.run(
+        'INSERT INTO reports (id, plan_hash, verdict, report_hash, created_at, doc) VALUES (?,?,?,?,?,?)',
+        r.id,
+        r.planHash,
+        r.verdict,
+        r.reportHash,
+        r.createdAt,
+        canonicalize(r),
+      ),
+    );
+    return r;
+  }
+  async get(id: string): Promise<PRReport | undefined> {
+    const row = this.sql.get<{ doc: string }>('SELECT doc FROM reports WHERE id = ?', id);
+    return row && parseDoc(PRReport, row.doc, `report ${id}`);
+  }
+}
+
 export class SqliteRunStore implements RunStore {
   private readonly sql: SqlPort;
   constructor(sql: SqlPort) {
@@ -528,6 +605,8 @@ export function createStores(sql: SqlPort, root: string) {
     decisions: new SqliteDecisionStore(sql),
     approvals: new SqliteApprovalStore(sql, root),
     authorizations: new SqliteAuthorizationStore(sql),
+    analyses: new SqliteAnalysisStore(sql),
+    reports: new SqliteReportStore(sql),
     runs: new SqliteRunStore(sql),
     results: new SqliteResultStore(sql),
     artifacts: new SqliteArtifactIndex(sql),

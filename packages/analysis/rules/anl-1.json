@@ -1,0 +1,71 @@
+{
+  "rulesetVersion": "anl-1",
+  "caps": {
+    "A1": 0.9,
+    "A2": 0.9,
+    "A3": 0.85,
+    "A4": 0.7,
+    "A5": 0.7,
+    "A6": 0.7,
+    "A7": 0.6,
+    "A8": 0.8,
+    "A8h": 0.6,
+    "A9": 0.5,
+    "A10": 0.3
+  },
+  "environmentSignals": {
+    "flutter.pub_get_required": { "subtype": "dependency", "unambiguous": true },
+    "flutter.runner_incomplete": { "subtype": "infrastructure", "unambiguous": true }
+  },
+  "setupSignals": ["flutter.missing_plugin"],
+  "environmentPatterns": [
+    {
+      "id": "flutter.pub_get",
+      "pattern": "Couldn't resolve the package|Run [\"'`]?(flutter|dart) pub get",
+      "subtype": "dependency",
+      "unambiguous": true
+    },
+    { "id": "flutter.sdk_constraint", "pattern": "requires SDK version", "subtype": "toolchain", "unambiguous": true },
+    {
+      "id": "android.device",
+      "pattern": "INSTALL_FAILED_|device offline|no connected devices",
+      "subtype": "device",
+      "unambiguous": true
+    },
+    {
+      "id": "android.gradle_deps",
+      "pattern": "Could not resolve all dependencies",
+      "subtype": "dependency",
+      "unambiguous": false
+    },
+    { "id": "android.gradle_oom", "pattern": "OutOfMemoryError", "subtype": "toolchain", "unambiguous": false },
+    {
+      "id": "ios.device",
+      "pattern": "Unable to boot|simctl .{0,80} failed|Failed to install",
+      "subtype": "device",
+      "unambiguous": true
+    },
+    {
+      "id": "ios.signing",
+      "pattern": "Code Signing Error|No signing certificate",
+      "subtype": "toolchain",
+      "unambiguous": true
+    },
+    {
+      "id": "appium.connection",
+      "pattern": "ECONNREFUSED 127\\.0\\.0\\.1:\\d+",
+      "subtype": "infrastructure",
+      "unambiguous": false
+    },
+    {
+      "id": "appium.driver",
+      "pattern": "Could not find a driver for automationName",
+      "subtype": "toolchain",
+      "unambiguous": true
+    }
+  ],
+  "setupPatterns": [
+    { "id": "flutter.missing_plugin", "pattern": "MissingPluginException" },
+    { "id": "dart.setup_hook", "pattern": "\\((setUpAll|setUp|tearDownAll|tearDown)\\)" }
+  ]
+}

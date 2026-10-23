@@ -3,7 +3,12 @@
  * in-memory fakes and the SQLite repositories (STO-003) run the identical semantics checks.
  */
 import assert from 'node:assert/strict';
-import { computePlanHash, type ExecutionAuthorizationDecision } from '@autotest/contracts';
+import {
+  computePlanHash,
+  type ExecutionAuthorizationDecision,
+  type FailureAnalysis,
+  type PRReport,
+} from '@autotest/contracts';
 import { verifyAuditChain } from '../audit.ts';
 import {
   PortError,
@@ -14,6 +19,8 @@ import {
   type ResultStore,
   type RunStore,
   type AuthorizationStore,
+  type AnalysisStore,
+  type ReportStore,
   type IdempotencyRecord,
   type IdempotencyStore,
   type InventoryStore,
@@ -273,6 +280,86 @@ export function authorizationStoreCases(make: () => AuthorizationStore): Contrac
           s.put(decision('authz_01JC0000000000000000000001', run, 'create', '2026-10-23T11:00:00Z')),
           (e: unknown) => e instanceof PortError && e.code === 'conflict',
         );
+      },
+    },
+  ];
+}
+
+export function analysisStoreCases(make: () => AnalysisStore): ContractCase[] {
+  const a = (id: string, runId: string, over: Partial<FailureAnalysis> = {}): FailureAnalysis => ({
+    id,
+    runId,
+    resultId: 'res_01JC0000000000000000000001',
+    class: 'unknown',
+    subtype: 'inconclusive',
+    strength: 'hypothesis',
+    confidence: 0.3,
+    observations: [{ text: 'runner stopped without a result' }],
+    inference: 'no signal explains the failure',
+    alternatives: [],
+    ruleIds: ['A10'],
+    nextSteps: [],
+    ...over,
+  });
+  return [
+    {
+      name: 'analysis store: lists by run and ruleset; identical re-put ok; changed content conflicts',
+      run: async () => {
+        const s = make();
+        const run = 'run_01JC000000000000000000000A';
+        await s.putMany([a('fa_01JC0000000000000000000001', run), a('fa_01JC0000000000000000000002', run)], 'anl-1');
+        await s.putMany([a('fa_01JC0000000000000000000003', run)], 'anl-2');
+        await s.putMany([a('fa_01JC0000000000000000000001', run)], 'anl-1');
+        assert.deepEqual(
+          (await s.listByRun(run, 'anl-1')).map((x) => x.id),
+          ['fa_01JC0000000000000000000001', 'fa_01JC0000000000000000000002'],
+        );
+        assert.equal((await s.listByRun(run, 'anl-2')).length, 1);
+        await rejectsWith(
+          s.putMany([a('fa_01JC0000000000000000000001', run, { confidence: 0.2 })], 'anl-1'),
+          'conflict',
+        );
+      },
+    },
+  ];
+}
+
+export function reportStoreCases(make: () => ReportStore): ContractCase[] {
+  const r = (id: string, hashChar: string): PRReport => ({
+    id,
+    schemaVersion: 1,
+    createdAt: '2026-10-23T10:00:00Z',
+    prContextId: 'prc_01JC0000000000000000000001',
+    planId: 'plan_01JC0000000000000000000001',
+    planHash: `v1:sha256:${'a'.repeat(64)}`,
+    coverageDecisionId: 'cov_01JC0000000000000000000001',
+    runIds: [],
+    verdict: 'blocked',
+    verdictRule: 1,
+    metrics: {
+      requirementCoverage: null,
+      testCaseCoverage: null,
+      sourceCodeCoverage: null,
+      platformCoverage: null,
+      regressionCoverage: null,
+      executionCoverage: null,
+    },
+    sections: {},
+    limitations: [],
+    artifacts: {},
+    reportHash: `sha256:${hashChar.repeat(64)}`,
+  });
+  return [
+    {
+      name: 'report store: same content hash returns the stored report; get round-trips',
+      run: async () => {
+        const s = make();
+        const first = await s.put(r('rpt_01JC0000000000000000000001', 'c'));
+        const again = await s.put(r('rpt_01JC0000000000000000000002', 'c'));
+        assert.equal(again.id, first.id);
+        await s.put(r('rpt_01JC0000000000000000000003', 'd'));
+        assert.equal((await s.get('rpt_01JC0000000000000000000003'))?.reportHash, `sha256:${'d'.repeat(64)}`);
+        assert.equal(await s.get('rpt_01JC0000000000000000000002'), undefined);
       },
     },
   ];

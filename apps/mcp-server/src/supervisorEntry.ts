@@ -3,7 +3,8 @@
  * (ADR-0007 §2).
  *
  * It wires what `@autotest/execution` deliberately leaves to the app: the platform adapters (later-attempt specs and
- * per-attempt parsing), and the full dispatch-time re-authorization over the stores (RUN-002). Everything else —
+ * per-attempt parsing), the full dispatch-time re-authorization over the stores (RUN-002) and evidence collection
+ * (EVD-001). Everything else —
  * policy re-loading, workspace re-resolution, spawn re-validation — comes from `defaultHooks`.
  */
 import fs from 'node:fs';
@@ -13,7 +14,13 @@ import { createCursorCodec, createIdGenerator, RunId } from '@autotest/core';
 import { adapterAttemptHooks, defaultHooks, runSupervisor } from '@autotest/execution';
 import { loadPolicyConfig } from '@autotest/policy';
 import { loadOrCreateKey, openDataRoot } from '@autotest/storage';
-import { dispatchAuthorize, serverEnvironmentOf, type RunDeps, type WorkflowPorts } from '@autotest/workflow';
+import {
+  collectRunEvidence,
+  dispatchAuthorize,
+  serverEnvironmentOf,
+  type RunDeps,
+  type WorkflowPorts,
+} from '@autotest/workflow';
 import { builtInAdapters } from './adapters.ts';
 
 const [runId, dataRoot] = process.argv.slice(2);
@@ -55,7 +62,14 @@ try {
   const record = await runSupervisor({
     runId,
     dataRoot,
-    hooks: { ...base, authorize: (header) => dispatchAuthorize(deps, header), attempts: adapterAttemptHooks(registry) },
+    hooks: {
+      ...base,
+      authorize: (header) => dispatchAuthorize(deps, header),
+      attempts: adapterAttemptHooks(registry),
+      collect: async (header) => {
+        await collectRunEvidence(deps, header);
+      },
+    },
     listenSignals: true,
   });
   console.log(`${new Date().toISOString()} ${runId} terminal ${record.state}`);
