@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "planId": {
+      "type": "string",
+      "pattern": "^plan_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "planHash": {
+      "type": "string",
+      "pattern": "^v\\d+:sha256:[0-9a-f]{64}$"
+    },
+    "runIds": {
+      "default": [],
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+      }
+    },
+    "narrative": {
+      "type": "string",
+      "maxLength": 8000
+    },
+    "formats": {
+      "default": [
+        "markdown",
+        "json",
+        "junit"
+      ],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "markdown",
+          "json",
+          "junit"
+        ]
+      }
+    }
+  },
+  "required": [
+    "planId",
+    "planHash"
+  ],
+  "additionalProperties": false
+}

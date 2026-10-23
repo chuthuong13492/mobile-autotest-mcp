@@ -1,0 +1,15 @@
+{
+  "name": "@autotest/evidence",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Artifact store, validation, redaction application, retention.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/core": "workspace:*",
+    "@autotest/policy": "workspace:*",
+    "@autotest/workspace": "workspace:*"
+  }
+}

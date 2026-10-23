@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "projectProfileId": {
+      "type": "string",
+      "pattern": "^prj_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "frameworks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "adapterId": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "evidence": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        },
+        "required": [
+          "adapterId",
+          "confidence",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "platforms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "android",
+              "ios",
+              "web",
+              "macos",
+              "linux",
+              "windows",
+              "host"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "absent",
+              "unknown"
+            ]
+          },
+          "evidence": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        },
+        "required": [
+          "platform",
+          "status",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      }
+    },
+    "toolchains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tool": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "versionsBySource": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 64
+                }
+              },
+              "required": [
+                "source",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "resolved": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conflicts": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 256
+            }
+          }
+        },
+        "required": [
+          "tool",
+          "versionsBySource",
+          "resolved",
+          "conflicts"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "runners": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "adapterId": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "kind": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "evidence": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        },
+        "required": [
+          "adapterId",
+          "kind",
+          "configured",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_:]*$"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "projectProfileId",
+    "frameworks",
+    "platforms",
+    "languages",
+    "toolchains",
+    "runners",
+    "limitations"
+  ],
+  "additionalProperties": false
+}

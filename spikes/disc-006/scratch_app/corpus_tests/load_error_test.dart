@@ -1,0 +1,2 @@
+import 'package:flutter_test/flutter_test.dart';
+void main() { test('never compiles', () { int x = 'not an int'; expect(x, 1); }); }

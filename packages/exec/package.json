@@ -1,0 +1,14 @@
+{
+  "name": "@autotest/exec",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shell-free spawning, process identity, timeouts, cancellation, resource limits (only package allowed to spawn).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/contracts": "workspace:*",
+    "@autotest/policy": "workspace:*"
+  }
+}

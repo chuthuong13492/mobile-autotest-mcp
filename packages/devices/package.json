@@ -1,0 +1,14 @@
+{
+  "name": "@autotest/devices",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Simulator/emulator/device management with ownership.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/exec": "workspace:*",
+    "@autotest/policy": "workspace:*"
+  }
+}

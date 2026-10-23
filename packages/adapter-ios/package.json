@@ -1,0 +1,13 @@
+{
+  "name": "@autotest/adapter-ios",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Native iOS platform adapter.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/adapter-sdk": "workspace:*"
+  }
+}

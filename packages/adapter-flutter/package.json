@@ -1,0 +1,13 @@
+{
+  "name": "@autotest/adapter-flutter",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Flutter platform adapter.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/adapter-sdk": "workspace:*"
+  }
+}

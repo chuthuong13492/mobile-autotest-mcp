@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "scope": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "plan_execution",
+            "coverage_exception",
+            "device_action",
+            "github_publish"
+          ]
+        },
+        "planId": {
+          "type": "string",
+          "pattern": "^plan_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "planHash": {
+          "type": "string",
+          "pattern": "^v\\d+:sha256:[0-9a-f]{64}$"
+        },
+        "targets": {
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^TC-\\d{3}$"
+              },
+              {
+                "type": "string",
+                "pattern": "^TT-[a-z0-9-]+-[0-9a-f]{12}$"
+              }
+            ]
+          }
+        },
+        "environment": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "exceptionIds": {
+          "maxItems": 50,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^EXC-\\d{3}$"
+          }
+        },
+        "deviceAction": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "erase",
+                "delete",
+                "shutdown_non_owned",
+                "boot_non_owned"
+              ]
+            },
+            "deviceId": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "action",
+            "deviceId"
+          ],
+          "additionalProperties": false
+        },
+        "publish": {
+          "type": "object",
+          "properties": {
+            "reportId": {
+              "type": "string",
+              "pattern": "^rpt_[0-9A-HJKMNP-TV-Z]{26}$"
+            },
+            "mechanisms": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "comment",
+                  "check_run",
+                  "commit_status"
+                ]
+              }
+            }
+          },
+          "required": [
+            "reportId",
+            "mechanisms"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "justification": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "offerElicitation": {
+      "default": true,
+      "type": "boolean"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    }
+  },
+  "required": [
+    "scope",
+    "justification"
+  ],
+  "additionalProperties": false
+}

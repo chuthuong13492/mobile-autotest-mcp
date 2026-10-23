@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "runId": {
+      "type": "string",
+      "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "runState": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "preparing",
+        "running",
+        "collecting",
+        "analyzing",
+        "cancelling",
+        "cancel_pending",
+        "completed",
+        "cancelled",
+        "timed_out",
+        "infra_error"
+      ]
+    },
+    "snapshotFinal": {
+      "type": "boolean"
+    },
+    "totals": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "passed",
+          "failed",
+          "blocked",
+          "skipped",
+          "cancelled",
+          "timed_out",
+          "infra_error",
+          "not_run"
+        ]
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "resultId": {
+            "type": "string",
+            "pattern": "^res_[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "targetId": {
+            "type": "string",
+            "pattern": "^TT-[a-z0-9-]+-[0-9a-f]{12}$"
+          },
+          "testCaseIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^TC-\\d{3}$"
+            }
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "skipped",
+              "cancelled",
+              "timed_out",
+              "infra_error",
+              "not_run"
+            ]
+          },
+          "failureKind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "blockedReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "flaky": {
+            "type": "boolean"
+          },
+          "attemptNo": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "messageExcerpt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "artifactIds": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^art_[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          }
+        },
+        "required": [
+          "resultId",
+          "targetId",
+          "testCaseIds",
+          "name",
+          "outcome",
+          "failureKind",
+          "blockedReason",
+          "flaky",
+          "attemptNo",
+          "durationMs",
+          "messageExcerpt",
+          "artifactIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "nextCursor": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "untrustedFields": {
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 200
+      }
+    }
+  },
+  "required": [
+    "runId",
+    "runState",
+    "snapshotFinal",
+    "totals",
+    "results",
+    "nextCursor",
+    "truncated",
+    "untrustedFields"
+  ],
+  "additionalProperties": false
+}

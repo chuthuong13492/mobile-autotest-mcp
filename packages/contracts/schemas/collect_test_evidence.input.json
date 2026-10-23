@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "runId": {
+      "type": "string",
+      "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "stdout",
+          "stderr",
+          "runner_json",
+          "junit",
+          "xcresult",
+          "screenshot",
+          "video",
+          "log",
+          "coverage",
+          "report"
+        ]
+      }
+    },
+    "include": {
+      "default": "metadata",
+      "type": "string",
+      "enum": [
+        "metadata",
+        "excerpt"
+      ]
+    },
+    "excerptBytes": {
+      "default": 2048,
+      "type": "integer",
+      "minimum": 256,
+      "maximum": 8192
+    },
+    "artifactIds": {
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^art_[0-9A-HJKMNP-TV-Z]{26}$"
+      }
+    },
+    "cursor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "limit": {
+      "default": 50,
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    }
+  },
+  "required": [
+    "runId"
+  ],
+  "additionalProperties": false
+}

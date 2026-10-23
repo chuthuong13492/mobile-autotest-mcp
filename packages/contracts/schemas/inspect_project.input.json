@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "workspace": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "adapters": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      }
+    },
+    "maxFiles": {
+      "default": 50000,
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 200000
+    },
+    "probeToolchains": {
+      "default": true,
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "workspace"
+  ],
+  "additionalProperties": false
+}

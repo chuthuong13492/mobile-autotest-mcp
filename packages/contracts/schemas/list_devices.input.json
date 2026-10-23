@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "platform": {
+      "default": "all",
+      "type": "string",
+      "enum": [
+        "ios",
+        "android",
+        "all"
+      ]
+    },
+    "includeUnavailable": {
+      "default": false,
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

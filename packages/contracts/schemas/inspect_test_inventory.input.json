@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "projectProfileId": {
+      "type": "string",
+      "pattern": "^prj_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "inventoryId": {
+      "type": "string",
+      "pattern": "^inv_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "filter": {
+      "type": "object",
+      "properties": {
+        "adapterId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "unit",
+            "widget",
+            "component",
+            "integration",
+            "e2e"
+          ]
+        },
+        "pathPrefix": {
+          "type": "string",
+          "maxLength": 512
+        }
+      },
+      "additionalProperties": false
+    },
+    "cursor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "limit": {
+      "default": 50,
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200
+    }
+  },
+  "required": [
+    "projectProfileId"
+  ],
+  "additionalProperties": false
+}

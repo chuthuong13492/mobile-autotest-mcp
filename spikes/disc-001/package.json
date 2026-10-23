@@ -1,0 +1,12 @@
+{
+  "name": "disc-001-spike",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Throwaway DISC-001 spike: MCP TS SDK v2 stdio server interop with Claude Code. Not shipped.",
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/server": "2.3.1",
+    "zod": "4.6.7"
+  }
+}

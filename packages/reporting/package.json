@@ -1,0 +1,13 @@
+{
+  "name": "@autotest/reporting",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Markdown / JSON / JUnit report rendering.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/core": "workspace:*"
+  }
+}

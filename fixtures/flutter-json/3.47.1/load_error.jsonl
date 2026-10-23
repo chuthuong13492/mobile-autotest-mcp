@@ -1,0 +1,7 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":68581,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"<APP>/corpus_tests/load_error_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading <APP>/corpus_tests/load_error_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":1,"time":3,"type":"allSuites"}
+{"testID":1,"error":"Failed to load \"<APP>/corpus_tests/load_error_test.dart\":\nCompilation failed for testPath=<APP>/corpus_tests/load_error_test.dart: corpus_tests/load_error_test.dart:2:51: Error: A value of type 'String' can't be assigned to a variable of type 'int'.\nvoid main() { test('never compiles', () { int x = 'not an int'; expect(x, 1); }); }\n                                                  ^\n.","stackTrace":"","isFailure":false,"type":"error","time":579}
+{"testID":1,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":581}
+{"success":false,"type":"done","time":583}

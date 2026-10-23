@@ -1,0 +1,13 @@
+{
+  "name": "@autotest/analysis",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Rule-based failure classification.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/core": "workspace:*"
+  }
+}

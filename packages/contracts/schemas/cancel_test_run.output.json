@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "runId": {
+      "type": "string",
+      "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "preparing",
+        "running",
+        "collecting",
+        "analyzing",
+        "cancelling",
+        "cancel_pending",
+        "completed",
+        "cancelled",
+        "timed_out",
+        "infra_error"
+      ]
+    },
+    "alreadyTerminal": {
+      "type": "boolean"
+    },
+    "survivors": {
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "pid": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "executable": {
+            "type": "string",
+            "maxLength": 1024
+          }
+        },
+        "required": [
+          "pid",
+          "executable"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "pollAfterMs": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "runId",
+    "state",
+    "alreadyTerminal",
+    "survivors",
+    "pollAfterMs"
+  ],
+  "additionalProperties": false
+}

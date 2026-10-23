@@ -1,0 +1,13 @@
+{
+  "name": "@autotest/adapter-react-native",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "React Native platform adapter.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/adapter-sdk": "workspace:*"
+  }
+}

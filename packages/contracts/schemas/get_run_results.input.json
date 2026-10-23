@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "runId": {
+      "type": "string",
+      "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "filter": {
+      "type": "object",
+      "properties": {
+        "outcomes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "skipped",
+              "cancelled",
+              "timed_out",
+              "infra_error",
+              "not_run"
+            ]
+          }
+        },
+        "targetId": {
+          "type": "string",
+          "pattern": "^TT-[a-z0-9-]+-[0-9a-f]{12}$"
+        },
+        "flakyOnly": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cursor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "limit": {
+      "default": 50,
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200
+    }
+  },
+  "required": [
+    "runId"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "requirementSetId": {
+      "type": "string",
+      "pattern": "^rqs_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "requirementSetHash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "requirements": {
+      "maxItems": 200,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^REQ-\\d{3}$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "functional",
+              "behavior_change",
+              "bug_fix",
+              "non_functional",
+              "regression_scope"
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "parsed",
+              "agent",
+              "human"
+            ]
+          },
+          "riskTier": {
+            "type": "string",
+            "enum": [
+              "R0",
+              "R1",
+              "R2",
+              "R3"
+            ]
+          },
+          "testable": {
+            "type": "boolean"
+          },
+          "acIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^REQ-\\d{3}\\.AC-\\d{2}$"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "provenance",
+          "riskTier",
+          "testable",
+          "acIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "ambiguities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^AMB-\\d{2}$"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "missing_ac",
+              "vague_term",
+              "conflicting_statements",
+              "undefined_platform_scope",
+              "unspecified_error_behavior",
+              "unspecified_data",
+              "unknown_baseline"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "relatedRefs": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^REQ-\\d{3}$"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^REQ-\\d{3}\\.AC-\\d{2}$"
+                }
+              ]
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "resolved",
+              "accepted"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "severity",
+          "relatedRefs",
+          "status"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^ASM-\\d{2}$"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "relatedRefs": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^REQ-\\d{3}$"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^REQ-\\d{3}\\.AC-\\d{2}$"
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "relatedRefs"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "parseReport": {
+      "type": "object",
+      "properties": {
+        "parsedCount": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "agentCount": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "mergedDuplicates": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "discarded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "excerpt": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "reason",
+              "excerpt"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "parsedCount",
+        "agentCount",
+        "mergedDuplicates",
+        "discarded"
+      ],
+      "additionalProperties": false
+    },
+    "untrustedFields": {
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 200
+      }
+    }
+  },
+  "required": [
+    "requirementSetId",
+    "requirementSetHash",
+    "requirements",
+    "ambiguities",
+    "assumptions",
+    "parseReport",
+    "untrustedFields"
+  ],
+  "additionalProperties": false
+}

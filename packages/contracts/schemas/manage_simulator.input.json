@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "boot",
+        "shutdown",
+        "create",
+        "erase",
+        "delete"
+      ]
+    },
+    "deviceId": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "create": {
+      "type": "object",
+      "properties": {
+        "platform": {
+          "type": "string",
+          "enum": [
+            "ios",
+            "android"
+          ]
+        },
+        "deviceType": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "runtime": {
+          "type": "string",
+          "maxLength": 100
+        }
+      },
+      "required": [
+        "platform",
+        "deviceType",
+        "runtime"
+      ],
+      "additionalProperties": false
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "approvalId": {
+      "type": "string",
+      "pattern": "^appr_[0-9A-HJKMNP-TV-Z]{26}$"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "additionalProperties": false
+}

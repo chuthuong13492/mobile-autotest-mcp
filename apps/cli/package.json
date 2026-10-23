@@ -1,0 +1,37 @@
+{
+  "name": "@autotest/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "autotest CLI (approve, doctor, cleanup, ci).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/contracts": "workspace:*",
+    "@autotest/core": "workspace:*",
+    "@autotest/policy": "workspace:*",
+    "@autotest/workspace": "workspace:*",
+    "@autotest/exec": "workspace:*",
+    "@autotest/adapter-sdk": "workspace:*",
+    "@autotest/adapter-flutter": "workspace:*",
+    "@autotest/adapter-react-native": "workspace:*",
+    "@autotest/adapter-ios": "workspace:*",
+    "@autotest/adapter-android": "workspace:*",
+    "@autotest/adapter-appium": "workspace:*",
+    "@autotest/devices": "workspace:*",
+    "@autotest/inspect": "workspace:*",
+    "@autotest/planning": "workspace:*",
+    "@autotest/coverage-gate": "workspace:*",
+    "@autotest/execution": "workspace:*",
+    "@autotest/evidence": "workspace:*",
+    "@autotest/analysis": "workspace:*",
+    "@autotest/reporting": "workspace:*",
+    "@autotest/github": "workspace:*",
+    "@autotest/storage": "workspace:*",
+    "@autotest/workflow": "workspace:*"
+  },
+  "bin": {
+    "autotest": "./src/main.ts"
+  }
+}

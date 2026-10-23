@@ -1,0 +1,7 @@
+packages:
+  - packages/*
+  - apps/*
+# Supply-chain posture (SR-018, OPS-001): dependency lifecycle scripts are not run unless listed here.
+onlyBuiltDependencies: []
+strictDepBuilds: true
+engineStrict: true

@@ -1,0 +1,26 @@
+{
+  "name": "@autotest/workflow",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared use-case orchestration for both apps.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/core": "workspace:*",
+    "@autotest/policy": "workspace:*",
+    "@autotest/workspace": "workspace:*",
+    "@autotest/inspect": "workspace:*",
+    "@autotest/planning": "workspace:*",
+    "@autotest/coverage-gate": "workspace:*",
+    "@autotest/execution": "workspace:*",
+    "@autotest/evidence": "workspace:*",
+    "@autotest/analysis": "workspace:*",
+    "@autotest/reporting": "workspace:*",
+    "@autotest/github": "workspace:*",
+    "@autotest/storage": "workspace:*",
+    "@autotest/devices": "workspace:*",
+    "@autotest/adapter-sdk": "workspace:*"
+  }
+}

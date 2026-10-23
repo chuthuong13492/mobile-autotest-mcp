@@ -1,0 +1,1 @@
+{ "hooks": { "Elicitation": [ { "matcher": "spike", "hooks": [ { "type": "command", "command": "/Users/smjle/Documents/mobile-autotest-mcp/spikes/disc-002/accept-hook.sh" } ] } ] } }

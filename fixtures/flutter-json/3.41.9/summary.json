@@ -1,0 +1,223 @@
+{
+ "flutterVersion": "3.41.9",
+ "dartSdkVersion": "3.11.5",
+ "flags": {
+  "--no-pub": false,
+  "--file-reporter": true,
+  "--plain-name": true,
+  "--coverage-path": true,
+  "--reporter": true,
+  "--timeout": true,
+  "--total-shards": true,
+  "--machine": true,
+  "--update-goldens": true,
+  "pub get --enforce-lockfile": true
+ },
+ "scenarios": {
+  "pass": {
+   "exitCode": 0,
+   "events": 11,
+   "protocolVersion": "0.1.1",
+   "done": {
+    "success": true
+   },
+   "testsDone": [
+    {
+     "result": "success",
+     "skipped": false
+    },
+    {
+     "result": "success",
+     "skipped": false
+    }
+   ],
+   "errorEvents": 0,
+   "types": [
+    "start",
+    "suite",
+    "testStart",
+    "allSuites",
+    "testDone",
+    "group",
+    "done"
+   ]
+  },
+  "fail": {
+   "exitCode": 1,
+   "events": 10,
+   "protocolVersion": "0.1.1",
+   "done": {
+    "success": false
+   },
+   "testsDone": [
+    {
+     "result": "failure",
+     "skipped": false
+    }
+   ],
+   "errorEvents": 1,
+   "types": [
+    "start",
+    "suite",
+    "testStart",
+    "allSuites",
+    "testDone",
+    "group",
+    "error",
+    "done"
+   ]
+  },
+  "error": {
+   "exitCode": 1,
+   "events": 10,
+   "protocolVersion": "0.1.1",
+   "done": {
+    "success": false
+   },
+   "testsDone": [
+    {
+     "result": "error",
+     "skipped": false
+    }
+   ],
+   "errorEvents": 1,
+   "types": [
+    "start",
+    "suite",
+    "testStart",
+    "allSuites",
+    "testDone",
+    "group",
+    "error",
+    "done"
+   ]
+  },
+  "skip": {
+   "exitCode": 0,
+   "events": 12,
+   "protocolVersion": "0.1.1",
+   "done": {
+    "success": true
+   },
+   "testsDone": [
+    {
+     "result": "success",
+     "skipped": true
+    },
+    {
+     "result": "success",
+     "skipped": false
+    }
+   ],
+   "errorEvents": 0,
+   "types": [
+    "start",
+    "suite",
+    "testStart",
+    "allSuites",
+    "testDone",
+    "group",
+    "print",
+    "done"
+   ]
+  },
+  "load_error": {
+   "exitCode": 1,
+   "events": 7,
+   "protocolVersion": "0.1.1",
+   "done": {
+    "success": false
+   },
+   "testsDone": [
+    {
+     "result": "error",
+     "skipped": false
+    }
+   ],
+   "errorEvents": 1,
+   "types": [
+    "start",
+    "suite",
+    "testStart",
+    "allSuites",
+    "error",
+    "testDone",
+    "done"
+   ]
+  },
+  "timeout": {
+   "exitCode": 1,
+   "events": 10,
+   "protocolVersion": "0.1.1",
+   "done": {
+    "success": false
+   },
+   "testsDone": [
+    {
+     "result": "error",
+     "skipped": false
+    }
+   ],
+   "errorEvents": 1,
+   "types": [
+    "start",
+    "suite",
+    "testStart",
+    "allSuites",
+    "testDone",
+    "group",
+    "error",
+    "done"
+   ]
+  },
+  "plain_name": {
+   "exitCode": 0,
+   "events": 9,
+   "protocolVersion": "0.1.1",
+   "done": {
+    "success": true
+   },
+   "testsDone": [
+    {
+     "result": "success",
+     "skipped": false
+    }
+   ],
+   "errorEvents": 0,
+   "types": [
+    "start",
+    "suite",
+    "testStart",
+    "allSuites",
+    "testDone",
+    "group",
+    "done"
+   ]
+  },
+  "interrupted": {
+   "exitCode": 0,
+   "signal": null,
+   "events": 9,
+   "protocolVersion": "0.1.1",
+   "done": {
+    "success": false
+   },
+   "testsDone": [
+    {
+     "result": "error",
+     "skipped": false
+    }
+   ],
+   "errorEvents": 0,
+   "types": [
+    "start",
+    "suite",
+    "testStart",
+    "allSuites",
+    "testDone",
+    "group",
+    "done"
+   ]
+  }
+ }
+}

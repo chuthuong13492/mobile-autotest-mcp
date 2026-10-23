@@ -1,0 +1,12 @@
+node_modules
+coverage
+pnpm-lock.yaml
+docs
+spikes
+fixtures
+skills
+.planning
+*.md
+packages/contracts/schemas
+test/boundaries-negative
+test/lint-negative

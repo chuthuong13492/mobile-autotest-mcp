@@ -1,0 +1,14 @@
+{
+  "name": "@autotest/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Domain behavior: run state machine, verdict rules, IDs, canonical JSON/hashing, workflow ports.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "dependencies": {
+    "@autotest/contracts": "workspace:*"
+  }
+}

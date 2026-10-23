@@ -1,0 +1,16 @@
+{
+  "name": "@autotest/adapter-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PlatformAdapter contract, capability model, normalization helpers, JUnit writer, contract test kit.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "dependencies": {
+    "@autotest/contracts": "workspace:*",
+    "@autotest/core": "workspace:*",
+    "zod": "4.6.7"
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "request": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^apr_[0-9A-HJKMNP-TV-Z]{26}$"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "open",
+                "fulfilled",
+                "expired",
+                "withdrawn"
+              ]
+            },
+            "scopeDigest": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "requiredAssurance": {
+              "type": "string",
+              "enum": [
+                "AL1",
+                "AL2",
+                "AL3"
+              ]
+            },
+            "expiresAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            }
+          },
+          "required": [
+            "id",
+            "status",
+            "scopeDigest",
+            "requiredAssurance",
+            "expiresAt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "approvals": {
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "approvalId": {
+            "type": "string",
+            "pattern": "^appr_[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "denied",
+              "expired",
+              "revoked",
+              "consumed",
+              "superseded"
+            ]
+          },
+          "assuranceLevel": {
+            "type": "string",
+            "enum": [
+              "AL1",
+              "AL2",
+              "AL3"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "usable": {
+            "type": "boolean"
+          },
+          "unusableReasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "uses": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "maxUses": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "approvalId",
+          "state",
+          "assuranceLevel",
+          "source",
+          "usable",
+          "unusableReasons",
+          "expiresAt",
+          "uses",
+          "maxUses"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "request",
+    "approvals"
+  ],
+  "additionalProperties": false
+}

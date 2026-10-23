@@ -1,0 +1,15 @@
+node_modules/
+coverage/
+dist/
+*.tsbuildinfo
+.DS_Store
+spikes/**/node_modules/
+spikes/**/build/
+spikes/**/.dart_tool/
+.dart_tool/
+build/
+release/dist/
+release/*.tgz
+*.log
+.env
+.env.*

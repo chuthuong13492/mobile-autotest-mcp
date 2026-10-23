@@ -1,0 +1,42 @@
+{
+  "name": "@autotest/mcp-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AutoTest MCP server (stdio).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/adapter-android": "workspace:*",
+    "@autotest/adapter-appium": "workspace:*",
+    "@autotest/adapter-flutter": "workspace:*",
+    "@autotest/adapter-ios": "workspace:*",
+    "@autotest/adapter-react-native": "workspace:*",
+    "@autotest/adapter-sdk": "workspace:*",
+    "@autotest/analysis": "workspace:*",
+    "@autotest/contracts": "workspace:*",
+    "@autotest/core": "workspace:*",
+    "@autotest/coverage-gate": "workspace:*",
+    "@autotest/devices": "workspace:*",
+    "@autotest/evidence": "workspace:*",
+    "@autotest/exec": "workspace:*",
+    "@autotest/execution": "workspace:*",
+    "@autotest/github": "workspace:*",
+    "@autotest/inspect": "workspace:*",
+    "@autotest/planning": "workspace:*",
+    "@autotest/policy": "workspace:*",
+    "@autotest/reporting": "workspace:*",
+    "@autotest/storage": "workspace:*",
+    "@autotest/workflow": "workspace:*",
+    "@autotest/workspace": "workspace:*",
+    "@modelcontextprotocol/server": "2.3.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.3.1"
+  },
+  "bin": {
+    "autotest-mcp": "./src/main.ts"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@autotest/inspect",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "inspect_project / inspect_test_inventory orchestration.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/core": "workspace:*",
+    "@autotest/workspace": "workspace:*",
+    "@autotest/adapter-sdk": "workspace:*"
+  }
+}

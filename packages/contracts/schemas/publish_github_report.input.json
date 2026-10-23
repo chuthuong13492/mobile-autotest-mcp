@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "reportId": {
+      "type": "string",
+      "pattern": "^rpt_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "mechanisms": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "comment",
+          "check_run",
+          "commit_status"
+        ]
+      }
+    },
+    "approvalId": {
+      "type": "string",
+      "pattern": "^appr_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "dryRun": {
+      "default": false,
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "reportId",
+    "mechanisms"
+  ],
+  "additionalProperties": false
+}

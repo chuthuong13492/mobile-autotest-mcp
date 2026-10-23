@@ -1,0 +1,9 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":70761,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"<APP>/corpus_tests/pass_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading <APP>/corpus_tests/pass_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":1}
+{"count":1,"time":4,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":998}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":1000}
+{"test":{"id":3,"name":"unit pass","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":5,"column":3,"url":"file://<APP>/corpus_tests/pass_test.dart"},"type":"testStart","time":1001}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1015}
+{"success":true,"type":"done","time":1027}

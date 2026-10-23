@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "host": {
+      "type": "object",
+      "properties": {
+        "os": {
+          "type": "string"
+        },
+        "simctl": {
+          "type": "boolean"
+        },
+        "adb": {
+          "type": "boolean"
+        },
+        "emulator": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "os",
+        "simctl",
+        "adb",
+        "emulator"
+      ],
+      "additionalProperties": false
+    },
+    "devices": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "ios",
+              "android"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "simulator",
+              "emulator",
+              "physical"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "osVersion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "busy",
+              "unavailable"
+            ]
+          },
+          "owned": {
+            "type": "boolean"
+          },
+          "leaseId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^lease_[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "deviceId",
+          "platform",
+          "kind",
+          "name",
+          "osVersion",
+          "state",
+          "availability",
+          "owned",
+          "leaseId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "unsupported": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "platform",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "host",
+    "devices",
+    "unsupported"
+  ],
+  "additionalProperties": false
+}

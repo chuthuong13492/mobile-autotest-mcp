@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "prContextId": {
+      "type": "string",
+      "pattern": "^prc_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "agentRequirements": {
+      "default": [],
+      "maxItems": 200,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "functional",
+              "behavior_change",
+              "bug_fix",
+              "non_functional",
+              "regression_scope"
+            ]
+          },
+          "testable": {
+            "default": true,
+            "type": "boolean"
+          },
+          "nonTestableReason": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "platforms": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "android",
+                "ios",
+                "web",
+                "macos",
+                "linux",
+                "windows",
+                "host"
+              ]
+            }
+          },
+          "riskFactors": {
+            "type": "object",
+            "properties": {
+              "functionalImpact": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "securityPrivacyImpact": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "dataIntegrityImpact": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "criticalJourney": {
+                "type": "boolean"
+              },
+              "regressionLikelihood": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "changeSurface": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3
+              },
+              "uncertainty": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3
+              },
+              "platformSpecificity": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2
+              }
+            },
+            "required": [
+              "functionalImpact",
+              "securityPrivacyImpact",
+              "dataIntegrityImpact",
+              "criticalJourney",
+              "regressionLikelihood",
+              "changeSurface",
+              "uncertainty"
+            ],
+            "additionalProperties": false
+          },
+          "sourceQuote": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "acceptanceCriteria": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 1000
+                },
+                "format": {
+                  "type": "string",
+                  "enum": [
+                    "given_when_then",
+                    "checklist",
+                    "freeform"
+                  ]
+                }
+              },
+              "required": [
+                "text",
+                "format"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "title",
+          "statement",
+          "kind",
+          "acceptanceCriteria"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "agentAmbiguities": {
+      "default": [],
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "relatedKeys": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        },
+        "required": [
+          "text",
+          "severity"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "agentAssumptions": {
+      "default": [],
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "mode": {
+      "default": "parsed_and_agent",
+      "type": "string",
+      "enum": [
+        "parsed_only",
+        "parsed_and_agent"
+      ]
+    }
+  },
+  "required": [
+    "prContextId"
+  ],
+  "additionalProperties": false
+}

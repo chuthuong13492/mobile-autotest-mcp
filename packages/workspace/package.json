@@ -1,0 +1,14 @@
+{
+  "name": "@autotest/workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bounded, policy-checked workspace reads.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/contracts": "workspace:*",
+    "@autotest/policy": "workspace:*"
+  }
+}

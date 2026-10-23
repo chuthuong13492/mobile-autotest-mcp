@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "approvalRequestId": {
+      "type": "string",
+      "pattern": "^apr_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "approvalId": {
+      "type": "string",
+      "pattern": "^appr_[0-9A-HJKMNP-TV-Z]{26}$"
+    }
+  },
+  "additionalProperties": false
+}

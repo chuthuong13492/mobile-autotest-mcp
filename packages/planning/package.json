@@ -1,0 +1,14 @@
+{
+  "name": "@autotest/planning",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Requirement extraction, plan normalization, risk model, eligibility.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/core": "workspace:*",
+    "markdown-it": "15.0.2"
+  }
+}

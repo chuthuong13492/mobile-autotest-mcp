@@ -1,0 +1,12 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":69494,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"<APP>/corpus_tests/skip_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading <APP>/corpus_tests/skip_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":4,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":1001}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":2,"line":null,"column":null,"url":null},"type":"group","time":1003}
+{"test":{"id":3,"name":"skipped test","suiteID":0,"groupIDs":[2],"metadata":{"skip":true,"skipReason":"not ready"},"line":2,"column":15,"url":"file://<APP>/corpus_tests/skip_test.dart"},"type":"testStart","time":1003}
+{"testID":3,"messageType":"skip","message":"Skip: not ready","type":"print","time":1004}
+{"testID":3,"result":"success","skipped":true,"hidden":false,"type":"testDone","time":1005}
+{"test":{"id":4,"name":"runs","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":2,"column":63,"url":"file://<APP>/corpus_tests/skip_test.dart"},"type":"testStart","time":1005}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1016}
+{"success":true,"type":"done","time":1025}

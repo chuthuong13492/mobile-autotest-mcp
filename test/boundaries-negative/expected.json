@@ -1,0 +1,42 @@
+{
+  "$comment": "OPS-003 negative fixtures: each file must trigger the listed rule(s). workspace/src/fs.ts is a control case (workspace may use node:fs).",
+  "packages/coverage-gate/src/index.ts": [
+    "coverage-gate-not-planning"
+  ],
+  "packages/planning/src/spawn.ts": [
+    "adapters-no-side-effects",
+    "only-exec-spawns"
+  ],
+  "packages/adapter-flutter/src/index.ts": [
+    "adapters-isolated",
+    "allowed-package-deps:packages/adapter-flutter"
+  ],
+  "packages/core/src/apps.ts": [
+    "no-apps-import"
+  ],
+  "packages/core/src/index.ts": [
+    "allowed-package-deps:packages/core"
+  ],
+  "packages/storage/src/octo.ts": [
+    "only-github-network"
+  ],
+  "packages/policy/src/sdk.ts": [
+    "sdk-only-in-app"
+  ],
+  "packages/analysis/src/llm.ts": [
+    "no-llm-sdks"
+  ],
+  "packages/reporting/src/deep.ts": [
+    "no-deep-imports"
+  ],
+  "packages/evidence/src/a.ts": [
+    "no-circular"
+  ],
+  "packages/inspect/src/bad.ts": [
+    "allowed-package-deps:packages/inspect"
+  ],
+  "packages/workspace/src/fs.ts": [],
+  "packages/coverage-gate/src/net.ts": [
+    "pure-units-no-network-libs"
+  ]
+}

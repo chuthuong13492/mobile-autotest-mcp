@@ -1,0 +1,39 @@
+{
+  "name": "mobile-autotest-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Mobile AutoTest MCP: PR-driven, policy-governed mobile test orchestration (MCP server + CLI + Agent Skill).",
+  "packageManager": "pnpm@10.19.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm depcruise && pnpm depcruise:negative && pnpm test",
+    "depcruise": "depcruise --config .dependency-cruiser.cjs packages apps && node scripts/check-boundaries.ts",
+    "depcruise:negative": "node scripts/check-boundaries-negative.ts"
+  },
+  "devDependencies": {
+    "@autotest/adapter-sdk": "workspace:*",
+    "@autotest/cli": "workspace:*",
+    "@autotest/core": "workspace:*",
+    "@autotest/mcp-server": "workspace:*",
+    "@autotest/policy": "workspace:*",
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "5.0.5",
+    "dependency-cruiser": "18.7.0",
+    "eslint": "10.13.0",
+    "fast-check": "4.10.2",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "5.0.5"
+  }
+}

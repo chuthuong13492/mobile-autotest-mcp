@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "requirementSetId": {
+      "type": "string",
+      "pattern": "^rqs_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "inventoryId": {
+      "type": "string",
+      "pattern": "^inv_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "basePlanId": {
+      "type": "string",
+      "pattern": "^plan_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "platformsInScope": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "android",
+          "ios",
+          "web",
+          "macos",
+          "linux",
+          "windows",
+          "host"
+        ]
+      }
+    },
+    "draft": {
+      "type": "object",
+      "properties": {
+        "testCases": {
+          "minItems": 1,
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "clientKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "title": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200
+              },
+              "requirementRefs": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^REQ-\\d{3}$"
+                }
+              },
+              "acRefs": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^REQ-\\d{3}\\.AC-\\d{2}$"
+                }
+              },
+              "level": {
+                "type": "string",
+                "enum": [
+                  "unit",
+                  "widget",
+                  "component",
+                  "integration",
+                  "e2e",
+                  "manual"
+                ]
+              },
+              "technique": {
+                "type": "string",
+                "enum": [
+                  "positive",
+                  "negative",
+                  "boundary",
+                  "state_transition",
+                  "error_handling",
+                  "regression",
+                  "accessibility",
+                  "security",
+                  "platform_specific"
+                ]
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "must",
+                  "should",
+                  "could"
+                ]
+              },
+              "platforms": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "android",
+                    "ios",
+                    "web",
+                    "macos",
+                    "linux",
+                    "windows",
+                    "host"
+                  ]
+                }
+              },
+              "preconditions": {
+                "default": [],
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "steps": {
+                "minItems": 1,
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "expectedResults": {
+                "minItems": 1,
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "targetPath": {
+                "type": "string",
+                "maxLength": 1024
+              },
+              "targetSelector": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "automation": {
+                "type": "string",
+                "enum": [
+                  "existing_test",
+                  "new_test_required",
+                  "manual"
+                ]
+              },
+              "dependsOnKeys": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 64
+                }
+              }
+            },
+            "required": [
+              "clientKey",
+              "title",
+              "requirementRefs",
+              "level",
+              "technique",
+              "priority",
+              "platforms",
+              "steps",
+              "expectedResults",
+              "automation"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "exceptions": {
+          "default": [],
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "requirementRefs": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^REQ-\\d{3}$"
+                }
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "not_testable",
+                  "covered_elsewhere",
+                  "deferred",
+                  "out_of_scope"
+                ]
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 20,
+                "maxLength": 2000
+              },
+              "evidenceLink": {
+                "type": "string",
+                "maxLength": 1024
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "requirementRefs",
+              "reason",
+              "rationale",
+              "expiresAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "display": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string",
+              "maxLength": 4000
+            },
+            "narrative": {
+              "type": "string",
+              "maxLength": 8000
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "testCases"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "requirementSetId",
+    "inventoryId",
+    "platformsInScope",
+    "draft"
+  ],
+  "additionalProperties": false
+}

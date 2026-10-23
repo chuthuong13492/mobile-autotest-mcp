@@ -1,0 +1,14 @@
+{
+  "name": "@autotest/github",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GitHub/GHES client and publisher.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autotest/core": "workspace:*",
+    "@autotest/policy": "workspace:*"
+  }
+}

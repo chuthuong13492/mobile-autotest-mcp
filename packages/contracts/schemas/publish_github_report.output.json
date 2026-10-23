@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "reportId": {
+      "type": "string",
+      "pattern": "^rpt_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "scopeDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "dryRun": {
+      "type": "boolean"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "mechanism": {
+            "type": "string",
+            "enum": [
+              "comment",
+              "check_run",
+              "commit_status"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "updated",
+              "skipped",
+              "failed",
+              "would_publish"
+            ]
+          },
+          "remoteId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "mechanism",
+          "status",
+          "remoteId",
+          "url",
+          "errorCode"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "reportId",
+    "scopeDigest",
+    "dryRun",
+    "results"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "reportId": {
+      "type": "string",
+      "pattern": "^rpt_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive",
+        "blocked"
+      ]
+    },
+    "verdictRule": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "reportHash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "artifacts": {
+      "maxItems": 3,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "artifactId": {
+            "type": "string",
+            "pattern": "^art_[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "stdout",
+              "stderr",
+              "runner_json",
+              "junit",
+              "xcresult",
+              "screenshot",
+              "video",
+              "log",
+              "coverage",
+              "report"
+            ]
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "mimeType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "quarantined": {
+            "type": "boolean"
+          },
+          "uri": {
+            "type": "string",
+            "pattern": "^autotest:\\/\\/runs\\/run_[0-9A-HJKMNP-TV-Z]{26}\\/artifacts\\/art_[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        },
+        "required": [
+          "artifactId",
+          "kind",
+          "sizeBytes",
+          "sha256",
+          "mimeType",
+          "quarantined",
+          "uri"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "markdownPreview": {
+      "type": "string",
+      "maxLength": 12000
+    },
+    "plannedVsExecuted": {
+      "type": "object",
+      "properties": {
+        "planned": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "executed": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "notRun": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "blocked": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "planned",
+        "executed",
+        "notRun",
+        "blocked"
+      ],
+      "additionalProperties": false
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_:]*$"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "reportId",
+    "verdict",
+    "verdictRule",
+    "reportHash",
+    "artifacts",
+    "markdownPreview",
+    "plannedVsExecuted",
+    "limitations"
+  ],
+  "additionalProperties": false
+}

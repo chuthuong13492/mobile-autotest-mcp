@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "boot",
+        "shutdown",
+        "create",
+        "erase",
+        "delete"
+      ]
+    },
+    "deviceId": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "owned": {
+      "type": "boolean"
+    },
+    "tierApplied": {
+      "type": "string",
+      "enum": [
+        "P1",
+        "P2"
+      ]
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "done",
+        "already_in_state"
+      ]
+    },
+    "leaseId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^lease_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "state": {
+      "type": "string",
+      "maxLength": 64
+    }
+  },
+  "required": [
+    "action",
+    "deviceId",
+    "owned",
+    "tierApplied",
+    "result",
+    "leaseId",
+    "state"
+  ],
+  "additionalProperties": false
+}

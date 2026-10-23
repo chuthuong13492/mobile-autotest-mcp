@@ -1,0 +1,1 @@
+{ "mcpServers": { "spike": { "command": "/Users/smjle/.nvm/versions/node/v24.22.1/bin/node", "args": ["/Users/smjle/Documents/mobile-autotest-mcp/spikes/disc-001/proxy.mjs"], "env": { "SPIKE_PROXY_LOG": "/Users/smjle/Documents/mobile-autotest-mcp/spikes/disc-001/proxy.log" } } } }
