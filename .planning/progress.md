@@ -100,3 +100,4 @@ M6: SEC-001 – SEC-003 and E2E-002 done. `pnpm check` passes on Node 24 and 26 
 Re-validation run 29: PASS 47, WARNING 1. Autotrader is unchanged.
 M8 (final): release tarball rebuilt from the final code (sha256 3ba51f62840650db4f3825a3bb4db0355e2c07c1eb04ea30c5cfcd1438a1bbce); scripts/verify-macos.sh passes on it (temp prefix and HOME, setup, doctor 0 failures, real Flutter 3.47.1 run, report pass, audit chain verified). Linux remains NOT VERIFIED until a Docker daemon is available (scripts/verify-linux.sh).
 2026-10-24: remote added by the user; first CI runs: pnpm check green on all four jobs, audit failed on markdown-it 15.0.2 (GHSA-gfr2-rv44-r23c high, GHSA-vfgh-jcmw-g37q low); pinned 15.0.3.
+2026-10-24: CI run 39993739919 green on all five jobs (686 passed, 6 skipped per check job; release-build packed on Ubuntu). Remaining for OPS-002: branch protection, doc-link script, Node 24 versions of the actions.
