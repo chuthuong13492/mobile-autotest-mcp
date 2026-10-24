@@ -17,12 +17,12 @@ PR-driven, policy-governed mobile test orchestration for Claude Code: an MCP ser
 Download the package from the GitHub Release (or use a `.tgz` you were given), check it, and install it:
 
 ```bash
-gh release download v0.2.0 -R chuthuong13492/mobile-autotest-mcp -p '*.tgz' -p SHA256SUMS
+gh release download v0.3.0 -R chuthuong13492/mobile-autotest-mcp -p '*.tgz' -p SHA256SUMS
 shasum -a 256 -c SHA256SUMS --ignore-missing
 ```
 
 ```bash
-npm install -g ./mobile-autotest-mcp-0.2.0.tgz
+npm install -g ./mobile-autotest-mcp-0.3.0.tgz
 autotest setup --workspace /path/to/your/flutter/repo
 autotest doctor
 ```

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0
+
+Baseline runs, the known-failure registry and operational hardening.
+
+- Baseline runs: `run_tests` with `baseline: {ref?}` runs the plan at the PR's base commit in a git worktree inside the
+  run directory (`git` is allowlisted with hooks off and no network; AutoTest never fetches). Failures that also fail
+  at the base commit are analyzed as `pre_existing` and do not fail the verdict.
+- `autotest known-failures add|list|remove`: an audited registry of known failures, each with a reason, a link and an
+  expiry of at most one year.
+- `autotest doctor` reports unsupported `keychain:` secrets, unset `env:` secrets, run data above the retention cap
+  and leftover baseline worktrees; `doctor --stats` and `approvals --all` are new.
+- Reliability fixes found by the new resilience suite and operations drills: a busy database no longer leaves the
+  server unable to write until restart; a full disk returns `E_STORAGE_UNAVAILABLE` and never breaks the audit chain;
+  a tampered approval can be revoked (it moves to `quarantine/approvals/`); runs always record when they ended; the
+  log file is best-effort.
+- PR reports carry `audit_chain_broken` when the local audit log fails verification.
+- Agent Skill `pr-mobile-autotest` 0.3.0: optional baseline runs. Evaluated with 3 runs per scenario.
+- Releases are installed and smoke-tested on Ubuntu and macOS before publication; `SECURITY.md` and Dependabot added.
+- Verified on Linux (Docker, Flutter 3.44.0) and macOS (Flutter 3.38.4 – 3.47.1).
+
 ## 0.2.0
 
 GitHub on github.com through the GitHub CLI (Phase 2, rescoped).
