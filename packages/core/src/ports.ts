@@ -103,6 +103,11 @@ export interface ApprovalStore {
   consume(id: string, at: Date): Promise<Approval>;
   /** Revokes an `approved` or `pending` approval; throws `not_usable` for any other state. */
   revoke(id: string, by: string, at: Date): Promise<Approval>;
+  /**
+   * Revokes an approval whose record failed its integrity check (OPS-007): the record is moved aside as evidence and
+   * the approval is never returned again, so it cannot block its scope. Throws `not_found` for an unknown id.
+   */
+  quarantine(id: string, at: Date): Promise<void>;
   /** Marks every `approved` approval bound to `planHash` as `superseded`; returns how many changed. */
   supersedeByPlanHash(planHash: string): Promise<number>;
   /** The unexpired open request for a scope digest, if any (request idempotency). */

@@ -147,6 +147,9 @@ export class InMemoryApprovalStore implements ApprovalStore {
     const r = this.requests.get(id);
     return r && clone(r);
   }
+  async quarantine(id: string): Promise<void> {
+    if (!this.approvals.delete(id)) throw new PortError('not_found', `approval ${id}`);
+  }
   async putApproval(a: Approval): Promise<void> {
     if (this.approvals.has(a.id)) throw new PortError('conflict', `approval ${a.id} exists`);
     this.approvals.set(a.id, clone(a));

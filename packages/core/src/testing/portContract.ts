@@ -116,6 +116,19 @@ export function approvalStoreCases(make: () => ApprovalStore): ContractCase[] {
   const at = new Date('2026-10-23T01:00:00Z');
   return [
     {
+      name: 'approval store: a quarantined approval is never returned again',
+      run: async () => {
+        const s = make();
+        const a = sampleApproval();
+        await s.putApproval(a);
+        await s.quarantine(a.id, new Date('2026-10-25T00:00:00Z'));
+        assert.equal(await s.getApproval(a.id), undefined);
+        assert.deepEqual(await s.listByScopeDigest(a.scope.digest), []);
+        assert.equal((await s.listRecentApprovals(10)).length, 0);
+        await rejectsWith(s.quarantine('appr_01JC7777777777777777777777', new Date()), 'not_found');
+      },
+    },
+    {
       name: 'approval store: consume counts uses and moves to consumed at maxUses',
       run: async () => {
         const s = make();

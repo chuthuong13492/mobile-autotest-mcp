@@ -37,6 +37,8 @@ export interface ReportInput {
   readonly results: readonly TestResult[];
   readonly analyses: readonly FailureAnalysis[];
   readonly narrative?: string;
+  /** Limitations from outside the runs (for example a broken audit chain, OPS-007). */
+  readonly extraLimitations?: readonly Limitation[];
 }
 
 export interface CaseRow {
@@ -182,6 +184,7 @@ export function buildReportModel(i: ReportInput): ReportModel {
     ...(i.runs.length === 0
       ? [{ code: 'no_runs', message: 'no run of this plan hash is included in the report' }]
       : []),
+    ...(i.extraLimitations ?? []),
   ];
 
   return {

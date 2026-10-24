@@ -24,6 +24,7 @@ import {
   type ToolOutput,
 } from '@autotest/core';
 import { runPaths } from '@autotest/execution';
+import { verifyAuditFiles } from '@autotest/storage';
 import { buildReportModel, renderJson, renderMarkdown, type ReportModel } from '@autotest/reporting';
 import { analyzeRun } from './analysis.ts';
 import { fail, ok, type UseCaseResult } from './result.ts';
@@ -124,6 +125,7 @@ export async function generateReport(
     results,
     analyses,
     ...(input.narrative ? { narrative: input.narrative } : {}),
+    extraLimitations: auditLimitation(deps.dataRoot),
   });
 
   const content = {
@@ -222,4 +224,17 @@ export async function generateReport(
     plannedVsExecuted: model.plannedVsExecuted,
     limitations: [...model.limitations],
   });
+}
+
+/** A broken audit chain does not change the verdict, but every later report says so (operations §4, OPS-007). */
+function auditLimitation(dataRoot: string): { code: string; message: string }[] {
+  const audit = verifyAuditFiles(dataRoot);
+  return audit.ok
+    ? []
+    : [
+        {
+          code: 'audit_chain_broken',
+          message: `the local audit log fails verification (${audit.problem} at ${audit.file}:${audit.line}); see \`autotest doctor --audit\``,
+        },
+      ];
 }

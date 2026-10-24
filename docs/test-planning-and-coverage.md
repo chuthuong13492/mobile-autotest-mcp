@@ -129,7 +129,7 @@ Overrides   SPI = 4 or DII = 4  → at least R3
 
 **Test availability and reliability.** These do **not** change the tier. They change *verification confidence*, so they feed eligibility and gate rules GB-06, GR-05 and GR-06. That keeps "how risky is the change" separate from "how well can we verify it".
 
-**Calibration.** The thresholds above are policy v1. OPS-005 records a calibration review based on accumulated reports (Phase 3). Any change produces a new `riskPolicyVersion`, which changes plan hashes.
+**Calibration.** The thresholds above are policy v1. OPS-005 records a calibration review based on accumulated reports (Phase 3). Any change produces a new `riskPolicyVersion`, which changes plan hashes. The first review (2026-10-25, [bench/CALIBRATION.md](../bench/CALIBRATION.md)) kept v1: no pilot data exists yet, and fixture and Skill-evaluation evidence showed no mis-tiering.
 
 ### Consequences by tier
 

@@ -29,7 +29,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Owner (role).** MCP Engineer.
 - **Decision phase.** Phase 0 (DISC-002). Re-check in Phase 3.
 - **Closure criteria.** Support is documented as yes or no, with the client version.
-- **Status.** **Answered 2026-10-23: not supported** by Claude Code 2.1.169 ([RL-032](research-log.md#rl-032--tasks-extension-in-claude-code)). Re-check on client upgrades.
+- **Status.** **Answered 2026-10-23: not supported** by Claude Code 2.1.169 ([RL-032](research-log.md#rl-032--tasks-extension-in-claude-code)). Re-check on client upgrades. **Re-checked 2026-10-25** (Phase 3): still Claude Code 2.1.169; MCP-003 withdrawn.
 
 ### OQ-04
 - **Question.** How does Claude Code's elicitation behave in practice, and which approval scopes, if any, should policy allow at AL1, given that the `Elicitation` hook can answer automatically?

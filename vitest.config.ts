@@ -8,6 +8,7 @@ export default defineConfig({
       'test/**/*.test.ts',
       'security/**/*.test.ts',
       'resilience/**/*.test.ts',
+      'ops/**/*.test.ts',
     ],
     environment: 'node',
     coverage: {

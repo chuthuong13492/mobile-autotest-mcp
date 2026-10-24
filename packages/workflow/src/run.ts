@@ -664,6 +664,11 @@ export async function syncRun(
         ? { limitations: imported.limitations.map((code) => ({ code, message: code.replace(/_/g, ' ') })) }
         : {}),
       ...(terminal ? { endedAt: terminal.endedAt } : {}),
+      // The supervisor appends the terminal state event before it writes terminal.json: a sync in between still
+      // records when the run ended (OPS-007 found runs without endedAt, which retention never removed).
+      ...(!terminal && isTerminal(state)
+        ? { endedAt: terminalEventTs(files.events.events, state) ?? iso(ports.clock.now()) }
+        : {}),
     };
     try {
       run = await ports.runs.update(runId, patch, run.state);
@@ -684,6 +689,14 @@ export async function syncRun(
     if (opts.pump !== false) await pumpQueue(deps);
   }
   return run;
+}
+
+/** The timestamp of the last state event that entered `state`. */
+function terminalEventTs(
+  events: readonly { t: string; ts?: string; to?: string }[],
+  state: RunState,
+): string | undefined {
+  return [...events].reverse().find((e) => e.t === 'state' && e.to === state)?.ts;
 }
 
 /** Supervisor liveness: identity-checked when the identity is known, otherwise by heartbeat freshness. */

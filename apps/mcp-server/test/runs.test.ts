@@ -405,6 +405,31 @@ describe('RUN-006 restart reconciliation', () => {
     },
   );
 
+  it('a sync between the terminal event and terminal.json still records endedAt', { timeout: 60_000 }, async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const f = setupRunData({ 'test/a_test.dart': 'pass' });
+    const c = await composeRuns(f.data);
+    const plan = await runnablePlan(c, ['test/a_test.dart']);
+    const { runId } = sc<{ runId: string }>(
+      await c.call('run_tests', { planId: plan.planId, planHash: plan.planHash }),
+    );
+    await waitTerminal(c, runId);
+    // Rewind to the moment the supervisor had appended its terminal state event but not yet written terminal.json.
+    await c.ports.runs.update(runId, {
+      state: 'running',
+      statusCategory: 'running',
+      endedAt: undefined,
+      supervisor: undefined,
+    });
+    fs.rmSync(path.join(f.data, 'runs', runId, 'terminal.json'));
+    expect(sc<{ state: string; endedAt: string | null }>(await c.call('get_run_status', { runId }))).toMatchObject({
+      state: 'completed',
+      endedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+    });
+    await c.close();
+  });
+
   it('without a restart, get_run_status notices a dead supervisor', { timeout: 60_000 }, async () => {
     const { waitRunning } = await import('./runSetup.ts');
     const f = setupRunData({ 'test/slow_test.dart': 'slow' });
