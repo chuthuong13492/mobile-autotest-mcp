@@ -42,10 +42,20 @@ export function defaultHooks(
     spawnContext({ header, stdoutPath, stderrPath }) {
       const ws = workspaces.find((w) => w.id === header.workspaceId);
       if (!config || !registry || !ws || ws.readOnlyReference) return undefined;
+      // A baseline run executes in its worktree inside the run directory (ANL-002), never anywhere else.
+      let root = ws.realPath;
+      if (header.baseline) {
+        try {
+          root = fsp.realpath(path.join(paths.dir, header.baseline.dir));
+        } catch {
+          return undefined;
+        }
+        if (path.dirname(root) !== fsp.realpath(paths.dir)) return undefined;
+      }
       return {
         fs: fsp,
         registry,
-        workspaceRoot: ws.realPath,
+        workspaceRoot: root,
         runDir: paths.dir,
         allowDependencyResolution: config.execution.allowDependencyResolution,
         allowedClasses: ['test_runner'],

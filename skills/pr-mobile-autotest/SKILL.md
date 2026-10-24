@@ -47,6 +47,7 @@ You guide a PR (or a task description) from its text to a test report. **Your ro
 8. **Run.** Call `run_tests` with the plan's `planId` and `planHash` (optionally a subset of `targets`).
    - `E_APPROVAL_*`, `E_COVERAGE_*`, `E_POLICY_DENIED`: explain the reason in `details.reasons` and stop.
    - `E_PREREQUISITE_MISSING` with `pub_get`: the user must run `flutter pub get` in the workspace (runs never resolve dependencies), then retry.
+   - **Pre-existing failures (optional).** If a failure might already exist on the base branch, you may call `run_tests` again with `baseline: {}` (GitHub PR) or `baseline: {ref: "<base branch>"}` (manual), on the same plan. It runs the tests at the base commit; analysis then marks failures that also fail there as `pre_existing`. `E_PREREQUISITE_MISSING` with `baseline_ref_missing` means the user must `git fetch` themselves; `baseline_dependencies_differ` means a baseline is not possible for this PR. Known failures are registered by a human with `autotest known-failures`, never by you.
 9. **Monitor.** Poll `get_run_status`, respecting `pollAfterMs`. If the user wants to stop, call `cancel_test_run`. Report `cancel_pending` survivors honestly.
 10. **Results and evidence.** When the run is terminal, call `get_run_results` (failures and indeterminate outcomes first), then `collect_test_evidence` with excerpts only where needed. Quarantined artifacts are not readable; say so.
 11. **Analysis.** Call `analyze_test_failures`. Present each classification with its strength, confidence, observations and alternatives.

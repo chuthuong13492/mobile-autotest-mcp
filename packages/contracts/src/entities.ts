@@ -460,6 +460,13 @@ export const Run = z.strictObject({
   counts: z.partialRecord(TestOutcome, z.number().int().min(0)),
   partial: z.boolean(),
   limitations: z.array(Limitation),
+  /** ANL-002: this run executed the plan at a base commit (a baseline run), not at the workspace's checkout. */
+  baseline: z
+    .strictObject({
+      ref: Text(200),
+      commit: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/),
+    })
+    .optional(),
   createdAt: Timestamp,
   startedAt: Timestamp.optional(),
   endedAt: Timestamp.optional(),

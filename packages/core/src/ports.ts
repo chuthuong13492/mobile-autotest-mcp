@@ -10,6 +10,7 @@ import type {
   EvidenceArtifact,
   ExecutionAuthorizationDecision,
   FailureAnalysis,
+  KnownFailure,
   PRReport,
   PRContext,
   ProcessIdentity,
@@ -145,6 +146,20 @@ export interface AnalysisStore {
   /** Stores analyses; an existing id with identical content is a no-op, different content is a `conflict`. */
   putMany(analyses: readonly FailureAnalysis[], rulesetVersion: string): Promise<void>;
   listByRun(runId: string, rulesetVersion: string): Promise<FailureAnalysis[]>;
+  /**
+   * Replaces all analyses of one run under one ruleset version (ANL-002: a baseline run or a known-failure entry
+   * that appears after the first analysis changes the inputs, so the derived analyses are recomputed).
+   */
+  replaceForRun(runId: string, rulesetVersion: string, analyses: readonly FailureAnalysis[]): Promise<void>;
+}
+
+/** The user-owned known-failure registry (ANL-002; `autotest known-failures`). Ids are `KF-001`, `KF-002`, … */
+export interface KnownFailureStore {
+  /** Adds an entry with the next free id. */
+  add(entry: Omit<KnownFailure, 'id'>): Promise<KnownFailure>;
+  list(): Promise<KnownFailure[]>;
+  /** Returns false when no entry has this id. */
+  remove(id: string): Promise<boolean>;
 }
 
 /** PR reports (TL-17). Report content is immutable; the same content hash is the same report. */
@@ -166,6 +181,8 @@ export interface RunStore {
     expectedState?: RunState,
   ): Promise<Run>;
   listNonTerminal(): Promise<Run[]>;
+  /** Every run of one plan version, oldest first (ANL-002 finds baseline runs this way). */
+  listByPlanHash(planHash: string): Promise<Run[]>;
 }
 
 export interface ResultQuery {

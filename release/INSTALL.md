@@ -41,6 +41,12 @@ is not on your `PATH`, call the bins by their full path (`$(npm prefix -g)/bin/a
 
 Run `autotest setup --workspace <path>` again for each further repository. `--yes` never asks questions.
 
+## Baseline runs (optional)
+
+`autotest setup` also allowlists `git` (for baseline runs: a checkout of the PR's base commit inside the run
+directory, never a fetch). Failures that already exist on the base branch can be registered with
+`autotest known-failures add …` so they do not fail a PR's verdict.
+
 ## GitHub (optional)
 
 AutoTest reads PRs and publishes reports on github.com through your GitHub CLI login. It never stores the token.

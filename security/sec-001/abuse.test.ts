@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { createIdGenerator, TOOLS } from '@autotest/core';
+import { createIdGenerator, TOOLS, type ArgToken, type ExecutionSpec } from '@autotest/core';
 import { ingestArtifacts } from '@autotest/evidence';
 import { spawnSpec, truncationMarker } from '@autotest/exec';
 import { buildRegistry, createRedactor, loadPolicyConfig, nodeFsPort, validateSpec } from '@autotest/policy';
@@ -301,6 +301,43 @@ describe('SEC-001 command, path, environment and artifact abuse', () => {
     fs.chmodSync(data, 0o755);
     expect(() => openDataRoot(data)).toThrow(/group\/world/);
     expect(buildRegistry(nodeFsPort(), {}).executables.size).toBe(0);
+  });
+
+  T('T-03,T-08', 'git (baseline worktrees) cannot fetch, run hooks, or write outside the run directory', () => {
+    const root = tmp('autotest-git-');
+    fs.writeFileSync(path.join(root, 'git'), '#!/bin/sh\n', { mode: 0o755 });
+    const run = tmp('autotest-gitrun-');
+    const ctx = {
+      fs: nodeFsPort(),
+      registry: buildRegistry(nodeFsPort(), { git: { path: path.join(root, 'git') } }),
+      workspaceRoot: root,
+      runDir: run,
+      allowDependencyResolution: true,
+    };
+    const SAFE = ['-c', 'core.hooksPath=/dev/null', '-c', 'protocol.allow=never']
+      .concat(['-c', 'filter.lfs.smudge=', '-c', 'filter.lfs.process=', '-c', 'filter.lfs.required=false'])
+      .map((value) => ({ kind: 'word' as const, value }));
+    const gitSpec = (args: ArgToken[]): ExecutionSpec => ({
+      ...spec('x'),
+      executable: 'git',
+      args,
+      cancellation: 'process_group',
+    });
+    const g = (...args: ArgToken[]) => validateSpec(gitSpec([...SAFE, ...args]), ctx).ok;
+    const w = (value: string) => ({ kind: 'word' as const, value });
+    expect(g(w('worktree'), w('prune'))).toBe(true);
+    // No fetch/clone/config/submodule/push form exists, even with dependency resolution allowed.
+    for (const sub of ['fetch', 'clone', 'pull', 'push', 'config', 'submodule', 'lfs', 'archive'])
+      expect(g(w(sub)), sub).toBe(false);
+    // Without the fixed safety options (hooks off, no transport) nothing is accepted.
+    expect(validateSpec(gitSpec([w('worktree'), w('prune')]), ctx).ok).toBe(false);
+    // The worktree path is fixed to <runDir>/baseline: no escape, no workspace path.
+    const add = (rel: string) => g(w('worktree'), w('add'), w('--detach'), { kind: 'runPath', rel }, w('a'.repeat(40)));
+    expect(add('baseline')).toBe(true);
+    for (const rel of ['../x', 'baseline/../../x', 'other']) expect(add(rel), rel).toBe(false);
+    expect(g(w('worktree'), w('add'), w('--detach'), { kind: 'workspacePath', rel: 'x' }, w('a'.repeat(40)))).toBe(
+      false,
+    );
   });
 
   it('T-ID coverage report: every threat SEC-001 owns has a case', () => {

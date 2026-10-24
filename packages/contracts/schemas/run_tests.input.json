@@ -86,6 +86,17 @@
       },
       "additionalProperties": false
     },
+    "baseline": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^(?!.*\\.\\.)(?!.*@\\{)[A-Za-z0-9][A-Za-z0-9._/-]*$"
+        }
+      },
+      "additionalProperties": false
+    },
     "idempotencyKey": {
       "type": "string",
       "pattern": "^[A-Za-z0-9._:-]{1,128}$"

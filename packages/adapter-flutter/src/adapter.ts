@@ -47,6 +47,15 @@ export function createFlutterAdapter(): PlatformAdapter {
     evidenceHints: flutterEvidenceHints,
     failureSignals: (results) => flutterFailureSignals(results),
     cleanupSpecs: () => [],
+    baselineDependencies: {
+      lockFiles: ['pubspec.lock'],
+      copy: [
+        '.dart_tool/package_config.json',
+        '.dart_tool/package_graph.json',
+        '.flutter-plugins',
+        '.flutter-plugins-dependencies',
+      ],
+    },
     async prerequisites(ctx) {
       // Runs use --no-pub (SR-014): dependencies must already be resolved in the workspace.
       const resolved = ctx.workspace.exists('.dart_tool/package_config.json');

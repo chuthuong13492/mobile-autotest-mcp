@@ -78,6 +78,16 @@ export const RunHeader = z.strictObject({
       retryOn: z.array(z.enum(['flaky', 'infrastructure'])).max(2),
     })
     .optional(),
+  /**
+   * ANL-002: a baseline run. The tests run in the worktree `<runDir>/baseline`, checked out at `commit` before the
+   * run was queued; the workspace stays the authorization subject and the source of the executable allowlist.
+   */
+  baseline: z
+    .strictObject({
+      commit: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/),
+      dir: z.literal('baseline'),
+    })
+    .optional(),
 });
 export type RunHeader = z.infer<typeof RunHeader>;
 

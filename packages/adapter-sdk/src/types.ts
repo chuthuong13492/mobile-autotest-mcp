@@ -206,4 +206,10 @@ export interface PlatformAdapter {
   cleanupSpecs?(ctx: CleanupContext): ExecutionSpec[];
   /** Runtime prerequisites; absent means none beyond the allowlisted executable. */
   prerequisites?(ctx: DetectContext): Promise<PrerequisiteReport>;
+  /**
+   * ANL-002: how a baseline worktree reuses the workspace's resolved dependencies (runs never resolve them). The
+   * listed files are copied from the workspace into the worktree, and only when every lock file is byte-identical
+   * at the base commit; otherwise the baseline run is refused. Absent: baseline runs need no dependency state.
+   */
+  readonly baselineDependencies?: { readonly lockFiles: readonly string[]; readonly copy: readonly string[] };
 }

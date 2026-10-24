@@ -15,6 +15,7 @@ import {
   EvidenceArtifact,
   ExecutionAuthorizationDecision,
   FailureAnalysis,
+  KnownFailure,
   PortError,
   PRReport,
   PRContext,
@@ -32,6 +33,7 @@ import {
   type AuthorizationStore,
   type PublicationRecord,
   type PublicationStore,
+  type KnownFailureStore,
   type ReportStore,
   type DecisionBinding,
   type DecisionStore,
@@ -389,28 +391,36 @@ export class SqliteAnalysisStore implements AnalysisStore {
   }
   async putMany(analyses: readonly FailureAnalysis[], rulesetVersion: string): Promise<void> {
     const parsed = analyses.map((a) => FailureAnalysis.parse(a));
-    this.sql.transaction(() => {
-      for (const a of parsed) {
-        const doc = canonicalize(a);
-        const prev = this.sql.get<{ doc: string; ruleset_version: string }>(
-          'SELECT doc, ruleset_version FROM failure_analyses WHERE id = ?',
-          a.id,
-        );
-        if (prev) {
-          if (prev.doc !== doc || prev.ruleset_version !== rulesetVersion)
-            throw new PortError('conflict', `analysis ${a.id} exists with different content`);
-          continue;
-        }
-        this.sql.run(
-          'INSERT INTO failure_analyses (id, run_id, result_id, ruleset_version, class, doc) VALUES (?,?,?,?,?,?)',
-          a.id,
-          a.runId,
-          a.resultId,
-          rulesetVersion,
-          a.class,
-          doc,
-        );
+    this.sql.transaction(() => this.insert(parsed, rulesetVersion));
+  }
+  private insert(parsed: readonly FailureAnalysis[], rulesetVersion: string): void {
+    for (const a of parsed) {
+      const doc = canonicalize(a);
+      const prev = this.sql.get<{ doc: string; ruleset_version: string }>(
+        'SELECT doc, ruleset_version FROM failure_analyses WHERE id = ?',
+        a.id,
+      );
+      if (prev) {
+        if (prev.doc !== doc || prev.ruleset_version !== rulesetVersion)
+          throw new PortError('conflict', `analysis ${a.id} exists with different content`);
+        continue;
       }
+      this.sql.run(
+        'INSERT INTO failure_analyses (id, run_id, result_id, ruleset_version, class, doc) VALUES (?,?,?,?,?,?)',
+        a.id,
+        a.runId,
+        a.resultId,
+        rulesetVersion,
+        a.class,
+        doc,
+      );
+    }
+  }
+  async replaceForRun(runId: string, rulesetVersion: string, analyses: readonly FailureAnalysis[]): Promise<void> {
+    const parsed = analyses.map((a) => FailureAnalysis.parse(a));
+    this.sql.transaction(() => {
+      this.sql.run('DELETE FROM failure_analyses WHERE run_id = ? AND ruleset_version = ?', runId, rulesetVersion);
+      this.insert(parsed, rulesetVersion);
     });
   }
   async listByRun(runId: string, rulesetVersion: string): Promise<FailureAnalysis[]> {
@@ -421,6 +431,43 @@ export class SqliteAnalysisStore implements AnalysisStore {
         rulesetVersion,
       )
       .map((r) => parseDoc(FailureAnalysis, r.doc, `analysis ${r.id}`));
+  }
+}
+
+/** The known-failure registry (ANL-002); the row's columns mirror the document for lookups. */
+export class SqliteKnownFailureStore implements KnownFailureStore {
+  private readonly sql: SqlPort;
+  constructor(sql: SqlPort) {
+    this.sql = sql;
+  }
+  async add(entry: Omit<KnownFailure, 'id'>): Promise<KnownFailure> {
+    return this.sql.transaction(() => {
+      const last = this.sql.get<{ id: string }>('SELECT id FROM known_failures ORDER BY id DESC LIMIT 1');
+      const kf = KnownFailure.parse({
+        id: `KF-${String((last ? Number(last.id.slice(3)) : 0) + 1).padStart(3, '0')}`,
+        ...entry,
+      });
+      this.sql.run(
+        'INSERT INTO known_failures (id, target_id, name_pattern, reason, expires_at, doc) VALUES (?,?,?,?,?,?)',
+        kf.id,
+        kf.targetId,
+        kf.namePattern,
+        kf.reason,
+        kf.expiresAt,
+        canonicalize(kf),
+      );
+      return kf;
+    });
+  }
+  async list(): Promise<KnownFailure[]> {
+    return this.sql
+      .all<{ doc: string; id: string }>('SELECT doc, id FROM known_failures ORDER BY id')
+      .map((r) => parseDoc(KnownFailure, r.doc, `known failure ${r.id}`));
+  }
+  async remove(id: string): Promise<boolean> {
+    const before = this.sql.get<{ n: number }>('SELECT COUNT(*) AS n FROM known_failures WHERE id = ?', id);
+    this.sql.run('DELETE FROM known_failures WHERE id = ?', id);
+    return (before?.n ?? 0) > 0;
   }
 }
 
@@ -549,6 +596,14 @@ export class SqliteRunStore implements RunStore {
       return next;
     });
   }
+  async listByPlanHash(planHash: string): Promise<Run[]> {
+    return this.sql
+      .all<{ doc: string; id: string }>(
+        'SELECT doc, id FROM runs WHERE plan_hash = ? ORDER BY created_at, id',
+        planHash,
+      )
+      .map((r) => parseDoc(Run, r.doc, `run ${r.id}`));
+  }
   async listNonTerminal(): Promise<Run[]> {
     const placeholders = TERMINAL_RUN_STATES.map(() => '?').join(',');
     return this.sql
@@ -652,6 +707,7 @@ export function createStores(sql: SqlPort, root: string) {
     analyses: new SqliteAnalysisStore(sql),
     reports: new SqliteReportStore(sql),
     publications: new SqlitePublicationStore(sql),
+    knownFailures: new SqliteKnownFailureStore(sql),
     runs: new SqliteRunStore(sql),
     results: new SqliteResultStore(sql),
     artifacts: new SqliteArtifactIndex(sql),

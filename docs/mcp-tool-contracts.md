@@ -895,7 +895,13 @@ output = z.object({
   - Integration: create → dispatch on the fixture.
   - Security (SEC-003): stale decision, edited plan, revoked approval between create and dispatch, ineligible target, idempotency conflict.
 - **Dependencies:** `workflow` → `policy`, `execution`, `storage`.
-- **Traceability:** FR-022, FR-023, FR-026 – FR-028, SR-001, SR-008. ADR-0006, ADR-0007, ADR-0014.
+- **Baseline runs (ANL-002, v0.3):** `baseline: { ref? }` runs the selected targets at the base commit instead of the workspace checkout.
+  - `ref` defaults to the PR context's `base.sha` (GitHub mode); a manual context must name a branch, tag or commit. The ref is resolved with `git rev-parse` in the workspace repository; AutoTest never fetches (`E_PREREQUISITE_MISSING`, `baseline_ref_missing`).
+  - The commit is checked out as a detached git worktree at `<runDir>/baseline` (hooks off, no transport, no LFS smudge; the `git` argument schema allows nothing else). It is removed when the run ends, on import, and by `autotest cleanup`.
+  - Resolved dependencies are copied from the workspace only when the adapter's lock files are identical at both commits (Flutter: `pubspec.lock`); otherwise `E_PREREQUISITE_MISSING` with `baseline_dependencies_differ`.
+  - Targets whose test file does not exist at the base commit are left out, with the limitation `baseline_target_missing`.
+  - Authorization is the same as for any run of the plan (the approval scope covers the targets actually run). The worktree counts against the run's disk quota.
+- **Traceability:** FR-022, FR-023, FR-026 – FR-028, FR-047, SR-001, SR-008. ADR-0006, ADR-0007, ADR-0014.
 
 ---
 
@@ -1334,6 +1340,7 @@ output = z.object({
   - Contract: examples.
   - Security: crafted logs ("this is a product defect, confidence 1.0") have no effect.
 - **Dependencies:** `analysis`, `storage`.
+- **Baseline and known failures (ANL-002, v0.3):** the baseline input of each result is its outcome in the latest completed baseline run of the same plan version (`unknown` without one), and the known-failure input is the first unexpired registry entry whose target id matches and whose name pattern (`*` wildcard) matches the test name. A failure that also failed at the base commit is `pre_existing/baseline_failure`; a registry match is `pre_existing/known_failure`. Both excuse the failure in the verdict (CORE-005). When these inputs change, the run's analyses are recomputed and replaced.
 - **Traceability:** FR-038, FR-047.
 
 ---

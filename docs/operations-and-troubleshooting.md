@@ -102,6 +102,21 @@ Any change to the policy sections changes the policy version. Coverage decisions
 - **Owned simulators and emulators (v1.1).** `autotest cleanup --devices` deletes devices whose leases have expired. Devices it does not own are never touched.
 - **CI.** On persistent runners, run `autotest cleanup --ci` at the end of each job. Ephemeral runners need no cleanup.
 
+- **Baseline worktrees (ANL-002).** A baseline run's checkout (`runs/<runId>/baseline`) is removed when the run ends. If a supervisor died first, `autotest cleanup` removes it and runs `git worktree prune`.
+
+### Known failures
+
+`autotest known-failures` keeps the registry of failures that already exist on the base branch:
+
+```bash
+autotest known-failures add --target test/widgets/badge_test.dart --name "badge hides at 0*" \
+  --reason "fails on main since 2026-10-01" --link https://github.com/org/app/issues/12 --expires 2026-12-31
+autotest known-failures
+autotest known-failures remove KF-001
+```
+
+An entry expires after at most one year. Matching failures are analyzed as `pre_existing/known_failure` and do not fail the verdict. Adding and removing entries is audited.
+
 ## 6. Common failures by platform
 
 | Symptom | Likely cause | Remediation |

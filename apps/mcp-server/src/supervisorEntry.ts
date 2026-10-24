@@ -17,6 +17,7 @@ import { loadOrCreateKey, openDataRoot } from '@autotest/storage';
 import {
   collectRunEvidence,
   dispatchAuthorize,
+  finishBaseline,
   serverEnvironmentOf,
   type RunDeps,
   type WorkflowPorts,
@@ -73,6 +74,8 @@ try {
     listenSignals: true,
   });
   console.log(`${new Date().toISOString()} ${runId} terminal ${record.state}`);
+  // A baseline run's worktree is removed as soon as the tests are done (ANL-002).
+  await finishBaseline(deps, runId);
   sql.close();
   process.exit(0);
 } catch (e) {

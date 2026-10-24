@@ -9,3 +9,4 @@ export * from './retry.ts';
 export * from './runnerOutputs.ts';
 export * from './attemptHooks.ts';
 export * from './reconcile.ts';
+export * from './git.ts';

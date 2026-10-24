@@ -337,6 +337,8 @@ export const AUDIT_EVENT_KINDS = [
   'config.loaded',
   'reconciliation.action',
   'report.generated',
+  'known_failure.added',
+  'known_failure.removed',
 ] as const;
 export const AuditEventKind = z.enum(AUDIT_EVENT_KINDS);
 export type AuditEventKind = z.infer<typeof AuditEventKind>;

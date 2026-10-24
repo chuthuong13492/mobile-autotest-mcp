@@ -21,6 +21,7 @@ import {
   type AuthorizationStore,
   type AnalysisStore,
   type PublicationStore,
+  type KnownFailureStore,
   type ReportStore,
   type IdempotencyRecord,
   type IdempotencyStore,
@@ -322,6 +323,54 @@ export function analysisStoreCases(make: () => AnalysisStore): ContractCase[] {
         );
       },
     },
+    {
+      name: 'analysis store: replaceForRun swaps one run and ruleset only',
+      run: async () => {
+        const s = make();
+        const run = 'run_01JC000000000000000000000A';
+        const other = 'run_01JC000000000000000000000B';
+        await s.putMany([a('fa_01JC0000000000000000000001', run), a('fa_01JC0000000000000000000002', other)], 'anl-1');
+        await s.putMany([a('fa_01JC0000000000000000000003', run)], 'anl-2');
+        await s.replaceForRun(run, 'anl-1', [a('fa_01JC0000000000000000000001', run, { confidence: 0.2 })]);
+        assert.deepEqual(
+          (await s.listByRun(run, 'anl-1')).map((x) => [x.id, x.confidence]),
+          [['fa_01JC0000000000000000000001', 0.2]],
+        );
+        assert.equal((await s.listByRun(other, 'anl-1')).length, 1);
+        assert.equal((await s.listByRun(run, 'anl-2')).length, 1);
+      },
+    },
+  ];
+}
+
+export function knownFailureStoreCases(make: () => KnownFailureStore): ContractCase[] {
+  const entry = (namePattern: string) => ({
+    targetId: 'TT-flutter-000000000001',
+    namePattern,
+    reason: 'flaky on CI hosts',
+    addedBy: 'tester',
+    expiresAt: '2026-12-31T00:00:00Z',
+    evidenceLink: 'https://example.invalid/issue/1',
+  });
+  return [
+    {
+      name: 'known-failure store: sequential ids, list in id order, remove',
+      run: async () => {
+        const s = make();
+        assert.equal((await s.add(entry('a'))).id, 'KF-001');
+        assert.equal((await s.add(entry('b'))).id, 'KF-002');
+        assert.equal(await s.remove('KF-001'), true);
+        assert.equal(await s.remove('KF-001'), false);
+        assert.equal((await s.add(entry('c'))).id, 'KF-003');
+        assert.deepEqual(
+          (await s.list()).map((k) => [k.id, k.namePattern]),
+          [
+            ['KF-002', 'b'],
+            ['KF-003', 'c'],
+          ],
+        );
+      },
+    },
   ];
 }
 
@@ -433,6 +482,22 @@ export function runStoreCases(make: () => RunStore): ContractCase[] {
         assert.deepEqual(
           (await s.listNonTerminal()).map((r) => r.state),
           ['queued'],
+        );
+      },
+    },
+    {
+      name: 'run store: listByPlanHash returns every run of that plan version',
+      run: async () => {
+        const s = make();
+        const base = sampleRun();
+        await s.create(base);
+        await s.create(
+          sampleRun({ id: 'run_01JC5555555555555555555555', state: 'completed', statusCategory: 'completed' }),
+        );
+        await s.create(sampleRun({ id: 'run_01JC6666666666666666666666', planHash: `v1:sha256:${'9'.repeat(64)}` }));
+        assert.deepEqual(
+          (await s.listByPlanHash(base.planHash)).map((r) => r.id).sort(),
+          [base.id, 'run_01JC5555555555555555555555'].sort(),
         );
       },
     },

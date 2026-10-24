@@ -64,7 +64,8 @@ export type DenialCode =
   | 'path_denied'
   | 'cwd_denied'
   | 'gated'
-  | 'class_not_allowed';
+  | 'class_not_allowed'
+  | 'missing_positional';
 
 export interface Denial {
   readonly code: DenialCode;
@@ -114,13 +115,19 @@ export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecV
   const argv: string[] = [...form.words];
   const seen = new Map<string, number>();
   let positional = 0;
+  let next = 0;
 
   for (const [i, tok] of spec.args.slice(form.words.length).entries()) {
     const at = `#${i + form.words.length}`;
     switch (tok.kind) {
-      case 'word':
-        denials.push({ code: 'unexpected_token', detail: at });
+      case 'word': {
+        const p = form.positionals?.[next];
+        if (p?.kind === 'word' && p.pattern.test(tok.value) && !tok.value.startsWith('-')) {
+          argv.push(tok.value);
+          next++;
+        } else denials.push({ code: 'unexpected_token', detail: at });
         break;
+      }
       case 'workspacePath': {
         if (
           !form.positionalPaths ||
@@ -135,9 +142,18 @@ export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecV
         else denials.push({ code: 'path_denied', detail: `${at}:${r.reason}` });
         break;
       }
-      case 'runPath':
-        denials.push({ code: 'unexpected_token', detail: at });
+      case 'runPath': {
+        const p = form.positionals?.[next];
+        if (p?.kind !== 'runPath' || tok.prefix || !p.pattern.test(tok.rel)) {
+          denials.push({ code: 'unexpected_token', detail: at });
+          break;
+        }
+        next++;
+        const r = checkPath(ctx.fs, ctx.runDir, tok.rel);
+        if (r.ok && path.isAbsolute(r.path)) argv.push(r.path);
+        else denials.push({ code: 'path_denied', detail: at });
         break;
+      }
       case 'flag':
       case 'flagRunPath': {
         const rule = flagRule(schema, form, tok.name, denials);
@@ -156,6 +172,7 @@ export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecV
     }
   }
   for (const req of form.requiredFlags) if (!seen.has(req)) denials.push({ code: 'missing_flag', detail: req });
+  if (next < (form.positionals?.length ?? 0)) denials.push({ code: 'missing_positional', detail: `#${next}` });
   if (denials.length) return { ok: false, denials };
   return { ok: true, executablePath: exe.realPath, argv, cwd: cwd.path, formId: form.id, class: form.class };
 }
@@ -168,10 +185,15 @@ function matchForm(schema: ArgSchema, spec: ExecutionSpec): CommandForm | undefi
     if (t.kind !== 'word') break;
     lead.push(t.value);
   }
-  // The longest form whose words are exactly the leading words.
+  // The longest form whose words are exactly the leading words; a form with positionals may be followed by more
+  // words (its positional words, checked one by one afterwards).
   return [...schema.forms]
     .sort((a, b) => b.words.length - a.words.length)
-    .find((f) => f.words.length === lead.length && f.words.every((w, i) => w === lead[i]));
+    .find(
+      (f) =>
+        (f.positionals ? f.words.length <= lead.length : f.words.length === lead.length) &&
+        f.words.every((w, i) => w === lead[i]),
+    );
 }
 
 function flagRule(schema: ArgSchema, form: CommandForm, name: string, denials: Denial[]): FlagRule | undefined {

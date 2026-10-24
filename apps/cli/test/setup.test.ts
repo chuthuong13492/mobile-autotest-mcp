@@ -51,12 +51,14 @@ describe('autotest setup', () => {
     const policy = loadPolicyConfig(text);
     if (!policy.ok) throw new Error(policy.error.error.message);
     expect(policy.policy.config.workspaces).toEqual([{ id: 'ws_my_app', path: m.app, readOnlyReference: false }]);
-    // setup also allowlists a gh it finds on PATH; the test PATH includes /usr/bin and /bin, which have gh on some
+    // setup also allowlists a gh and a git it finds on PATH; the test PATH includes /usr/bin and /bin, which have gh on some
     // hosts (GitHub's Ubuntu runners) and not on others.
-    const systemGh = ['/usr/bin/gh', '/bin/gh'].find((p) => fs.existsSync(p));
+    const system = (name: string) => ['/usr/bin', '/bin'].map((d) => `${d}/${name}`).find((p) => fs.existsSync(p));
+    const [systemGh, systemGit] = [system('gh'), system('git')];
     expect(policy.policy.config.executables).toEqual({
       flutter: { path: m.flutter },
       ...(systemGh ? { gh: { path: fs.realpathSync(systemGh) } } : {}),
+      ...(systemGit ? { git: { path: fs.realpathSync(systemGit) } } : {}),
     });
     expect(fs.statSync(path.join(m.data, 'config.yaml')).mode & 0o777).toBe(0o600);
     const calls = fs.readFileSync(m.log, 'utf8').trim().split('\n');

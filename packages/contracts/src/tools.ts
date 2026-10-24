@@ -394,6 +394,12 @@ export const GetApprovalStatusOutput = z.strictObject({
     .max(20),
 });
 
+/** A branch, tag or hex commit id; no option-like or revision-range syntax (git's `rev-parse` sees exactly this). */
+export const BaselineRef = z
+  .string()
+  .max(200)
+  .regex(/^(?!.*\.\.)(?!.*@\{)[A-Za-z0-9][A-Za-z0-9._/-]*$/);
+
 // ------------------------------------------------------------------ TL-09 run_tests
 export const RunTestsInput = z.strictObject({
   planId: PlanId,
@@ -413,6 +419,11 @@ export const RunTestsInput = z.strictObject({
     .optional(),
   retry: z.strictObject({ maxAttempts: z.number().int().min(1).max(3).optional() }).optional(),
   evidence: z.strictObject({ coverage: z.boolean().default(false), screenshots: z.boolean().default(true) }).optional(),
+  /**
+   * ANL-002: run the targets at the base commit instead (a baseline run, checked out in a worktree inside the run
+   * directory). `ref` defaults to the PR's base commit (GitHub PR contexts); manual contexts must name it.
+   */
+  baseline: z.strictObject({ ref: BaselineRef.optional() }).optional(),
   idempotencyKey: IdempotencyKey.optional(),
 });
 export const RunTestsOutput = z.strictObject({

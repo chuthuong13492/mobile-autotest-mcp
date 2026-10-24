@@ -30,6 +30,8 @@ export const AUDIT_REQUIRED_DATA: Readonly<Record<AuditEventKind, readonly strin
   'config.loaded': ['policyVersion', 'gatePolicyVersion', 'riskPolicyVersion'],
   'reconciliation.action': ['action'],
   'report.generated': ['reportId', 'reportHash'],
+  'known_failure.added': ['knownFailureId', 'targetId', 'expiresAt'],
+  'known_failure.removed': ['knownFailureId'],
 };
 
 const KEY = /^[a-z][A-Za-z0-9_]{0,40}$/;

@@ -15,6 +15,7 @@ import type {
   PrContextStore,
   ProfileStore,
   PublicationStore,
+  KnownFailureStore,
   Publisher,
   ReportStore,
   RequirementStore,
@@ -39,6 +40,7 @@ export interface WorkflowPorts {
   readonly analyses: AnalysisStore;
   readonly reports: ReportStore;
   readonly publications: PublicationStore;
+  readonly knownFailures: KnownFailureStore;
   readonly artifacts: ArtifactIndex;
   readonly audit: AuditSink;
   readonly execution: ExecutionBackend;

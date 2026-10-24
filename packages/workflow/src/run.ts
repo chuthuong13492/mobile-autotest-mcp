@@ -79,6 +79,7 @@ import {
   type ResolvedWorkspace,
 } from '@autotest/policy';
 import { createWorkspaceReader } from '@autotest/workspace';
+import { prepareBaseline, releaseBaseline, type PreparedBaseline } from './baseline.ts';
 import type { CallContext, WorkflowPorts } from './ports.ts';
 import { fail, ok, type UseCaseResult } from './result.ts';
 
@@ -126,6 +127,8 @@ interface GatherArgs {
   /** Dispatch: the specs authorized at creation; create: built from the adapter. */
   readonly specs?: readonly ExecutionSpec[];
   readonly cancellationRequested?: boolean;
+  /** ANL-002: a baseline run executes in this worktree root instead of the workspace root. */
+  readonly executionRoot?: string;
 }
 
 export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise<GatheredAuthorization> {
@@ -186,6 +189,7 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
 
   // Dry-run command policy (check 5) and prerequisites (check 6).
   const runDir = runPaths(deps.dataRoot, a.runId).dir;
+  const execWorkspace = workspace && a.executionRoot ? { ...workspace, realPath: a.executionRoot } : workspace;
   let specs: readonly ExecutionSpec[] = a.specs ?? [];
   let commandsOk = false;
   const missing: { code: string; message: string }[] = [];
@@ -205,7 +209,7 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
             validateSpec(spec, {
               fs: fsp,
               registry,
-              workspaceRoot: workspace.realPath,
+              workspaceRoot: execWorkspace!.realPath,
               runDir,
               allowDependencyResolution: policy.config.execution.allowDependencyResolution,
               allowedClasses: ['test_runner'],
@@ -216,7 +220,7 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
     }
     if (adapter.prerequisites) {
       const report = await adapter.prerequisites({
-        workspace: createWorkspaceReader(workspace, fsp),
+        workspace: createWorkspaceReader(execWorkspace!, fsp),
         host: deps.host,
       });
       missing.push(...report.missing);
@@ -263,8 +267,14 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
  * The material bindings of an authorization: what was authorized, not when or by which decision. Creation records
  * it in the run header; dispatch recomputes it and cancels the run on any difference (RUN-002).
  */
-export function bindingDigest(g: GatheredAuthorization, environment: string, policy: PolicyLoadResult): string {
+export function bindingDigest(
+  g: GatheredAuthorization,
+  environment: string,
+  policy: PolicyLoadResult,
+  baselineCommit?: string,
+): string {
   return digest({
+    baseline: baselineCommit ?? null,
     planId: g.plan.id,
     planVersion: g.plan.version,
     planHash: g.plan.planHash,
@@ -398,17 +408,37 @@ export async function createRun(
   // The run directory must exist for the dry run's output-path checks; it is removed again if the run is refused.
   const runDir = runPaths(deps.dataRoot, runId).dir;
   fs.mkdirSync(runDir, { recursive: true, mode: 0o700 });
-  const refuse = (error: ToolError) => {
+  let baseline: PreparedBaseline | undefined;
+  const refuse = async (error: ToolError) => {
+    if (baseline && plan.repository.localPath) {
+      const ws = findWorkspace(
+        nodeFsPort(),
+        resolveWorkspaces(nodeFsPort(), policy.config.workspaces),
+        plan.repository.localPath,
+      );
+      if (ws) await releaseBaseline(baselineDeps(deps), { workspaceRoot: ws.realPath, runId });
+    }
     fs.rmSync(runDir, { recursive: true, force: true });
     return fail<ToolOutput<'run_tests'>>(error);
   };
+  if (input.baseline) {
+    const b = await prepareBaseline(baselineDeps(deps), {
+      plan,
+      runId,
+      ...(input.baseline.ref ? { ref: input.baseline.ref } : {}),
+      ...(input.targets ? { targets: input.targets } : {}),
+    });
+    if (!b.ok) return refuse(b.error);
+    baseline = b.value;
+  }
   const g = await gatherAuthorization(deps, {
     plan,
-    refs: input.targets,
+    refs: baseline ? baseline.targetIds : input.targets,
     environment,
     phase: 'create',
     runId,
     coverage,
+    ...(baseline ? { executionRoot: baseline.root } : {}),
   });
   await recordDecision(deps, g.outcome.decision, 'agent');
   if (g.problem) return refuse(g.problem);
@@ -423,7 +453,7 @@ export async function createRun(
   const header: RunHeader = {
     runId,
     workspaceId: g.workspace!.id,
-    authorizationDigest: bindingDigest(g, environment, deps.policy) as `sha256:${string}`,
+    authorizationDigest: bindingDigest(g, environment, deps.policy, baseline?.commit) as `sha256:${string}`,
     specs: [...g.specs],
     timeouts: { runMs },
     graceMs: exec.cancelGraceMs,
@@ -438,6 +468,7 @@ export async function createRun(
       maxAttempts,
       retryOn: [...DEFAULT_RETRY_ON],
     },
+    ...(baseline ? { baseline: { commit: baseline.commit, dir: 'baseline' as const } } : {}),
   };
   writeRunHeader(deps.dataRoot, header);
   const run: Run = {
@@ -457,7 +488,8 @@ export async function createRun(
     retryPolicy: { maxAttempts, retryOn: [...DEFAULT_RETRY_ON] },
     counts: {},
     partial: false,
-    limitations: [],
+    limitations: [...(baseline?.limitations ?? [])],
+    ...(baseline ? { baseline: { ref: baseline.ref, commit: baseline.commit } } : {}),
     createdAt: iso(now),
   };
   await ports.runs.create(run);
@@ -477,8 +509,21 @@ export async function createRun(
     targetsCount: run.targets.length,
     queuePosition: position,
     pollAfterMs: POLL_AFTER_MS,
-    limitations: [],
+    limitations: [...run.limitations],
   });
+}
+
+/** The baseline helpers' view of the run dependencies. */
+export function baselineDeps(deps: RunDeps) {
+  if (!deps.policy.ok) throw new Error('baseline runs need a loaded policy');
+  return {
+    ports: deps.ports,
+    policy: deps.policy.policy,
+    dataRoot: deps.dataRoot,
+    adapterFor: (id: string) => deps.registry.get(id),
+    ...(deps.fs ? { fs: deps.fs } : {}),
+    ...(deps.execPort ? { execPort: deps.execPort } : {}),
+  };
 }
 
 // ------------------------------------------------------------------ dispatch
@@ -530,6 +575,15 @@ export async function pumpQueue(deps: RunDeps): Promise<string[]> {
  * Dispatch-time re-authorization (RUN-002), run by the supervisor. Persists the decision, compares the material
  * bindings with creation and consumes the approval use when one was needed.
  */
+/** The canonical baseline worktree of a run ('' when it is missing, which fails the spec checks). */
+function baselineRoot(deps: RunDeps, runId: string): string {
+  try {
+    return fs.realpathSync(path.join(runPaths(deps.dataRoot, runId).dir, 'baseline'));
+  } catch {
+    return '';
+  }
+}
+
 export async function dispatchAuthorize(deps: RunDeps, header: RunHeader): Promise<DispatchAuthorization> {
   const { ports } = deps;
   const run = await ports.runs.get(header.runId);
@@ -545,9 +599,10 @@ export async function dispatchAuthorize(deps: RunDeps, header: RunHeader): Promi
     coverage: header.execution?.coverage ?? false,
     specs: header.specs,
     cancellationRequested: fs.existsSync(runPaths(deps.dataRoot, run.id).control),
+    ...(header.baseline ? { executionRoot: baselineRoot(deps, run.id) } : {}),
   });
   let decision = g.outcome.decision;
-  const binding = bindingDigest(g, run.environment, deps.policy);
+  const binding = bindingDigest(g, run.environment, deps.policy, header.baseline?.commit);
   const reasons = new Set<AuthorizationReason>(decision.reasons);
   if (binding !== header.authorizationDigest) reasons.add('unknown_state');
   if (reasons.size === 0 && g.outcome.approvalId) {
@@ -683,8 +738,27 @@ export function readAttemptResults(dataRoot: string, runId: string): AttemptResu
 }
 
 /** Merges attempts, accounts for every run target, links test cases and stores results with derived ids. */
+/**
+ * Removes a terminal baseline run's worktree (ANL-002). The supervisor does this when the run ends; the server repeats
+ * it on import and `autotest cleanup` on reconcile, so a crashed supervisor never leaves a checkout behind.
+ */
+export async function finishBaseline(deps: RunDeps, runId: string): Promise<void> {
+  const dir = path.join(runPaths(deps.dataRoot, runId).dir, 'baseline');
+  if (!deps.policy.ok || !fs.existsSync(dir)) return;
+  const header = readJson(runPaths(deps.dataRoot, runId).header, {
+    safeParse: (v: unknown) => ({ success: true as const, data: v as RunHeader }),
+  });
+  const fsp = deps.fs ?? nodeFsPort();
+  const ws = resolveWorkspaces(fsp, deps.policy.policy.config.workspaces).workspaces.find(
+    (w) => w.id === header?.workspaceId,
+  );
+  if (ws) await releaseBaseline(baselineDeps(deps), { workspaceRoot: ws.realPath, runId });
+  else fs.rmSync(dir, { recursive: true, force: true });
+}
+
 export async function importResults(deps: RunDeps, run: Run): Promise<Run> {
   const { ports } = deps;
+  if (run.baseline) await finishBaseline(deps, run.id);
   const existing = await ports.results.list(run.id, { offset: 0, limit: 1 });
   if (existing.total > 0) return run;
   const attempts = readAttemptResults(deps.dataRoot, run.id);

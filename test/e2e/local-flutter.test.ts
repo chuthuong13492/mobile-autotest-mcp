@@ -233,4 +233,51 @@ suite(`E2E-002 local Flutter end to end (${FLUTTER || 'no Flutter SDK found'})`,
       await c.close();
     },
   );
+  it(
+    'baseline (ANL-002): a failure that also fails at the base commit is pre_existing, with real Flutter',
+    { timeout: 300_000 },
+    async () => {
+      const f = fixtureApp(['fail_test.dart']);
+      const git = (...args: string[]) =>
+        execFileSync('git', ['-c', 'user.email=t@example.invalid', '-c', 'user.name=t', ...args], {
+          cwd: f.ws,
+          encoding: 'utf8',
+        }).trim();
+      fs.writeFileSync(path.join(f.ws, '.gitignore'), '.dart_tool/\nbuild/\n');
+      git('init', '-q', '-b', 'main');
+      git('add', '-A');
+      git('commit', '-qm', 'base');
+      git('branch', 'base');
+      fs.appendFileSync(path.join(f.ws, 'lib/calculator.dart'), '// head change\n');
+      git('commit', '-qam', 'head');
+      const gitPath = fs.realpathSync(execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim());
+      const cfg = path.join(f.data, 'config.yaml');
+      fs.writeFileSync(
+        cfg,
+        fs.readFileSync(cfg, 'utf8').replace('executables: {', `executables: { git: { path: ${gitPath} },`),
+      );
+      const c = await compose(f.data);
+      const plan = await runnablePlan(c, ['test/fail_test.dart', 'test/calculator_test.dart']);
+      const head = sc<{ runId: string }>(await c.call('run_tests', { planId: plan.planId, planHash: plan.planHash }));
+      expect(await waitTerminal(c, head.runId, 240_000)).toMatchObject({ state: 'completed' });
+      const base = sc<{ runId: string }>(
+        await c.call('run_tests', { planId: plan.planId, planHash: plan.planHash, baseline: { ref: 'base' } }),
+      );
+      expect(await waitTerminal(c, base.runId, 240_000)).toMatchObject({ state: 'completed' });
+      const baseResults = await allResults(c, base.runId);
+      expect(baseResults.find((r) => r.name === 'add returns the sum')?.outcome).toBe('passed');
+      expect(baseResults.find((r) => r.name === 'add is wrong on purpose')?.outcome).toBe('failed');
+      expect(fs.existsSync(path.join(f.data, 'runs', base.runId, 'baseline'))).toBe(false);
+      const an = sc<{ analyses: { class: string; subtype: string }[] }>(
+        await c.call('analyze_test_failures', { runId: head.runId }),
+      );
+      expect(an.analyses.map((a) => `${a.class}/${a.subtype}`)).toContain('pre_existing/baseline_failure');
+      const rep = sc<{ verdict: string }>(
+        await c.call('generate_pr_test_report', { planId: plan.planId, planHash: plan.planHash, runIds: [head.runId] }),
+      );
+      // Every failure is pre-existing, so the PR itself introduced no failure.
+      expect(rep.verdict).not.toBe('fail');
+      await c.close();
+    },
+  );
 });

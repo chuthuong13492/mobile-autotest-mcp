@@ -11,6 +11,7 @@ import type {
   EvidenceArtifact,
   ExecutionAuthorizationDecision,
   FailureAnalysis,
+  KnownFailure,
   PRContext,
   PRReport,
   ProjectProfile,
@@ -44,6 +45,7 @@ import {
   type IdempotencyRecord,
   type IdempotencyStore,
   type InventoryStore,
+  type KnownFailureStore,
   type PrContextStore,
   type ProfileStore,
   type PublicationRecord,
@@ -262,6 +264,11 @@ export class InMemoryAnalysisStore implements AnalysisStore {
       .filter((r) => r.analysis.runId === runId && r.ruleset === rulesetVersion)
       .map((r) => clone(r.analysis));
   }
+  async replaceForRun(runId: string, rulesetVersion: string, analyses: readonly FailureAnalysis[]): Promise<void> {
+    for (const [id, r] of this.rows)
+      if (r.analysis.runId === runId && r.ruleset === rulesetVersion) this.rows.delete(id);
+    await this.putMany(analyses, rulesetVersion);
+  }
 }
 
 export class InMemoryPublicationStore implements PublicationStore {
@@ -321,6 +328,25 @@ export class InMemoryRunStore implements RunStore {
     return [...this.runs.values()]
       .filter((r) => !(TERMINAL_RUN_STATES as readonly string[]).includes(r.state))
       .map(clone);
+  }
+  async listByPlanHash(planHash: string): Promise<Run[]> {
+    return [...this.runs.values()].filter((r) => r.planHash === planHash).map(clone);
+  }
+}
+
+export class InMemoryKnownFailureStore implements KnownFailureStore {
+  private readonly rows = new Map<string, KnownFailure>();
+  async add(entry: Omit<KnownFailure, 'id'>): Promise<KnownFailure> {
+    const max = Math.max(0, ...[...this.rows.keys()].map((k) => Number(k.slice(3))));
+    const kf = { id: `KF-${String(max + 1).padStart(3, '0')}`, ...clone(entry) };
+    this.rows.set(kf.id, kf);
+    return clone(kf);
+  }
+  async list(): Promise<KnownFailure[]> {
+    return [...this.rows.values()].sort((a, b) => a.id.localeCompare(b.id)).map(clone);
+  }
+  async remove(id: string): Promise<boolean> {
+    return this.rows.delete(id);
   }
 }
 

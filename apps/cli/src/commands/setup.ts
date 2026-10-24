@@ -84,7 +84,13 @@ export function workspaceId(dir: string, taken: ReadonlySet<string>): string {
 /** Adds workspaces and the flutter executable to config.yaml, keeping comments. Returns what changed. */
 export function updateConfig(
   file: string,
-  add: { workspaces: readonly string[]; flutter?: string; gh?: string; enablePublication?: boolean },
+  add: {
+    workspaces: readonly string[];
+    flutter?: string;
+    gh?: string;
+    git?: string;
+    enablePublication?: boolean;
+  },
 ): string[] {
   const doc = parseDocument(fs.readFileSync(file, 'utf8'));
   const changes: string[] = [];
@@ -129,6 +135,12 @@ export function updateConfig(
     (doc.get('executables', true) as { flow?: boolean }).flow = false;
     doc.setIn(['executables', 'gh'], doc.createNode({ path: add.gh }));
     changes.push(`executable gh → ${add.gh} (read-only use: gh auth token / gh auth status)`);
+  }
+  if (add.git && !doc.hasIn(['executables', 'git'])) {
+    if (!isMap(doc.get('executables', true))) doc.set('executables', doc.createNode({}));
+    (doc.get('executables', true) as { flow?: boolean }).flow = false;
+    doc.setIn(['executables', 'git'], doc.createNode({ path: add.git }));
+    changes.push(`executable git → ${add.git} (baseline worktrees only: rev-parse, worktree add/remove/prune)`);
   }
   if (add.enablePublication) {
     doc.setIn(
@@ -222,10 +234,14 @@ export async function setup(e: CliEnv, io: Io, flags: SetupFlags): Promise<numbe
   // gh is allowlisted for reading the user's GitHub login (github.com PRs, GH-001); PATH is used only here, once.
   const ghOnPath = findOnPath('gh', e.env);
   const gh = ghOnPath ? fs.realpathSync(ghOnPath) : undefined;
+  // git is allowlisted for baseline runs (ANL-002): a checkout of the base commit inside the run directory.
+  const gitOnPath = findOnPath('git', e.env);
+  const git = gitOnPath ? fs.realpathSync(gitOnPath) : undefined;
   for (const c of updateConfig(config, {
     workspaces,
     ...(flutter ? { flutter } : {}),
     ...(gh ? { gh } : {}),
+    ...(git ? { git } : {}),
     ...(flags.enablePublication ? { enablePublication: true } : {}),
   }))
     io.out(`config: ${c}`);
