@@ -1,6 +1,8 @@
 # Local and CI Execution
 
 > **Status:** Planned design, baseline of 2026-10-22. Nothing described here is implemented yet.
+>
+> **Update 2026-10-24.** The local mode is implemented (v0.1 – v0.3). The CI mode (`autotest ci …`, the CI approval sources, `cleanup --ci`) was removed from scope by user decision; those sections stay as the record of the design. FVM-managed SDKs are not resolved per workspace: allowlist the SDK path itself (`autotest doctor --suggest-executables` finds FVM SDKs).
 
 **Canonical home for:** the local Mac setup model, MCP client configuration, the repository allowlist, SDK discovery, device ownership, the artifact layout pointer, CI architecture, the CI provider comparison, caching, secrets, concurrency, cleanup, and platform constraints.
 

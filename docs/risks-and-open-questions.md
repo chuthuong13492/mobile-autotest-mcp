@@ -119,6 +119,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
   - The Secure Enclave path requires a helper signed with Developer ID and a provisioning profile.
   - The FIDO2 path requires hardware keys.
   - **The organization decides** which to fund. Until then, the local maximum is AL2.
+  - **Closed 2026-10-24 (accepted residual).** Neither path is available to this project and AL3 had no other source once CI left scope. The local maximum stays AL2; the residual risk is RK-01 (an agent with an unrestricted shell can defeat AL2), mitigated by the deny rules `autotest setup` prints.
 
 ### OQ-14
 - **Question.** Where are the missing `integration_test/package.json`, `tsconfig.json` and `scenario-list.json` for the Autotrader checkout? Can a complete checkout, with git metadata, be provided for acceptance testing?
@@ -127,6 +128,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Decision phase.** Phase 0 (DISC-007).
 - **Closure criteria.** A complete clone is available, or access is formally declined. If declined, the gated tasks are deferred.
 - **Status.** **Blocked 2026-10-23.** This needs the Autotrader owners, which no automated step can provide (DISC-007).
+  - **Closed 2026-10-24 (no longer needed).** E2E-003 and DISC-007 were removed, and APM-002 maps scenarios from the read-only checkout without running them.
 
 ### OQ-15
 - **Question.** Which Flutter version is the source of truth for Autotrader: 3.38.4 (pubspec) or 3.38.10 (Bitrise)?
@@ -134,7 +136,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Owner (role).** Autotrader engineering lead.
 - **Decision phase.** Phase 0 (DISC-007).
 - **Closure criteria.** The answer is recorded.
-- **Status.** Open, and needs the Autotrader team. Both 3.38.4 and 3.38.10 are now in the parser corpus (RL-034), so whichever is chosen is already covered.
+- **Status.** Open, and needs the Autotrader team. Both 3.38.4 and 3.38.10 are now in the parser corpus (RL-034), so whichever is chosen is already covered. **No longer blocking** (2026-10-24): E2E-003 was removed; AutoTest reports the conflict as designed.
 
 ### OQ-16
 - **Question.** Are baseline runs on the base ref (FR-047) worth their cost, given they need git worktrees and double the execution time? Or is a known-failure registry enough?

@@ -265,7 +265,8 @@ suite(`E2E-002 local Flutter end to end (${FLUTTER || 'no Flutter SDK found'})`,
       );
       expect(await waitTerminal(c, base.runId, 240_000)).toMatchObject({ state: 'completed' });
       const baseResults = await allResults(c, base.runId);
-      expect(baseResults.find((r) => r.name === 'add returns the sum')?.outcome).toBe('passed');
+      const seen = JSON.stringify(baseResults.map((r) => [r.name, r.outcome, r.failureKind]));
+      expect(baseResults.find((r) => r.name === 'add returns the sum')?.outcome, seen).toBe('passed');
       expect(baseResults.find((r) => r.name === 'add is wrong on purpose')?.outcome).toBe('failed');
       expect(fs.existsSync(path.join(f.data, 'runs', base.runId, 'baseline'))).toBe(false);
       const an = sc<{ analyses: { class: string; subtype: string }[] }>(

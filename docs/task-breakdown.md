@@ -73,11 +73,11 @@ Every task has all 16 fields:
 |---|---|---|---|
 | DISC-001 | **Done** | `spikes/disc-001` (server, logging proxy, client test on Node 22.19.0, 24.22.1 and 26.12.1); RL-029; RL-030 | Re-run whenever the pinned Claude Code version changes |
 | DISC-002 | **Done** (headless) | `spikes/disc-002` (hook auto-accept); RL-031; RL-032 | Optional: a human checks the interactive dialog |
-| DISC-003 | **Partial** | `spikes/disc-003`; RL-035. The recommendation and the CI AL3 rules are documented in ADR-0006. | The user-presence prompt and signature check were not demonstrated, because Developer ID signing and a provisioning profile, or FIDO hardware, are needed. Organization decision OQ-13. |
+| DISC-003 | **Done (accepted residual, 2026-10-24)** | `spikes/disc-003`; RL-035. The recommendation is documented in ADR-0006. With CI out of scope there is no AL3 source; local AL3 would need Developer ID signing with a provisioning profile, or FIDO hardware, which this project does not have. The verifier stays `NO_AL3` and the local maximum is AL2 (RK-01, OQ-13 closed) | No AL3 mechanism is implemented |
 | DISC-004 | Not started | — | Depends on the DISC-005 remainder, plus stakeholders |
 | DISC-005 | **Partial** | RL-036: GHES 3.21.6 and its documented capabilities | Instance configuration and recorded HTTP fixtures; needs an authorized GHES account |
 | DISC-006 | **Done** | `fixtures/flutter-json/{3.38.4,3.38.10,3.41.9,3.47.1}` (scrubbed); RL-034 | — |
-| DISC-007 | **Blocked** | — | Needs the Autotrader owners (OQ-14, OQ-15) |
+| DISC-007 | **Removed** | Removed from scope on 2026-10-24 (user decision): APM-002 only maps Autotrader's scenarios from the read-only checkout and runs nothing, so no credentials or complete checkout are needed (OQ-14 closed) | — |
 | DISC-008 | **Done** | `spikes/disc-008`; RL-033; ADR-0008 updated | — |
 
 ### Phase 1 execution status (2026-10-23)
