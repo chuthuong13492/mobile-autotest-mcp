@@ -14,11 +14,11 @@ export const USAGE = `usage:
   autotest setup [--workspace <path>]... [--flutter <path>] [--enable-publication] [--yes] [--skip-claude]
   autotest uninstall-claude
   autotest init
-  autotest doctor [--audit | --suggest-executables]
+  autotest doctor [--audit | --suggest-executables | --stats]
   autotest cleanup [--dry-run]
   autotest approve <approvalRequestId>
   autotest revoke <approvalId>
-  autotest approvals
+  autotest approvals [--all]
   autotest known-failures [list]
   autotest known-failures add --target <test path | TT-id> --name <pattern> --reason <text> --link <url>
                               --expires <YYYY-MM-DD> [--adapter <id>]
@@ -36,12 +36,16 @@ export async function run(argv: readonly string[], io: Io, e: CliEnv): Promise<n
   }
   if (cmd === 'uninstall-claude' && arg === undefined) return uninstallClaude(e, io);
   const flags = argv.slice(1);
-  if (cmd === 'doctor' && flags.length <= 1 && flags.every((f) => f === '--audit' || f === '--suggest-executables'))
+  if (
+    cmd === 'doctor' &&
+    flags.length <= 1 &&
+    flags.every((f) => f === '--audit' || f === '--suggest-executables' || f === '--stats')
+  )
     return doctor(e, io, flags);
   const valid =
     (cmd === 'approve' && arg !== undefined && REQUEST_ID.test(arg) && rest.length === 0) ||
     (cmd === 'revoke' && arg !== undefined && APPROVAL_ID.test(arg) && rest.length === 0) ||
-    (cmd === 'approvals' && arg === undefined) ||
+    (cmd === 'approvals' && (arg === undefined || (arg === '--all' && rest.length === 0))) ||
     (cmd === 'cleanup' && flags.every((f) => f === '--dry-run') && flags.length <= 1) ||
     (cmd === 'known-failures' && (arg === undefined || (arg === 'list' && rest.length === 0))) ||
     (cmd === 'known-failures' && arg === 'add' && parseAddFlags(rest) !== undefined) ||
@@ -58,7 +62,7 @@ export async function run(argv: readonly string[], io: Io, e: CliEnv): Promise<n
     if (cmd === 'known-failures' && arg === 'add') return await addKnownFailure(ctx, io, parseAddFlags(rest)!);
     if (cmd === 'known-failures' && arg === 'remove') return await removeKnownFailure(ctx, io, rest[0]!);
     if (cmd === 'known-failures') return await listKnownFailures(ctx, io);
-    return await listApprovals(ctx, io);
+    return await listApprovals(ctx, io, arg === '--all');
   } finally {
     ctx.close();
   }

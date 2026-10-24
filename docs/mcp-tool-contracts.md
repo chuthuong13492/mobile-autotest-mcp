@@ -167,7 +167,7 @@ Policy and authorization decisions produce their own events.
 | `E_GITHUB_FEATURE_UNAVAILABLE` | e.g. Checks API unavailable on this GHES | yes | Use the fallback mechanism |
 | `E_GITHUB_NOT_FOUND` | PR or repo not found, or no access | yes | Check the identity |
 | `E_STORAGE_UNAVAILABLE` | Data root/SQLite unavailable or locked beyond the timeout | yes | Retry; run `doctor` |
-| `E_STORAGE_CORRUPT` | Integrity check failed | no (human) | `doctor --repair` |
+| `E_STORAGE_CORRUPT` | Integrity check failed | no (human) | `autotest doctor`, then operations §4 |
 | `E_TIMEOUT` | The tool's own operation budget was exceeded (e.g. inspection > 60 s) | yes | Narrow the scope |
 | `E_INTERNAL` | Unexpected server error (correlation ID in `details`) | no | Report it |
 

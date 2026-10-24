@@ -1,6 +1,6 @@
 # Operations and Troubleshooting
 
-This document covers installation, configuration, diagnostics, recovery, orphan cleanup and how to handle platform-specific failures. `init`, `setup`, `doctor`, `approve`, `revoke`, `approvals`, `cleanup` and `uninstall-claude` exist in v0.1; `doctor --stats`, `doctor --repair`, `cleanup --devices` and the CI commands are still planned (CLI-004, OPS-004), and OPS-007 drills each procedure before v1.0.
+This document covers installation, configuration, diagnostics, recovery, orphan cleanup and how to handle platform-specific failures. `init`, `setup`, `doctor` (with `--audit`, `--stats`, `--suggest-executables`), `approve`, `revoke`, `approvals [--all]`, `known-failures`, `cleanup` and `uninstall-claude` exist. There is no `doctor --repair` (§4 gives the manual procedure); device cleanup arrives with v1.1, and the CI commands were removed from scope on 2026-10-24. OPS-007 drills each procedure before v1.0.
 
 ## 1. Installation
 
@@ -76,10 +76,10 @@ Any change to the policy sections changes the policy version. Coverage decisions
 
 | Command | What it shows |
 |---|---|
-| `autotest doctor` | Node version and support status, data-root permissions, config validity and its versions, executable resolution and pin checks, SQLite health, keychain access, audit chain, orphaned runs and processes, owned devices with expired leases, Claude Code config hints |
+| `autotest doctor` | Node version and support status, data-root permissions, config validity and its versions, executable resolution and pin checks, secret references (`env:` only; `keychain:` is reported as unsupported), the `gh` login, SQLite health, audit chain, runs whose supervisor is gone or that are `cancel_pending`, run-data size against `retention.totalCapBytes`, leftover baseline worktrees, Claude Code registration, Skill and deny rules. (v1.1: owned devices with expired leases.) |
 | `autotest doctor --audit` | Verifies the audit hash chain and reports the first broken link |
 | `autotest doctor --stats` | Metric summary: runs, denials, quarantines |
-| `autotest approvals [--all]` | Approval requests and records, with state and usability |
+| `autotest approvals [--all]` | Open approval requests, and the 20 most recent approvals (`--all`: every approval), after lazy expiry |
 | Server logs | JSON lines on stderr. In Claude Code they appear in the MCP server log view. Set `AUTOTEST_LOG_LEVEL=debug` for more detail; untrusted content is still truncated. |
 
 ## 4. Recovery procedures
@@ -89,7 +89,7 @@ Any change to the policy sections changes the policy version. Coverage decisions
 | Claude Code session ended mid-run | Nothing to do. The supervisor continues. In a new session, call `get_run_status(runId)`. |
 | Server crashed or was killed | The next start reconciles automatically ([ADR-0007](architecture-decisions/ADR-0007.md)). Check `doctor` for runs marked `orphan_unverified`. |
 | Run stuck in `cancel_pending` | `doctor` lists the survivor PIDs and their executables. Check that each process belongs to the run (start time and executable), then end it manually. After the verification window, the run becomes `infra_error(cancel_unconfirmed)`. AutoTest never claims a cancellation it could not confirm. |
-| `E_STORAGE_CORRUPT` | Run `autotest doctor --repair`. This performs only safe actions: reindex from files, quarantine mismatches, and never delete approvals. If that fails, move `~/.autotest/autotest.db` aside. The files remain authoritative, and a new index is rebuilt. |
+| `E_STORAGE_CORRUPT` | `autotest doctor` shows which check fails (`sqlite-index`, `audit-chain`, or an approval whose integrity check fails). For a tampered approval, revoke it and approve again. For a broken index, stop the server and move `~/.autotest/autotest.db` aside; a new, empty index is created on the next start. Approval records (`approvals/`), plan snapshots (`plans/`), run directories (`runs/`) and the audit log stay on disk, but this build does not re-index them: PR contexts, coverage decisions, results and reports must be produced again by re-running the workflow. Keep the old file for investigation. |
 | Tampered or mismatched approval file | It is unusable automatically. Revoke it and re-approve with `autotest approve`. Review the audit log. |
 | Audit chain broken | Investigate local tampering. New events start a new chain segment that references the break. Later reports carry a limitation. |
 | Policy config invalid | Execution is denied (`E_POLICY_UNAVAILABLE`). Fix `config.yaml`, then run `doctor`. |
@@ -99,8 +99,7 @@ Any change to the policy sections changes the policy version. Coverage decisions
 
 - **Run processes.** Reconciliation at startup handles them. `autotest cleanup` re-runs reconciliation on demand.
 - **Temporary directories.** `~/.autotest/tmp/<runId>` is removed when the run reaches a terminal state. `cleanup` removes leftovers older than 24 h.
-- **Owned simulators and emulators (v1.1).** `autotest cleanup --devices` deletes devices whose leases have expired. Devices it does not own are never touched.
-- **CI.** On persistent runners, run `autotest cleanup --ci` at the end of each job. Ephemeral runners need no cleanup.
+- **Owned simulators and emulators (v1.1, planned).** Cleanup of devices whose leases have expired arrives with DEV-002. Devices AutoTest does not own are never touched.
 
 - **Baseline worktrees (ANL-002).** A baseline run's checkout (`runs/<runId>/baseline`) is removed when the run ends. If a supervisor died first, `autotest cleanup` removes it and runs `git worktree prune`.
 
@@ -121,15 +120,19 @@ An entry expires after at most one year. Matching failures are analyzed as `pre_
 
 | Symptom | Likely cause | Remediation |
 |---|---|---|
-| `E_PREREQUISITE_MISSING: flutter` | Flutter is not in the executables allowlist, or its path changed | `doctor --suggest-executables`, then confirm |
+| `E_POLICY_DENIED` with `command_denied` (no Flutter) | Flutter is not in the executables allowlist, or its path changed | `doctor --suggest-executables`, then copy one path into `config.yaml` |
 | Flutter `prerequisite_missing:pub_get` | Dependencies not resolved; private registry credentials missing (for example, Autotrader's Artifactory) | Resolve dependencies outside AutoTest, or enable `allowDependencyResolution` with lockfile enforcement |
-| Flutter SDK conflict reported | `pubspec.yaml`, `.fvmrc` and the CI configuration disagree | Pin the SDK in the workspace config (`flutterSdk`) |
+| Flutter SDK conflict reported | `pubspec.yaml`, `.fvmrc` and the CI configuration disagree | Decide which SDK is right and allowlist that one as `executables.flutter` (`doctor --suggest-executables`) |
 | Many `failed (load_error)` results | Compilation error in the code or the tests, or SDK mismatch | Check the excerpts in `collect_test_evidence`. Compare SDK versions. |
 | `MissingPluginException` in widget tests | Missing platform-channel mocks | Test setup issue (`test_defect/setup`). Add mocks in the test configuration. |
 | Run ends `infra_error(runner_crashed)` | Runner crashed, or there was no `done` event | Re-run. If it persists, check `stderr` evidence and the SDK version. |
 | `E_APPROVAL_REQUIRED` after approving | The plan was edited after approval (new hash), the approval has expired, or the environment differs | Re-validate, then re-approve the current hash |
 | `E_ASSURANCE_INSUFFICIENT` | Only an elicitation (AL1) was given | Approve with `autotest approve` in a terminal |
-| GitHub `E_GITHUB_FEATURE_UNAVAILABLE` (checks) | No GitHub App, or GHES lacks the capability | Use comment and status publication ([ADR-0013](architecture-decisions/ADR-0013.md)) |
+| GitHub `E_GITHUB_FEATURE_UNAVAILABLE` (checks) | A `gh` user login cannot create check runs | Expected: a commit status `autotest` is written instead ([ADR-0013](architecture-decisions/ADR-0013.md)) |
+| `E_GITHUB_AUTH` | `gh` is not logged in, or not allowlisted | `gh auth login`, then `autotest setup` (allowlists `gh`); `doctor` shows the login |
+| Baseline: `E_PREREQUISITE_MISSING` (`baseline_ref_missing`) | The base commit is not in the local repository | `git fetch` in the workspace yourself (AutoTest never fetches), then retry |
+| Baseline: `baseline_dependencies_differ` | The PR changes the lock file, so dependencies differ at the base commit | Baselines need identical lock files; register known failures instead (`autotest known-failures`) |
+| `secrets` FAIL in `doctor` | A `keychain:` secret reference | This build resolves only `env:<NAME>`; export the variable where Claude Code starts the server |
 | (v1.1) iOS `Unable to boot` | Simulator runtime missing or corrupted | Install the runtime in Xcode. Let AutoTest create an owned device. |
 | (v1.1) Android `INSTALL_FAILED_*` | Emulator storage full or ABI mismatch | Use an owned emulator with a matching ABI. Wipe owned devices only. |
 | (v1.2) Appium `prerequisite_mismatch` | Installed Appium or driver differs from the pinned versions | Install the pinned versions (OQ-06 governs compatibility) |

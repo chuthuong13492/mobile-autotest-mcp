@@ -2,13 +2,14 @@
  * `autotest doctor` (CLI-002; operations §3, §6): prerequisite diagnostics with a remediation for every problem.
  * Read-only: it never changes configuration, never signals a process and never deletes anything. Exit 1 when any
  * check FAILs. `--audit` verifies only the audit chain; `--suggest-executables` proposes Flutter SDK paths for
- * `config.yaml` (the user copies and confirms them; PATH is never used at run time).
+ * `config.yaml` (the user copies and confirms them; PATH is never used at run time); `--stats` prints counts of runs
+ * by state, authorization denials and quarantined artifacts (OPS-004).
  */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { isTerminal } from '@autotest/core';
-import { nodeExecPort } from '@autotest/exec';
+import { isTerminal, TERMINAL_RUN_STATES } from '@autotest/core';
+import { directoryUsage, nodeExecPort } from '@autotest/exec';
 import { supervisorAlive } from '@autotest/execution';
 import {
   buildRegistry,
@@ -178,6 +179,71 @@ async function githubChecks(cfg: PolicyConfig, env: Readonly<Record<string, stri
   ];
 }
 
+/** Secret references: this build resolves `env:` only (OPS-004). */
+function secretChecks(cfg: PolicyConfig, env: Readonly<Record<string, string | undefined>>): Check[] {
+  const refs = [
+    ...cfg.env.secrets.map((s) => ({ where: `env.secrets.${s.name}`, ref: s.ref })),
+    ...cfg.github.hosts.flatMap((h) =>
+      h.credentialRef ? [{ where: `github.hosts.${h.host}`, ref: h.credentialRef }] : [],
+    ),
+  ];
+  return refs.flatMap(({ where, ref }): Check[] => {
+    if (ref.startsWith('keychain:'))
+      return [
+        {
+          status: 'FAIL',
+          name: 'secrets',
+          detail: `${where} uses a keychain: reference, which this build cannot resolve`,
+          fix: 'Use env:<NAME> and export the variable in the environment that starts the server',
+        },
+      ];
+    if (env[ref.slice(4)] === undefined)
+      return [
+        {
+          status: 'WARN',
+          name: 'secrets',
+          detail: `${where}: ${ref} is not set in this shell`,
+          fix: 'Export it where Claude Code starts the server (doctor only sees its own environment)',
+        },
+      ];
+    return [];
+  });
+}
+
+/** Data-root size against the retention cap, and baseline worktrees left by a stopped supervisor. */
+function diskChecks(root: string, cfg: PolicyConfig, terminal: (runId: string) => boolean): Check[] {
+  const checks: Check[] = [];
+  const runsDir = path.join(root, 'runs');
+  const ids = exists(runsDir) ? fs.readdirSync(runsDir).filter((n) => /^run_[0-9A-Z]{26}$/.test(n)) : [];
+  const bytes = [runsDir, path.join(root, 'tmp')]
+    .filter(exists)
+    .reduce((n, d) => n + directoryUsage(d, Number.MAX_SAFE_INTEGER).bytes, 0);
+  const cap = cfg.retention.totalCapBytes;
+  checks.push(
+    bytes > cap
+      ? {
+          status: 'WARN',
+          name: 'disk',
+          detail: `run data uses ${Math.round(bytes / 1048576)} MiB, above the ${Math.round(cap / 1048576)} MiB cap`,
+          fix: 'Run `autotest cleanup --dry-run`, then `autotest cleanup`; lower `retention` if needed',
+        }
+      : {
+          status: 'PASS',
+          name: 'disk',
+          detail: `run data ${Math.round(bytes / 1048576)} MiB of ${Math.round(cap / 1048576)} MiB`,
+        },
+  );
+  const leftovers = ids.filter((id) => terminal(id) && exists(path.join(runsDir, id, 'baseline')));
+  if (leftovers.length)
+    checks.push({
+      status: 'WARN',
+      name: 'worktrees',
+      detail: `${leftovers.length} finished baseline run(s) still have a git worktree`,
+      fix: 'Run `autotest cleanup` (removes them and prunes git worktree records)',
+    });
+  return checks;
+}
+
 export async function doctorChecks(e: CliEnv): Promise<Check[]> {
   const checks = await hostChecks();
   const root = dataRootOf(e.env);
@@ -291,6 +357,7 @@ export async function doctorChecks(e: CliEnv): Promise<Check[]> {
           : 'Fix the path in config.yaml (`autotest doctor --suggest-executables`)',
     });
 
+  checks.push(...secretChecks(cfg, e.env));
   checks.push(...(await githubChecks(cfg, e.env)));
   if (mode(root) !== 0o700) return checks; // the index refuses an insecure data root; fix that first
   const { sql, stores } = openDataRoot(root);
@@ -317,6 +384,15 @@ export async function doctorChecks(e: CliEnv): Promise<Check[]> {
             fix: 'Investigate local tampering; see operations §4',
           },
     );
+    const terminalIds = new Set(
+      sql
+        .all<{ id: string }>(
+          `SELECT id FROM runs WHERE state IN (${TERMINAL_RUN_STATES.map(() => '?').join(',')})`,
+          ...TERMINAL_RUN_STATES,
+        )
+        .map((r) => r.id),
+    );
+    checks.push(...diskChecks(root, cfg, (id) => terminalIds.has(id)));
     for (const run of await stores.runs.listNonTerminal()) {
       if (isTerminal(run.state) || (run.state === 'queued' && !run.supervisor)) continue;
       if (run.state === 'cancel_pending')
@@ -462,6 +538,7 @@ export async function doctor(e: CliEnv, io: Io, flags: readonly string[]): Promi
     );
     return audit.ok ? 0 : 1;
   }
+  if (flags.includes('--stats')) return stats(e, io);
   const checks = await doctorChecks(e);
   for (const c of checks) {
     io.out(`${c.status.padEnd(4)}  ${c.name.padEnd(13)} ${c.detail}`);
@@ -471,4 +548,28 @@ export async function doctor(e: CliEnv, io: Io, flags: readonly string[]): Promi
   const warned = checks.filter((c) => c.status === 'WARN').length;
   io.out(`\n${failed} failed, ${warned} warning(s).`);
   return failed > 0 ? 1 : 0;
+}
+
+/** `doctor --stats`: counts only (no content), read from the index. */
+async function stats(e: CliEnv, io: Io): Promise<number> {
+  const root = dataRootOf(e.env);
+  if (!exists(path.join(root, 'autotest.db'))) {
+    io.out('No data yet (the index does not exist).');
+    return 0;
+  }
+  const { sql } = openDataRoot(root);
+  try {
+    const rows = <T>(q: string) => sql.all<T & { n: number }>(q);
+    io.out('Runs by state:');
+    for (const r of rows<{ state: string }>('SELECT state, COUNT(*) AS n FROM runs GROUP BY state ORDER BY state'))
+      io.out(`  ${r.state.padEnd(16)} ${r.n}`);
+    const denials = rows<{ n: number }>("SELECT COUNT(*) AS n FROM authorization_decisions WHERE result = 'denied'")[0]
+      ?.n;
+    const quarantined = rows<{ n: number }>('SELECT COUNT(*) AS n FROM artifacts WHERE quarantined = 1')[0]?.n;
+    io.out(`Authorization denials: ${denials ?? 0}`);
+    io.out(`Quarantined artifacts: ${quarantined ?? 0}`);
+    return 0;
+  } finally {
+    sql.close();
+  }
 }
