@@ -16,6 +16,7 @@
 import {
   digest,
   ERROR_CATALOG,
+  isStorageCondition,
   OUTPUT_CAP_CHARS,
   TOOLS,
   toolError,
@@ -156,7 +157,14 @@ export function createToolPipeline(deps: PipelineDeps): ToolPipeline {
     let outcome;
     try {
       outcome = await deps.workflow[name](args, ctx);
-    } catch {
+    } catch (e) {
+      // A full disk or a locked database is an operating condition, not a bug: recoverable once it is resolved.
+      if (isStorageCondition(e))
+        return failWith(
+          toolError('E_STORAGE_UNAVAILABLE', `${name} could not write to the data root (disk full or database busy)`, [
+            'Free disk space or retry; `autotest doctor` shows the data root',
+          ]),
+        );
       return failWith(
         toolError('E_INTERNAL', `Unexpected error in ${name}`, ['Report this with the correlation id'], {
           correlationId: toolCallId,

@@ -9,7 +9,8 @@
  * - `load_error`: the file fails to load; `many N`: N passing tests; `fail-named <text>`: one failing test whose name
  *   and failure message carry <text> (injection cases);
  * - `noisy`: passes and prints secret-looking values to stdout and stderr; `binary`: writes NUL bytes into the
- *   reporter file (the run's runner output must be quarantined).
+ *   reporter file (the run's runner output must be quarantined);
+ * - `sleep <ms>`: passes after <ms> milliseconds; `flood <MiB>`: passes after writing <MiB> MiB to stdout (OPS-006).
  * A run with no `done` event can be forced with `// fake: crash` (the runner exits mid-stream).
  */
 import fs from 'node:fs';
@@ -58,6 +59,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         console.error('stderr password: "hunter2-very-secret"');
       }
       if (mode === 'binary') fs.writeSync(out, Buffer.from([0, 1, 2, 0xff, 0, 10]));
+      if (mode.startsWith('sleep ')) await sleep(Number(mode.slice(6)));
+      if (mode.startsWith('flood ')) {
+        const chunk = 'x'.repeat(1024 * 1024 - 1) + '\\n';
+        for (let m = 0; m < Number(mode.slice(6)); m++) fs.writeSync(1, chunk);
+      }
       if (mode === 'slow' || mode === 'ignore-term') {
         if (mode === 'ignore-term') process.on('SIGTERM', () => {});
         await sleep(60000);

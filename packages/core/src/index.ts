@@ -15,3 +15,4 @@ export * from './log.ts';
 export * from './metrics.ts';
 export * from './cursor.ts';
 export * from './ports.ts';
+export * from './storageCondition.ts';

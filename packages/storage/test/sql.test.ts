@@ -1,3 +1,6 @@
+import os from 'node:os';
+import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import { Worker } from 'node:worker_threads';
 import { describe, expect, it } from 'vitest';
@@ -59,6 +62,24 @@ describe('STO-002 SQLite schema and migrations', () => {
     expect(() => sql.run('INSERT INTO t VALUES (?)', 'a')).toThrow(SqliteConstraintError);
     expect(() => sql.transaction(() => sql.transaction(() => 1))).toThrow(/nested/);
   });
+
+  it(
+    'a BEGIN that fails while another connection holds the lock leaves the connection usable',
+    { timeout: 20_000 },
+    () => {
+      const file = path.join(fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'autotest-busy-'))), 'b.db');
+      const sql = openSqlite(file);
+      sql.exec('CREATE TABLE t (id TEXT PRIMARY KEY)');
+      const other = new DatabaseSync(file);
+      other.exec('BEGIN EXCLUSIVE');
+      expect(() => sql.transaction(() => sql.run('INSERT INTO t VALUES (?)', 'a'))).toThrow(/locked|busy/i);
+      other.exec('ROLLBACK');
+      other.close();
+      sql.transaction(() => sql.run('INSERT INTO t VALUES (?)', 'a'));
+      expect(sql.get<{ n: number }>('SELECT COUNT(*) AS n FROM t')!.n).toBe(1);
+      sql.close();
+    },
+  );
 
   it('two connections writing concurrently lose nothing (worker threads)', async () => {
     const { root, open } = freshRoot();

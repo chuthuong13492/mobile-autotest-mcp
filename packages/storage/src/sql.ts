@@ -55,14 +55,22 @@ export function openSqlite(file: string): SqlPort {
     all: <T>(sql: string, ...params: SqlParam[]) => wrap(() => stmt(sql).all(...params) as T[]),
     transaction<T>(fn: () => T): T {
       if (inTx) throw new Error('nested transactions are not supported');
-      inTx = true;
+      // BEGIN may fail (SQLITE_BUSY after busy_timeout): the flag is set only once a transaction is open, so a failed
+      // BEGIN leaves the connection usable (OPS-006 found a connection stuck after one busy failure).
       db.exec('BEGIN IMMEDIATE');
+      inTx = true;
       try {
         const result = fn();
         db.exec('COMMIT');
         return result;
       } catch (e) {
-        db.exec('ROLLBACK');
+        // SQLite already rolled back on some errors (SQLITE_FULL, SQLITE_IOERR): never mask the original error.
+        if (db.isTransaction)
+          try {
+            db.exec('ROLLBACK');
+          } catch {
+            // the original error is the one that matters
+          }
         throw e;
       } finally {
         inTx = false;

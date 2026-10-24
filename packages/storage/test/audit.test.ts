@@ -84,6 +84,17 @@ describe('OBS-002 audit log', () => {
     expect(verifyAuditFiles(root)).toEqual({ ok: true, events: 3, files: 1 });
   });
 
+  it('an append whose index write fails leaves no line behind; the chain continues valid', async () => {
+    const { root, open } = freshRoot();
+    const { sql, stores } = open();
+    await stores.audit.append(ev('2026-10-23T00:00:00Z', 0));
+    sql.exec("CREATE TRIGGER t_fail BEFORE INSERT ON audit_index BEGIN SELECT RAISE(ABORT, 'disk full'); END");
+    await expect(stores.audit.append(ev('2026-10-23T00:00:00Z', 1))).rejects.toThrow(/disk full/);
+    sql.exec('DROP TRIGGER t_fail');
+    await stores.audit.append(ev('2026-10-23T00:00:00Z', 2));
+    expect(verifyAuditFiles(root)).toEqual({ ok: true, events: 2, files: 1 });
+  });
+
   it('rejects audit data that carries raw content', async () => {
     const { stores } = freshRoot().open();
     await expect(

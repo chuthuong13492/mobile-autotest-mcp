@@ -32,26 +32,37 @@ export class FileAuditSink implements AuditSink {
 
   async append(e: AuditAppend): Promise<AuditEvent> {
     assertAuditData(e.kind, e.data);
-    return this.sql.transaction(() => {
-      const head =
-        this.sql.get<{ seq: number; hash: string }>('SELECT seq, hash FROM audit_index ORDER BY seq DESC LIMIT 1') ??
-        this.headFromFiles();
-      const base = { ...e, id: this.ids.newId('aud'), seq: head ? head.seq + 1 : 0, prevHash: head?.hash ?? null };
-      const event = AuditEvent.parse({ ...base, hash: auditHash(base as AuditEvent) });
-      const file = this.paths.auditFile(event.ts.slice(0, 7));
-      const offset = appendLineSync(file, canonicalize(event));
-      this.sql.run(
-        'INSERT INTO audit_index (seq, id, ts, kind, file, offset, hash) VALUES (?,?,?,?,?,?,?)',
-        event.seq,
-        event.id,
-        event.ts,
-        event.kind,
-        path.basename(file),
-        offset,
-        event.hash,
-      );
-      return event;
-    });
+    let written: { file: string; offset: number; end: number } | undefined;
+    try {
+      return this.sql.transaction(() => {
+        const head =
+          this.sql.get<{ seq: number; hash: string }>('SELECT seq, hash FROM audit_index ORDER BY seq DESC LIMIT 1') ??
+          this.headFromFiles();
+        const base = { ...e, id: this.ids.newId('aud'), seq: head ? head.seq + 1 : 0, prevHash: head?.hash ?? null };
+        const event = AuditEvent.parse({ ...base, hash: auditHash(base as AuditEvent) });
+        const file = this.paths.auditFile(event.ts.slice(0, 7));
+        const line = canonicalize(event);
+        const offset = appendLineSync(file, line);
+        written = { file, offset, end: offset + Buffer.byteLength(line) + 1 };
+        this.sql.run(
+          'INSERT INTO audit_index (seq, id, ts, kind, file, offset, hash) VALUES (?,?,?,?,?,?,?)',
+          event.seq,
+          event.id,
+          event.ts,
+          event.kind,
+          path.basename(file),
+          offset,
+          event.hash,
+        );
+        return event;
+      });
+    } catch (err) {
+      // The transaction did not commit (an index write or the COMMIT failed, e.g. on a full disk), so the line must
+      // go too, or the next event would reuse its seq (OPS-006). Only while it is still the last line: once the lock
+      // is released another writer may have appended, and its event must never be removed.
+      if (written && fs.statSync(written.file).size === written.end) fs.truncateSync(written.file, written.offset);
+      throw err;
+    }
   }
 
   /** Reads events from the authoritative files in sequence order. */

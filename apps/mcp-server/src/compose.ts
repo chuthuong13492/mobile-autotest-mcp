@@ -63,6 +63,8 @@ export interface ComposeOptions {
   readonly background?: boolean;
   /** This server's environment for approval bindings (default `local:<hostname>`). */
   readonly serverEnvironment?: { readonly id: string; readonly kind: 'local' | 'ci' };
+  /** Clock override (OPS-006 clock-skew tests); default: the system clock. */
+  readonly clock?: { readonly now: () => Date };
 }
 
 export interface Composed {
@@ -101,7 +103,7 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
   }
   const policy = loadPolicyConfig(configText);
   const ids = createIdGenerator();
-  const clock = { now: () => new Date() };
+  const clock = opts.clock ?? { now: () => new Date() };
   if (policy.ok) {
     const { policyVersion, gatePolicyVersion, riskPolicyVersion } = policy.policy;
     await stores.audit.append({

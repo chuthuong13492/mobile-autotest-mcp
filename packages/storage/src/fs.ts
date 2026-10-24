@@ -93,11 +93,22 @@ export function appendLineSync(file: string, line: string): number {
     fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND | (fs.constants.O_NOFOLLOW ?? 0),
     0o600,
   );
+  const offset = fs.fstatSync(fd).size;
   try {
-    const offset = fs.fstatSync(fd).size;
-    fs.writeSync(fd, `${line}\n`);
+    const buf = Buffer.from(`${line}\n`, 'utf8');
+    const written = fs.writeSync(fd, buf);
+    if (written !== buf.length)
+      throw Object.assign(new Error(`short write to ${path.basename(file)}`), { code: 'ENOSPC' });
     fs.fsyncSync(fd);
     return offset;
+  } catch (e) {
+    // Never leave a torn line behind (a full disk mid-write): the next append would follow it (OPS-006).
+    try {
+      fs.ftruncateSync(fd, offset);
+    } catch {
+      // the line stays torn; verification reports it
+    }
+    throw e;
   } finally {
     fs.closeSync(fd);
   }

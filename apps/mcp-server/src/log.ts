@@ -18,36 +18,51 @@ export function stderrSink(stream: { write(s: string): unknown } = process.stder
   return { write: (line) => void stream.write(line) };
 }
 
-/** Daily file sink; once `maxBytesPerDay` is reached it writes one `log_file_capped` line and drops the rest. */
+/**
+ * Daily file sink; once `maxBytesPerDay` is reached it writes one `log_file_capped` line and drops the rest.
+ * Best-effort (OPS-006): a failing write (disk full, permissions) drops that line and never reaches the caller, so
+ * logging can never break a tool call. The stderr sink still carries every line.
+ */
 export function fileSink(dir: string, maxBytesPerDay = 50 * 1024 * 1024, now: () => Date = () => new Date()): LogSink {
-  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  try {
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  } catch {
+    // the first write fails and is dropped as well
+  }
   const capped = new Set<string>();
+  const append = (line: string) => {
+    const day = now().toISOString().slice(0, 10);
+    const file = path.join(dir, `server-${day}.ndjson`);
+    if (capped.has(day)) return;
+    let size: number;
+    try {
+      size = fs.lstatSync(file).size;
+    } catch {
+      size = 0;
+    }
+    const fd = fs.openSync(
+      file,
+      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND | (fs.constants.O_NOFOLLOW ?? 0),
+      0o600,
+    );
+    try {
+      if (size + Buffer.byteLength(line) > maxBytesPerDay) {
+        capped.add(day);
+        fs.writeSync(
+          fd,
+          `${JSON.stringify({ ts: now().toISOString(), level: 'warn', msg: 'log_file_capped', component: 'log' })}\n`,
+        );
+      } else fs.writeSync(fd, line);
+    } finally {
+      fs.closeSync(fd);
+    }
+  };
   return {
     write(line) {
-      const day = now().toISOString().slice(0, 10);
-      const file = path.join(dir, `server-${day}.ndjson`);
-      if (capped.has(day)) return;
-      let size: number;
       try {
-        size = fs.lstatSync(file).size;
+        append(line);
       } catch {
-        size = 0;
-      }
-      const fd = fs.openSync(
-        file,
-        fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND | (fs.constants.O_NOFOLLOW ?? 0),
-        0o600,
-      );
-      try {
-        if (size + Buffer.byteLength(line) > maxBytesPerDay) {
-          capped.add(day);
-          fs.writeSync(
-            fd,
-            `${JSON.stringify({ ts: now().toISOString(), level: 'warn', msg: 'log_file_capped', component: 'log' })}\n`,
-          );
-        } else fs.writeSync(fd, line);
-      } finally {
-        fs.closeSync(fd);
+        // dropped (see above)
       }
     },
   };
