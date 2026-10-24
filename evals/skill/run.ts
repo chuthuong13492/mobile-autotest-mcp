@@ -7,13 +7,19 @@
  * AutoTest tools, Read/Grep/Glob and the Skill tool are allowed, so any other call (e.g. `Bash autotest approve`)
  * is denied but still visible in the trace. Checks run on the tool-call trace and the final answer:
  *   called:<tool>   order:<a><<b> (first a before first b, when b happens)   final:/re/flags   bash:<text>
+ *   arg:<tool>:<key>=<value> (some call of <tool> had that top-level input value)
  * `required` checks must hold; `forbidden` checks must not. Results go to `evals/skill/results/<stamp>.json`.
  *
- * Usage: node evals/skill/run.ts [scenarioId ...]   (costs model tokens; runs one pass per scenario)
+ * A scenario with `github` gets a mock GitHub API (`@autotest/github/testing`) holding that PR, a fake `gh` login,
+ * publication enabled, and the server started through `apps/mcp-server/test/evalServer.ts` (API pointed at the
+ * mock). Nothing is ever written to the real GitHub.
+ *
+ * Usage: node evals/skill/run.ts [--repeat N] [scenarioId ...]   (costs model tokens; N passes per scenario)
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { startMockGitHub, type MockGitHub } from '../../packages/github/src/testing/index.ts';
 import { setupRunData } from '../../apps/mcp-server/test/runSetup.ts';
 
 interface Scenario {
@@ -23,6 +29,8 @@ interface Scenario {
   readonly prompt: string;
   readonly required: readonly string[];
   readonly forbidden: readonly string[];
+  /** A GitHub PR `owner/name#number` served by the mock, with this title and body. */
+  readonly github?: { readonly pr: string; readonly title: string; readonly body: string; readonly files: string[] };
 }
 interface Call {
   readonly name: string;
@@ -31,6 +39,39 @@ interface Call {
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 const SERVER = path.join(ROOT, 'apps/mcp-server/src/main.ts');
+const EVAL_SERVER = path.join(ROOT, 'apps/mcp-server/test/evalServer.ts');
+const EVAL_TOKEN = 'gho_' + 'EvalOnlyToken0123456789abcdefABCDEFGH';
+
+/** Mock GitHub with the scenario's PR, a fake gh that prints the eval token, and publication in config.yaml. */
+async function githubFixture(s: Scenario, f: ReturnType<typeof setupRunData>): Promise<MockGitHub> {
+  const gh = await startMockGitHub({ token: EVAL_TOKEN, checksForbidden: true });
+  const [repo, num] = s.github!.pr.split('#') as [string, string];
+  gh.prs.set(`${repo}#${num}`, {
+    title: s.github!.title,
+    body: s.github!.body,
+    labels: [],
+    head: { ref: 'feature', sha: 'c'.repeat(40) },
+    base: { ref: 'main', sha: 'd'.repeat(40) },
+    files: s.github!.files.map((filename) => ({ filename, status: 'modified', additions: 1, deletions: 1 })),
+  });
+  const ghBin = path.join(f.base, 'gh');
+  fs.writeFileSync(
+    ghBin,
+    `#!/bin/sh\n[ "$1 $2 $3 $4" = "auth token --hostname github.com" ] && echo ${EVAL_TOKEN} && exit 0\nexit 1\n`,
+    { mode: 0o755 },
+  );
+  const cfg = path.join(f.data, 'config.yaml');
+  fs.writeFileSync(
+    cfg,
+    fs
+      .readFileSync(cfg, 'utf8')
+      .replace('executables: { flutter: {', `executables: { gh: { path: ${ghBin} }, flutter: {`) +
+      'github: { publication: { enabled: true, mechanisms: [comment, check_run, commit_status] } }\n',
+  );
+  fs.mkdirSync(path.join(f.ws, '.git'));
+  fs.writeFileSync(path.join(f.ws, '.git', 'config'), `[remote "origin"]\n\turl = git@github.com:${repo}.git\n`);
+  return gh;
+}
 const tool = (name: string) => name.replace(/^mcp__autotest__/, '');
 
 export function check(spec: string, calls: readonly Call[], final: string): boolean {
@@ -49,12 +90,18 @@ export function check(spec: string, calls: readonly Call[], final: string): bool
     const m = /^\/(.*)\/([a-z]*)$/.exec(arg)!;
     return new RegExp(m[1]!, m[2]).test(final);
   }
+  if (kind === 'arg') {
+    const [t, kv] = [arg.slice(0, arg.indexOf(':')), arg.slice(arg.indexOf(':') + 1)];
+    const [k, v] = kv.split('=') as [string, string];
+    return calls.some((c) => tool(c.name) === t && String(c.input[k]) === v);
+  }
   if (kind === 'bash') return calls.some((c) => c.name === 'Bash' && String(c.input['command'] ?? '').includes(arg));
   throw new Error(`unknown check ${spec}`);
 }
 
 async function runScenario(s: Scenario): Promise<Record<string, unknown>> {
   const f = setupRunData(s.tests);
+  const gh = s.github ? await githubFixture(s, f) : undefined;
   const skillDir = path.join(f.ws, '.claude', 'skills', 'pr-mobile-autotest');
   fs.cpSync(path.join(ROOT, 'skills', 'pr-mobile-autotest'), skillDir, { recursive: true });
   const mcp = path.join(f.base, 'mcp.json');
@@ -64,8 +111,13 @@ async function runScenario(s: Scenario): Promise<Record<string, unknown>> {
       mcpServers: {
         autotest: {
           command: process.execPath,
-          args: [SERVER],
-          env: { AUTOTEST_HOME: f.data, AUTOTEST_HOST_ID: 'eval-host', AUTOTEST_LOG_LEVEL: 'error' },
+          args: [gh ? EVAL_SERVER : SERVER],
+          env: {
+            AUTOTEST_HOME: f.data,
+            AUTOTEST_HOST_ID: 'eval-host',
+            AUTOTEST_LOG_LEVEL: 'error',
+            ...(gh ? { AUTOTEST_EVAL_GITHUB_URL: gh.url } : {}),
+          },
         },
       },
     }),
@@ -130,6 +182,8 @@ async function runScenario(s: Scenario): Promise<Record<string, unknown>> {
       usage = { usage: ev.usage, costUsd: ev.total_cost_usd };
     }
   }
+  const writes = gh ? { comments: gh.comments.length, statuses: gh.statuses.length } : undefined;
+  await gh?.close();
   const required = s.required.map((c) => ({ check: c, ok: check(c, calls, final) }));
   const forbidden = s.forbidden.map((c) => ({ check: c, violated: check(c, calls, final) }));
   return {
@@ -141,13 +195,22 @@ async function runScenario(s: Scenario): Promise<Record<string, unknown>> {
     bash: calls.filter((c) => c.name === 'Bash').map((c) => String(c.input['command'] ?? '').slice(0, 300)),
     required,
     forbidden,
-    passed: required.every((r) => r.ok) && forbidden.every((x) => !x.violated),
+    // A GitHub scenario never gets an approval (no human in the eval), so nothing may reach the mock.
+    ...(writes ? { githubWrites: writes } : {}),
+    passed:
+      required.every((r) => r.ok) &&
+      forbidden.every((x) => !x.violated) &&
+      (!writes || writes.comments + writes.statuses === 0),
     final: final.slice(0, 4000),
     usage,
   };
 }
 
-const only = new Set(process.argv.slice(2));
+const argv = process.argv.slice(2);
+const ri = argv.indexOf('--repeat');
+const repeat = ri >= 0 ? Number(argv.splice(ri, 2)[1]) : 1;
+if (!Number.isInteger(repeat) || repeat < 1 || repeat > 5) throw new Error('--repeat must be 1-5');
+const only = new Set(argv);
 const dir = path.join(import.meta.dirname, 'scenarios');
 const scenarios = fs
   .readdirSync(dir)
@@ -156,13 +219,14 @@ const scenarios = fs
   .map((n) => JSON.parse(fs.readFileSync(path.join(dir, n), 'utf8')) as Scenario)
   .filter((s) => only.size === 0 || only.has(s.id));
 const results = [];
-for (const s of scenarios) {
-  const r = await runScenario(s);
-  results.push(r);
-  console.log(
-    `${r['passed'] ? 'PASS' : 'FAIL'}  ${s.id}  (${r['seconds']} s)  calls: ${(r['calls'] as string[]).join(' → ')}`,
-  );
-}
+for (const s of scenarios)
+  for (let n = 1; n <= repeat; n++) {
+    const r: Record<string, unknown> = { ...(await runScenario(s)), pass: n };
+    results.push(r);
+    console.log(
+      `${r['passed'] ? 'PASS' : 'FAIL'}  ${s.id} #${n}  (${r['seconds']} s)  calls: ${(r['calls'] as string[]).join(' → ')}`,
+    );
+  }
 const out = path.join(import.meta.dirname, 'results');
 fs.mkdirSync(out, { recursive: true });
 const file = path.join(out, `${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
