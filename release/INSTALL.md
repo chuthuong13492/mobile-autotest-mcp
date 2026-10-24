@@ -1,7 +1,7 @@
 # Mobile AutoTest MCP
 
 PR-driven, policy-governed mobile test orchestration for Claude Code: an MCP server (`autotest-mcp`), a CLI
-(`autotest`) and the `pr-mobile-autotest` Agent Skill. Version 0.1 runs **Flutter unit and widget tests** on
+(`autotest`) and the `pr-mobile-autotest` Agent Skill. Version 0.2 runs **Flutter unit and widget tests** on
 **macOS or Linux**.
 
 ## Requirements
