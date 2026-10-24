@@ -131,51 +131,23 @@ Phase 1 is large because it builds every foundational control: policy, authoriza
   - Phase 2 may begin as soon as 1B is complete, because GitHub tasks can run in parallel with 1C.
   - Phase 2 cannot *exit* before v0.1 has exited.
 
-## Phase 2 — GitHub/GHES and CI (v0.2)
+## Phase 2 — GitHub via gh (v0.2)
 
-- **Objective.**
-  - Retrieve PRs from GHES.
-  - Execute approved plans in CI with AL3 approvals.
-  - Publish results to GitHub with least privilege.
-- **Included scope.**
-  - GH-001…005.
-  - CI-001…004 and CLI-004.
-  - ANL-002 (baseline runs and the known-failure registry).
-  - E2E-003, which is credential-gated.
-  - E2E-004.
-- **Explicit exclusions.**
-  - A second CI provider.
-  - Device jobs in CI.
-  - Merge gating.
-- **Prerequisites.**
-  - Phase 0 criteria 3 and 4: GHES capabilities and the CI decision.
-  - Phase 1B complete.
-  - A sandbox repository.
-- **Deliverables.**
-  - The GitHub package.
-  - CI commands.
-  - The reference pipeline for the selected provider.
-  - E2E-004 evidence.
-  - E2E-003 evidence, or a documented deferral.
-- **Task dependencies.** GH-005 needs AUTH-004 and RPT-004. CI-002 needs DISC-004.
-- **Risks.**
-  - RK-03: CI cost or availability.
-  - RK-06: private dependencies.
-  - RK-15: GHES gaps.
-  - OQ-12: duplication with Claudius.
-- **Verification evidence.**
-  - Sandbox pipeline run links.
-  - Recorded GHES integration tests.
-  - The publication audit log.
+> **Scope change (2026-10-24, user decision).** github.com only, authenticated through the `gh` CLI; AutoTest is not run inside CI. Removed from scope: CI-001 – CI-004, CLI-004, E2E-004, DISC-004, DISC-005 and E2E-003. ADR-0012 is withdrawn.
+
+- **Objective.** Retrieve PRs from github.com and publish results to the PR (comment, check run with commit-status fallback) only with human (P3) authorization.
+- **Included scope.** GH-001 – GH-005; ANL-002 (baseline runs and the known-failure registry) if time allows.
+- **Explicit exclusions.** GHES; running AutoTest in CI; merge gating; a GitHub App (check runs fall back to a commit status when the `gh` token cannot create them).
+- **Prerequisites.** Phase 1 complete; `gh` installed and authenticated (`gh auth login`) on the machine; publication enabled in `config.yaml`.
+- **Deliverables.** The GitHub package (`packages/github`), `get_pr_context` GitHub mode, `publish_github_report`, `request_approval` for `github_publish`, setup/doctor support for `gh`, Skill update, release v0.2.0.
+- **Task dependencies.** GH-002 – GH-004 need GH-001; GH-005 needs GH-003/004, AUTH-004 and RPT-004.
+- **Risks.** Check runs need a GitHub App or Actions token, so a `gh` user token usually falls back to a commit status (reported, not hidden). RK-06 (private dependencies) is unchanged.
+- **Verification evidence.** Mock-GitHub tests (backoff, paging, repo mismatch, token never logged, idempotent republish, fallback, annotation batching, no write without approval, dry run); SEC-003 publication cases; a live run against a draft PR of this repository.
 - **Exit criteria (v0.2).**
-  1. E2E-004 passes, including all four of these:
-     - `needs_review` without an approval yields `blocked`.
-     - Republishing is idempotent.
-     - Fork-PR simulation leaks no secrets.
-     - The test and publish jobs are separated.
-  2. No GitHub write can happen without P3 authorization (SEC-003 extended).
-  3. E2E-003 has passed, or has been explicitly deferred with sign-off.
-- **Move-on criteria.** Phase 3 may start once E2E-004 passes.
+  1. `get_pr_context` with `source: "github"` returns the PR and its changed files from github.com.
+  2. No GitHub write can happen without P3 authorization (SEC-003 extended); a republish leaves one comment.
+  3. Release v0.2.0 is built and published by the tag workflow.
+- **Move-on criteria.** Phase 3 may start once the exit criteria hold.
 
 ## Phase 3 — Production hardening and Release 1 (v1.0)
 

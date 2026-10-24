@@ -12,6 +12,7 @@
 | `Proposed` | A recommendation that needs more evidence or explicit stakeholder acceptance before it becomes binding. |
 | `Open` | Unresolved. Work that depends on it is blocked or runs behind an abstraction. |
 | `Superseded` | Replaced by a later ADR. The ADR text is kept for history. |
+| `Withdrawn` | The question no longer applies because the scope changed. The ADR text is kept for history. |
 
 ## Index
 

@@ -1,5 +1,7 @@
 # Definition of Done
 
+> **Scope change (2026-10-24).** CI-001 – CI-004, CLI-004, E2E-003, E2E-004, DISC-004 and DISC-005 were removed from scope (AutoTest is not run in CI; GitHub means github.com via `gh`). Rows and criteria that cite them no longer apply; see [task-breakdown.md](task-breakdown.md#phase-2--github-via-gh-githubcom).
+
 > **Status:** Planned design, baseline of 2026-10-22. Nothing described here is implemented yet.
 
 This document is the canonical home for the per-PR quality gates and the release gates of the Mobile AutoTest MCP codebase.

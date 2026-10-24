@@ -322,6 +322,8 @@ Phase 0 discovery tasks were executed after the baseline validation above. The d
 
 **Re-validation (run 29, after SEC-001 – SEC-003 and E2E-002).** Exit 0, PASS 47, WARNING 1 (VAL-10, unchanged). The Autotrader SHA-256 manifest (2,966 files) is identical to the before-snapshot.
 
+**Re-validation (run 30, after the Phase 2 scope change).** Exit 0, PASS 47, WARNING 1 (VAL-10, unchanged). Two validator rules changed with the user's decision of 2026-10-24: VAL-25 now accepts ADR-0012 as `Withdrawn` (it previously had to stay `Proposed`), and `Withdrawn` is a documented ADR status; VAL-09b passes against the recomputed critical path (24 tasks). The Autotrader manifest was not touched by this step.
+
 **Environment changes outside the workspace.** These were needed for Phase 0. None is a product dependency.
 
 | Change | Detail |

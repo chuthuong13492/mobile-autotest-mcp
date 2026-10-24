@@ -7,6 +7,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 ## Open questions
 
 ### OQ-01
+- **Closed (2026-10-24):** AutoTest is not run in CI; no provider is needed (ADR-0012 withdrawn).
 - **Question.** Which CI provider will run AutoTest in CI for v0.2/v1.0, and which provider will run macOS work in v1.1?
 - **Impact.** Phase 2 (CI-002/004) and the CI parts of Phase 4. Without a decision, CI E2E-004 cannot run.
 - **Current position.** ADR-0012 is `Proposed`. The provisional recommendation is GitHub Actions on GHES with ephemeral self-hosted Linux runners. For macOS, the choice is between Bitrise and self-hosted Macs.
@@ -62,6 +63,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Closure criteria.** A verified compatible pair runs a fixture scenario, and the pinning configuration is documented.
 
 ### OQ-07
+- **Closed (2026-10-24):** GHES is out of scope; only github.com is supported.
 - **Question.** Which GHES version runs at `ghe.coxautoinc.com`? Are the Checks API, GitHub App installation, `GITHUB_TOKEN` with `checks: write`, OIDC, and ephemeral/JIT runner registration available?
 - **Impact.** ADR-0013, the fallback order for GH-004, and the CI security design.
 - **Owner (role).** DevSecOps Engineer.
@@ -190,6 +192,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Closure criteria.** Interoperability verified, plus a pinned and tested client and SDK matrix.
 
 ### RK-03
+- **Retired (2026-10-24):** no AutoTest CI. This repository runs its own checks only on release tags.
 - **Risk.** macOS CI capacity is unavailable or too expensive. GitHub-hosted runners are not offered on GHES.
 - **L/I.** M / M.
 - **Mitigation.** v1.0 needs only Linux. macOS work is deferred to v1.1, and Bitrise (already used by the organization) or self-hosted Macs are evaluated (DISC-004).
@@ -302,6 +305,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Closure criteria.** APM-001 passes with a pinned version pair.
 
 ### RK-15
+- **Retired (2026-10-24):** GHES is out of scope.
 - **Risk.** GHES feature gaps compared with github.com, such as the Checks API or OIDC.
 - **L/I.** M / M.
 - **Mitigation.** A capability probe (DISC-005) and fallback mechanisms (ADR-0013).

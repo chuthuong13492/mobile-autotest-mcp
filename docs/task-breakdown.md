@@ -169,6 +169,15 @@ Every task has all 16 fields:
 | SEC-002 | **Done** | `security/sec-002/injection.test.ts`: injected HTML comments, code blocks, quotes, `<details>` and JSON-RPC text leave the requirement-set hash unchanged and appear only as labelled discarded excerpts; plan display text cannot change a gate decision; an injected test name and failure message cannot change the outcome, the analysis class or the verdict, and render inert in the report; repository `.autotest.yaml`/`config.yaml` cannot widen policy (T-01, T-20) | — |
 | SEC-003 | **Done** | `security/sec-003/bypass.test.ts` through the real server: no approval, AL1 where AL2 is required, a subset-scoped approval, expired, revoked and exhausted approvals, another environment, a changed policy version, a tampered approval file, a failed gate, an edited plan, a tampered plan snapshot, and GitHub publication — each denied with its documented code and reason (T-15, T-18, T-06). Integrity failures now surface as `E_STORAGE_CORRUPT` (centrally in `bindUseCases`) instead of `E_INTERNAL` | — |
 | E2E-002 | **Done** | `test/e2e/local-flutter.test.ts` with real Flutter (3.47.1 here) on the fixture: pass with a flaky retry, coverage evidence, flaky analysis, pass report and a verified audit chain; `needs_review` refused, approved through the CLI challenge, then run and reported pass; assertion, exception and load-error failures analyzed and reported `fail`; a failed gate blocks the run; a slow run is cancelled and nothing is reported as passed. Skips with the reason when no SDK is found | Linux execution not yet verified (no Docker daemon); the CI job that would run it on Linux has no remote yet |
+| DISC-004 | **Removed** | Removed from scope on 2026-10-24 (user decision): CI is not part of the product: AutoTest is not run inside CI (user decision 2026-10-24). ADR-0012 is withdrawn. | — |
+| DISC-005 | **Removed** | Removed from scope on 2026-10-24 (user decision): Only github.com is supported, through the `gh` credential; GHES capabilities are no longer needed. | — |
+| CI-001 | **Removed** | Removed from scope on 2026-10-24 (user decision): AutoTest does not run inside CI pipelines (user decision 2026-10-24). | — |
+| CI-002 | **Removed** | Removed from scope on 2026-10-24 (user decision): AutoTest does not run inside CI pipelines. | — |
+| CI-003 | **Removed** | Removed from scope on 2026-10-24 (user decision): No CI approval source: approvals stay local (CLI AL2). | — |
+| CI-004 | **Removed** | Removed from scope on 2026-10-24 (user decision): No CI artifact integration. | — |
+| CLI-004 | **Removed** | Removed from scope on 2026-10-24 (user decision): No `autotest ci` commands. | — |
+| E2E-003 | **Removed** | Removed from scope on 2026-10-24 (user decision): The Autotrader credential-gated acceptance run is dropped with DISC-007 out of the release path; Autotrader stays a read-only reference. | — |
+| E2E-004 | **Removed** | Removed from scope on 2026-10-24 (user decision): Replaced by the GitHub publication tests (mock server) and a live check on a draft PR of this repository. | — |
 
 ### DISC-001 — MCP SDK v2 + Claude Code interoperability spike
 - **Task ID:** DISC-001
@@ -225,6 +234,7 @@ Every task has all 16 fields:
 - **Risks and rollback:** If infeasible, AL3 locally is "not available". Policies that require AL3 then fall back to CI-only.
 
 ### DISC-004 — CI provider evaluation and ADR-0012 decision
+- **Status:** **REMOVED (2026-10-24, user decision).** CI is not part of the product: AutoTest is not run inside CI (user decision 2026-10-24). ADR-0012 is withdrawn. The ID is kept so references resolve.
 - **Task ID:** DISC-004
 - **Title:** CI provider evaluation and ADR-0012 decision
 - **Objective:** Fill in the CI scoring sheet with real evidence, and move ADR-0012 to Accepted (planning) or Superseded.
@@ -243,6 +253,7 @@ Every task has all 16 fields:
 - **Risks and rollback:** If no provider qualifies, Phase 2 CI tasks are re-planned (RK-03).
 
 ### DISC-005 — GHES capability probe
+- **Status:** **REMOVED (2026-10-24, user decision).** Only github.com is supported, through the `gh` credential; GHES capabilities are no longer needed. The ID is kept so references resolve.
 - **Task ID:** DISC-005
 - **Title:** GHES capability probe
 - **Objective:** Determine the GHES version and confirm the capabilities AutoTest needs at `ghe.coxautoinc.com`.
@@ -1829,7 +1840,9 @@ Every task has all 16 fields:
 
 ---
 
-## Phase 2 — GitHub/GHES and CI
+## Phase 2 — GitHub via gh (github.com)
+
+> **Scope change (2026-10-24, user decision).** Phase 2 is GitHub on github.com only, authenticated through the `gh` CLI: GH-001 – GH-005 and ANL-002. AutoTest is **not** run inside CI, so CI-001 – CI-004, CLI-004 and E2E-004 are removed, together with DISC-004 (CI provider), DISC-005 (GHES probe) and E2E-003 (Autotrader credential-gated run). This repository's own CI/CD (release on tag, `.github/workflows/release.yml`) is separate and stays.
 
 ### GH-001 — GitHub client
 - **Task ID:** GH-001
@@ -1839,7 +1852,7 @@ Every task has all 16 fields:
 - **Scope:** Read operations and probes. Write primitives are gated behind the Publisher interface.
 - **Non-goals:** Publication logic (GH-003–GH-005).
 - **Prerequisites:** —
-- **Dependencies:** Blocking: DISC-005, POL-004. Recommended after: —
+- **Dependencies:** Blocking: POL-004. Recommended after: — (DISC-005 removed: github.com only)
 - **Expected files/modules:** `packages/github/src/client.ts`.
 - **Implementation notes:** Pin the Octokit version. Run the DISC-005 fixtures through a mock server.
 - **Acceptance criteria:** (1) 429 and 5xx responses back off and retry, up to 5 times. (2) No token appears in logs or errors.
@@ -1940,6 +1953,7 @@ Every task has all 16 fields:
 - **Risks and rollback:** If baseline runs prove too costly, keep the registry only (OQ-16).
 
 ### CI-001 — Provider-neutral CI environment abstraction
+- **Status:** **REMOVED (2026-10-24, user decision).** AutoTest does not run inside CI pipelines (user decision 2026-10-24). The ID is kept so references resolve.
 - **Task ID:** CI-001
 - **Title:** Provider-neutral CI environment abstraction
 - **Objective:** Define `CiEnvironmentPort` (detection, run identity, artifact export, token access, PR metadata) and a generic implementation.
@@ -1958,6 +1972,7 @@ Every task has all 16 fields:
 - **Risks and rollback:** —
 
 ### CLI-004 — CI commands
+- **Status:** **REMOVED (2026-10-24, user decision).** No `autotest ci` commands. The ID is kept so references resolve.
 - **Task ID:** CLI-004
 - **Title:** CI commands (ci run, ci publish, plan export, ci merge-report)
 - **Objective:** Execute an approved or committed plan deterministically in CI, wait for the run to finish, export artifacts, publish in a separate step, and merge sharded reports.
@@ -1976,6 +1991,7 @@ Every task has all 16 fields:
 - **Risks and rollback:** —
 
 ### CI-003 — CI approval source and no-auto-approve enforcement
+- **Status:** **REMOVED (2026-10-24, user decision).** No CI approval source: approvals stay local (CLI AL2). The ID is kept so references resolve.
 - **Task ID:** CI-003
 - **Title:** CI approval source and no-auto-approve enforcement
 - **Objective:** Verify AL3 approvals from GitHub PR reviews (by a reviewer team, submitted after the last plan commit, containing the `autotest-approve <planHash>` line). Enforce that CI never auto-approves, and apply the fork-PR secret rules.
@@ -1994,6 +2010,7 @@ Every task has all 16 fields:
 - **Risks and rollback:** —
 
 ### CI-002 — Reference pipeline for the selected provider
+- **Status:** **REMOVED (2026-10-24, user decision).** AutoTest does not run inside CI pipelines. The ID is kept so references resolve.
 - **Task ID:** CI-002
 - **Title:** Reference pipeline for the selected provider
 - **Objective:** Provide a reference pipeline definition and documentation for the provider chosen in DISC-004, with test and publish jobs split as specified.
@@ -2012,6 +2029,7 @@ Every task has all 16 fields:
 - **Risks and rollback:** —
 
 ### CI-004 — Artifact upload and retention integration
+- **Status:** **REMOVED (2026-10-24, user decision).** No CI artifact integration. The ID is kept so references resolve.
 - **Task ID:** CI-004
 - **Title:** Artifact upload and retention integration
 - **Objective:** Upload the redacted run directory without quarantined files, set provider retention, and reference the artifacts in the report.
@@ -2030,6 +2048,7 @@ Every task has all 16 fields:
 - **Risks and rollback:** —
 
 ### E2E-003 — Autotrader credential-gated acceptance
+- **Status:** **REMOVED (2026-10-24, user decision).** The Autotrader credential-gated acceptance run is dropped with DISC-007 out of the release path; Autotrader stays a read-only reference. The ID is kept so references resolve.
 - **Task ID:** E2E-003
 - **Title:** Autotrader credential-gated acceptance
 - **Objective:** Validate inspection and inventory against Autotrader's reference profile, and run a host unit and widget subset in a disposable clone.
@@ -2048,6 +2067,7 @@ Every task has all 16 fields:
 - **Risks and rollback:** If access is unavailable, the task stays deferred with OQ-14 open. This does not block v0.2.
 
 ### E2E-004 — CI end-to-end with publication
+- **Status:** **REMOVED (2026-10-24, user decision).** Replaced by the GitHub publication tests (mock server) and a live check on a draft PR of this repository. The ID is kept so references resolve.
 - **Task ID:** E2E-004
 - **Title:** CI end-to-end with publication
 - **Objective:** Exercise the full CI flow on a sandbox GH(ES) repo: plan file, gate, AL3 review approval, run, artifacts, publish (comment, check or status).
@@ -2077,7 +2097,7 @@ Every task has all 16 fields:
 - **Scope:** A review against the implementation, an independent reviewer, and a findings log.
 - **Non-goals:** An external pentest. Optional, and an organization decision.
 - **Prerequisites:** —
-- **Dependencies:** Blocking: SEC-001, SEC-002, SEC-003, E2E-004. Recommended after: SEC-005.
+- **Dependencies:** Blocking: SEC-001, SEC-002, SEC-003, GH-005. Recommended after: SEC-005. (E2E-004 removed 2026-10-24.)
 - **Expected files/modules:** `docs/security-threat-model.md` (verification column), `security/review-v1.md`.
 - **Implementation notes:** Any T-NN without a passing verification blocks release.
 - **Acceptance criteria:** (1) Every threat is marked verified or accepted-residual by the Security Engineer.
@@ -2227,7 +2247,7 @@ Every task has all 16 fields:
 - **Scope:** The checklist review and sign-offs.
 - **Non-goals:** —
 - **Prerequisites:** —
-- **Dependencies:** Blocking: REL-001, SEC-004, OPS-007, E2E-003, E2E-004, SKL-002. Recommended after: MCP-003.
+- **Dependencies:** Blocking: REL-001, SEC-004, OPS-007, SKL-002. Recommended after: MCP-003. (E2E-003 and E2E-004 removed 2026-10-24.)
 - **Expected files/modules:** `release/v1.0-readiness.md`.
 - **Implementation notes:** E2E-003 may be recorded as "deferred — access unavailable" only with a sign-off.
 - **Acceptance criteria:** (1) Every release gate is PASS, or has an approved waiver.
@@ -2568,8 +2588,7 @@ The effort figures use the S/M/L ranges. They are estimates, not measurements.
 ```mermaid
 flowchart LR
   subgraph P0[Phase 0]
-    D1[DISC-001 SDK interop] ; D5[DISC-005 GHES probe] --> D4[DISC-004 CI decision]
-    D6[DISC-006 Flutter corpus] ; D8[DISC-008 SQLite driver] ; D3[DISC-003 AL3] ; D7[DISC-007 Autotrader access]
+    D1[DISC-001 SDK interop] ; D6[DISC-006 Flutter corpus] ; D8[DISC-008 SQLite driver] ; D3[DISC-003 AL3]
   end
   subgraph P1[Phase 1: v0.1]
     F[Foundation: OPS/CON/CORE/STO/POL/AUTH/EXE/OBS] --> M[MCP-001/002]
@@ -2580,7 +2599,7 @@ flowchart LR
     EV --> E2[E2E-002 local E2E]
   end
   subgraph P2[Phase 2: v0.2]
-    GH[GH-001..005] --> CLI4[CLI-004 ci commands] --> CI2[CI-002/004] --> E4[E2E-004]
+    GH[GH-001..005 via gh] ; BL[ANL-002 baselines]
   end
   subgraph P3[Phase 3: v1.0]
     HARD[SEC-004/005, OPS-004..007, REL-001] --> R2[REL-002 v1.0]
@@ -2591,24 +2610,26 @@ flowchart LR
   subgraph P5[Phase 5: v1.2]
     RN[RN-001..003] --> E6[E2E-006] ; APM[APM-001/002] --> E6
   end
-  D1 --> F ; D6 --> FLT ; D8 --> F ; D4 --> CI2 ; D5 --> GH ; D7 --> E3[E2E-003]
-  E2 --> GH ; E4 --> HARD ; E3 --> R2 ; R2 -. recommended .-> DEV ; E5 -. recommended .-> RN
+  D1 --> F ; D6 --> FLT ; D8 --> F
+  E2 --> GH ; GH --> HARD ; R2 -. recommended .-> DEV ; E5 -. recommended .-> RN
 ```
 
 ### Critical path to Release 1 (REL-002)
 
-The critical path has 27 tasks. With effort taken at the upper bound of each task's S/M/L range, the serial chain is **77–131 engineer-days**:
+The critical path has 24 tasks (recomputed 2026-10-24 after the scope change; it was 27). With effort taken at the upper bound of each task's S/M/L range, the serial chain is **67–114 engineer-days**:
 
-`DISC-001 → OPS-001 → CON-001 → CON-004 → CORE-002 → POL-001 → POL-005 → OBS-001 → MCP-001 → MCP-002 → PLN-001 → PLN-002 → PLN-003 → COV-004 → RUN-001 → RUN-002 → RUN-003 → EVD-002 → ANL-003 → RPT-004 → GH-005 → CLI-004 → CI-002 → CI-004 → E2E-004 → SEC-004 → REL-002`
+`DISC-001 → OPS-001 → CON-001 → CON-004 → CORE-002 → POL-001 → POL-005 → OBS-001 → MCP-001 → MCP-002 → PLN-001 → PLN-002 → PLN-003 → COV-004 → RUN-001 → RUN-002 → RUN-003 → EVD-002 → ANL-003 → RPT-004 → E2E-002 → OPS-005 → REL-001 → REL-002`
 
+
+**Update 2026-10-24.** CLI-004, CI-002, CI-004 and E2E-004 were removed from scope, and REL-002 no longer waits for E2E-003/E2E-004, so Phase 2 left the critical path: it now ends `RPT-004 → E2E-002 → OPS-005 → REL-001 → REL-002`. The v0.2 milestone is GH-005 with its publication tests.
 Intermediate milestones on the same chain:
 
 | Milestone | Tasks on the path | Serial effort (eng-days) |
 |---|---|---|
 | v0.1 (E2E-002) | 21 | 60–102 |
-| v0.2 (E2E-004) | 25 | 73–124 |
+| v0.2 (GH-005; E2E-004 removed) | off the critical path | — |
 
-Off the main chain, **DISC-004** (CI decision) blocks CI-002. **DISC-007** (Autotrader access) blocks E2E-003, which blocks REL-002 unless it is waived. Both are Phase-0 items with an external dependency, so they should start immediately.
+Off the main chain, **DISC-004** (CI decision) blocked CI-002 and **DISC-007** (Autotrader access) blocked E2E-003; DISC-004, CI-002 and E2E-003 were removed on 2026-10-24. Both are Phase-0 items with an external dependency, so they should start immediately.
 
 ### Parallel lanes
 
@@ -2616,7 +2637,7 @@ The lanes below are derived from the dependency levels the script computed. Task
 
 | Lane | Tasks | Can start after |
 |---|---|---|
-| A — Discovery | DISC-001, DISC-003, DISC-005, DISC-006, DISC-007, DISC-008 | immediately (all independent) |
+| A — Discovery | DISC-001, DISC-003, DISC-006, DISC-007, DISC-008 (DISC-004/005 removed) | immediately (all independent) |
 | B — Repo and contracts | OPS-001 → OPS-002/OPS-003, CON-001 → CON-002/003/004/006, CORE-001/003 | DISC-001 |
 | C — Policy and security core | POL-001 → POL-002…POL-006, WS-001, EXE-001…EXE-004 | CON-001, CORE-002 |
 | D — Storage and approvals | STO-001…STO-004, AUTH-001…AUTH-003, OBS-002 | CORE-004 |
@@ -2625,7 +2646,7 @@ The lanes below are derived from the dependency levels the script computed. Task
 | G — MCP surface | MCP-001/002, then the INS-*, PLN-001…003, COV-004, AUTH-004 tool handlers | Lanes B and C |
 | H — Runs | RUN-001…RUN-006, EVD-001…EVD-003, CLI-001…CLI-003 | Lanes C, D and G |
 | I — Security verification | SEC-001 (after EXE-001/POL-002/EVD-001), SEC-002 (after PLN-003), SEC-003 (after RUN-002) | as listed |
-| J — GitHub and CI (Phase 2) | GH-001/003/004 can start in Phase 1 after DISC-005; CI-001 after CORE-006 | DISC-005, CORE-006 |
+| J — GitHub (Phase 2) | GH-001 – GH-005 (github.com via `gh`); ANL-002 | POL-004, AUTH-004, RPT-004 |
 | K — Native spikes (Phase 4) | IOS-001, AND-001 have no blocking dependencies and may run early on spare capacity | — |
 
 **Effort totals per phase** (estimates, S/M/L sums; assumptions are in [implementation-roadmap.md](implementation-roadmap.md#effort-assumptions)):
@@ -2634,7 +2655,7 @@ The lanes below are derived from the dependency levels the script computed. Task
 |---|---|---|
 | 0 | 8 | 14–25 |
 | 1 | 83 | 218–373 |
-| 2 | 13 | 39–66 |
+| 2 | 6 (13 planned; 7 removed 2026-10-24) | 16–28 (estimate for the remaining tasks) |
 | 3 | 9 | 19–33 |
 | 4 | 11 | 38–64 |
 | 5 | 6 | 24–40 |
