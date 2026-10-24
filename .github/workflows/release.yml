@@ -55,6 +55,9 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      # Build provenance (SEC-005); attestations need GitHub Enterprise Cloud on private repositories.
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -64,12 +67,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm release:pack
+      - name: Build provenance attestation
+        id: attest
+        continue-on-error: true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: release/out/mobile-autotest-mcp-*.tgz
       - name: Release notes from release/CHANGELOG.md
         env:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           awk -v h="## $VERSION" '$0 == h {on = 1; next} on && /^## / {exit} on' release/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
           test -s "$RUNNER_TEMP/notes.md"
+          if [ "${{ steps.attest.outcome }}" = "success" ]; then
+            printf '\nBuild provenance: attested (`gh attestation verify <tarball> -R %s`).\n' "$GITHUB_REPOSITORY" >> "$RUNNER_TEMP/notes.md"
+          else
+            printf '\nBuild provenance: not attested (artifact attestations are unavailable for this repository).\n' >> "$RUNNER_TEMP/notes.md"
+          fi
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

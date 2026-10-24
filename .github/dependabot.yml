@@ -1,0 +1,16 @@
+# SEC-005: dependency and action update proposals. Pull requests run no workflow here (releases run on tags only);
+# each proposal is reviewed by hand and, if merged, released through a version tag.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: development
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
