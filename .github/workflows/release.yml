@@ -1,0 +1,81 @@
+# OPS-002 / REL-001: checks and the GitHub Release, run only when a version tag is pushed (or started by hand).
+# Pushes to main and pull requests do not run anything. Release procedure: docs/operations-and-troubleshooting.md.
+# Actions are pinned to commit SHAs (SEC-005); the comment names the release each SHA belongs to.
+name: release
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  version:
+    # Fails fast, before the test matrix, when the tag, package.json and SERVER_VERSION disagree.
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: v
+        shell: bash
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          server=$(sed -nE "s/^export const SERVER_VERSION = '([^']+)';$/\1/p" apps/mcp-server/src/compose.ts)
+          echo "package.json=$pkg SERVER_VERSION=$server ref=$GITHUB_REF_NAME"
+          if [ "$pkg" != "$server" ]; then echo "::error::package.json ($pkg) and SERVER_VERSION ($server) differ"; exit 1; fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$pkg" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match version v$pkg"; exit 1
+          fi
+          if ! grep -qx "## $pkg" release/CHANGELOG.md; then echo "::error::release/CHANGELOG.md has no '## $pkg' section"; exit 1; fi
+          echo "version=$pkg" >> "$GITHUB_OUTPUT"
+  check:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+        node: [24, 26]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm audit --audit-level high --prod
+  release:
+    needs: [version, check]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm release:pack
+      - name: Release notes from release/CHANGELOG.md
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          awk -v h="## $VERSION" '$0 == h {on = 1; next} on && /^## / {exit} on' release/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          test -s "$RUNNER_TEMP/notes.md"
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          cd release/out
+          sha256sum -c SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "v$VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
+            "mobile-autotest-mcp-$VERSION.tgz" SHA256SUMS "mobile-autotest-mcp-$VERSION.sbom.cdx.json"

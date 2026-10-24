@@ -119,3 +119,29 @@ Any change to the policy sections changes the policy version. Coverage decisions
 | (v1.1) Android `INSTALL_FAILED_*` | Emulator storage full or ABI mismatch | Use an owned emulator with a matching ABI. Wipe owned devices only. |
 | (v1.2) Appium `prerequisite_mismatch` | Installed Appium or driver differs from the pinned versions | Install the pinned versions (OQ-06 governs compatibility) |
 | Claude Code shows results saved to a file | Output above Claude Code's limits | This should not happen (NFR-004). Report it as a bug. Pagination should prevent it. |
+
+## 7. Releasing (this repository)
+
+Releases are built by `.github/workflows/release.yml`. It runs **only** when a `vX.Y.Z` tag is pushed, or when started by hand from the Actions tab (`workflow_dispatch`: checks only, no release). Pushes to `main` and pull requests run nothing.
+
+1. Bump the version in `package.json` and `SERVER_VERSION` (`apps/mcp-server/src/compose.ts`), and add a `## X.Y.Z` section to `release/CHANGELOG.md`.
+2. Run `pnpm check` locally, then commit and push `main`.
+3. Tag and push the tag:
+
+   ```bash
+   git tag vX.Y.Z && git push origin vX.Y.Z
+   ```
+
+The workflow:
+
+- **`version`** fails fast when the tag, `package.json`, `SERVER_VERSION` or the CHANGELOG section disagree.
+- **`check`** runs `pnpm check` and `pnpm audit --audit-level high --prod` on ubuntu-24.04 and macos-15 with Node 24 and 26.
+- **`release`** (the only job with `contents: write`) runs `pnpm release:pack`, verifies `SHA256SUMS`, and creates the GitHub Release with the `.tgz`, `SHA256SUMS` and the CycloneDX SBOM. The release notes are the CHANGELOG section.
+
+To install a release elsewhere, see `release/INSTALL.md`:
+
+```bash
+gh release download vX.Y.Z -R chuthuong13492/mobile-autotest-mcp -p '*.tgz' -p SHA256SUMS
+```
+
+A tag pushed by mistake: delete the Release and the tag (`gh release delete vX.Y.Z --cleanup-tag`), fix, and tag again. Never move a published tag to a different commit.
