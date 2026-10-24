@@ -21,6 +21,13 @@ import {
 import { appendLineSync, dataRootPaths } from './fs.ts';
 import type { SqlPort } from './sql.ts';
 
+const BUSY_ATTEMPTS = 3;
+/** SQLITE_BUSY (5) or SQLITE_LOCKED (6) from node:sqlite. */
+const isBusy = (e: unknown) => {
+  const c = (e as { errcode?: unknown } | null)?.errcode;
+  return typeof c === 'number' && ((c & 0xff) === 5 || (c & 0xff) === 6);
+};
+
 export class FileAuditSink implements AuditSink {
   private readonly sql: SqlPort;
   private readonly paths: ReturnType<typeof dataRootPaths>;
@@ -32,6 +39,19 @@ export class FileAuditSink implements AuditSink {
 
   async append(e: AuditAppend): Promise<AuditEvent> {
     assertAuditData(e.kind, e.data);
+    // Every tool call writes audit first and fails closed without it, so a writer that loses the busy-timeout race
+    // to other processes tries again a few times before giving up.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return this.appendOnce(e);
+      } catch (err) {
+        if (attempt >= BUSY_ATTEMPTS || !isBusy(err)) throw err;
+        await new Promise((r) => setTimeout(r, 50 + Math.floor(Math.random() * 200)));
+      }
+    }
+  }
+
+  private appendOnce(e: AuditAppend): AuditEvent {
     let written: { file: string; offset: number; end: number } | undefined;
     try {
       return this.sql.transaction(() => {

@@ -5,15 +5,20 @@ import { openDataRoot } from '@autotest/storage';
 const { root, n, tag } = workerData as { root: string; n: number; tag: string };
 const { sql, stores } = openDataRoot(root);
 let ok = 0;
-for (let i = 0; i < n; i++) {
-  await stores.audit.append({
-    ts: '2026-10-23T00:00:00Z',
-    actor: 'server',
-    kind: 'tool.call',
-    subjectRefs: [],
-    data: { tool: tag, toolCallId: `${tag}-${i}` },
-  });
-  ok++;
+try {
+  for (let i = 0; i < n; i++) {
+    await stores.audit.append({
+      ts: '2026-10-23T00:00:00Z',
+      actor: 'server',
+      kind: 'tool.call',
+      subjectRefs: [],
+      data: { tool: tag, toolCallId: `${tag}-${i}` },
+    });
+    ok++;
+  }
+} catch (e) {
+  // Reported as a count with the reason, so a failure under load says why.
+  parentPort!.postMessage(`${ok} then ${(e as Error).message}`);
 }
 sql.close();
 parentPort!.postMessage(ok);

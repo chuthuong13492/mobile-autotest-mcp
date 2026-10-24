@@ -153,7 +153,9 @@ describe('CLI-002 doctor', () => {
     ctx.close();
     const dir = path.join(h.data, 'runs', 'run_01JC000000000000000000000C');
     fs.mkdirSync(path.join(dir, 'baseline'), { recursive: true });
-    fs.writeFileSync(path.join(dir, 'baseline', 'big.bin'), Buffer.alloc(300 * 1024 * 1024 + 1));
+    // Sparse: usage is counted by file size, so no 300 MiB of I/O is needed.
+    fs.writeFileSync(path.join(dir, 'baseline', 'big.bin'), '');
+    fs.truncateSync(path.join(dir, 'baseline', 'big.bin'), 300 * 1024 * 1024 + 1);
     const d = await doctorLines(h.env);
     expect(d.code).toBe(1);
     expect(d.text).toMatch(/FAIL {2}secrets\s+env\.secrets\.API_A uses a keychain: reference/);

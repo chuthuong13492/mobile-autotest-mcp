@@ -1,6 +1,6 @@
 {
   "name": "mobile-autotest-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Mobile AutoTest MCP: PR-driven, policy-governed mobile test orchestration (MCP server + CLI + Agent Skill).",
@@ -10,7 +10,7 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run",
+    "test": "vitest run --project unit && vitest run --project slow",
     "test:coverage": "vitest run --coverage",
     "test:resilience": "vitest run resilience",
     "bench": "node bench/bench.ts",

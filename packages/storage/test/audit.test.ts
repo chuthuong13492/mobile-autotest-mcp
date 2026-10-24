@@ -54,7 +54,7 @@ describe('OBS-002 audit log', () => {
     expect(verifyAuditFiles(root)).toMatchObject({ ok: false, line: 6, problem: 'unparsable' });
   });
 
-  it('appends from concurrent writers are serialized into one valid chain', async () => {
+  it('appends from concurrent writers are serialized into one valid chain', { timeout: 60_000 }, async () => {
     const { root, open } = freshRoot();
     open().sql.close();
     const counts = await Promise.all(
