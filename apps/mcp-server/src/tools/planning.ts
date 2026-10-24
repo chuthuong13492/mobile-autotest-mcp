@@ -1,5 +1,5 @@
 /**
- * TL-01 `get_pr_context` (manual mode), TL-04 `extract_requirements` and TL-05 `generate_test_plan` use cases
+ * TL-01 `get_pr_context` (manual mode, and GitHub mode since GH-002), TL-04 `extract_requirements` and TL-05 `generate_test_plan` use cases
  * (PLN-001 – PLN-005).
  *
  * - PR text is normalized and redacted before it is stored; the workspace is resolved through policy and recorded as
@@ -31,12 +31,18 @@ import {
 } from '@autotest/policy';
 import { fail, normalizeManualPr, ok, pageBody, type UseCases, type WorkflowPorts } from '@autotest/workflow';
 import { createWorkspaceReader } from '@autotest/workspace';
+import { fetchPullRequest, GitHubError, parseGitRemote } from '@autotest/github';
+import fs from 'node:fs';
+import path from 'node:path';
+import type { GitHubAccess } from '../github.ts';
 
 export interface PlanningDeps {
   readonly ports: WorkflowPorts;
   readonly policy: PolicyLoadResult;
   readonly registry: AdapterRegistry;
   readonly host: HostInfo;
+  /** GitHub access for `source: "github"` (GH-002); absent means GitHub mode is unavailable. */
+  readonly github?: GitHubAccess;
 }
 
 /** Leaves room under the 20,000-character output cap for the rest of the object. */
@@ -76,11 +82,7 @@ export function planningUseCases(
               issues: [{ pointer: '/github', message: 'required' }],
             }),
           );
-        return fail(
-          toolError('E_CAPABILITY_UNAVAILABLE', 'GitHub mode is not available in this build (GH-002)', [
-            'Use source "manual" and paste the PR body',
-          ]),
-        );
+        return githubContext(deps, input.workspace, input.github, input.bodyOffset);
       }
       if (!input.manual || input.github)
         return fail(
@@ -363,4 +365,118 @@ function planOutput(
     supersedes: plan.supersedes ?? null,
     untrustedFields: ['/testCases/*/title', '/unresolvedTargets/*/targetPath'],
   };
+}
+
+/**
+ * GitHub mode of TL-01 (GH-002). The PR must belong to the workspace's repository: `github` in the workspace config,
+ * or the `origin` remote in its `.git/config` (read, never executed). Without either, the context records the
+ * limitation `repository_unverified`. PR text goes through the same normalization and redaction as manual input.
+ */
+async function githubContext(
+  deps: PlanningDeps,
+  workspace: string,
+  gh: { host?: string | undefined; owner: string; name: string; number: number },
+  bodyOffset: number,
+) {
+  const { ports } = deps;
+  const ws = resolveWorkspace(deps, workspace);
+  if (!ws)
+    return fail<ToolOutput<'get_pr_context'>>(
+      toolError('E_WORKSPACE_NOT_ALLOWED', 'the workspace is not an allowlisted root', [
+        'Add it to `workspaces` in ~/.autotest/config.yaml',
+      ]),
+    );
+  if (!deps.github)
+    return fail<ToolOutput<'get_pr_context'>>(
+      toolError('E_CAPABILITY_UNAVAILABLE', 'GitHub access is not configured', []),
+    );
+  const host = gh.host ?? 'github.com';
+  const limitations: { code: string; message: string }[] = [];
+  let expected: { owner: string; name: string } | undefined =
+    ws.github?.owner && ws.github.name ? { owner: ws.github.owner, name: ws.github.name } : undefined;
+  if (!expected) {
+    try {
+      expected = parseGitRemote(fs.readFileSync(path.join(ws.realPath, '.git', 'config'), 'utf8'), host);
+    } catch {
+      expected = undefined;
+    }
+  }
+  if (!expected)
+    limitations.push({
+      code: 'repository_unverified',
+      message: 'the workspace has no GitHub remote to compare with the PR repository',
+    });
+  else if (
+    expected.owner.toLowerCase() !== gh.owner.toLowerCase() ||
+    expected.name.toLowerCase() !== gh.name.toLowerCase()
+  )
+    return fail<ToolOutput<'get_pr_context'>>(
+      toolError(
+        'E_REPO_MISMATCH',
+        `the PR is in ${gh.owner}/${gh.name}, but workspace ${ws.id} is ${expected.owner}/${expected.name}`,
+        ['Use the workspace of that repository'],
+      ),
+    );
+  let fetched;
+  try {
+    fetched = await fetchPullRequest(deps.github.client(host), { owner: gh.owner, name: gh.name, number: gh.number });
+  } catch (e) {
+    if (e instanceof GitHubError)
+      return fail<ToolOutput<'get_pr_context'>>(
+        toolError(e.code, e.message, e.code === 'E_GITHUB_AUTH' ? ['Run `gh auth login`, then `autotest doctor`'] : []),
+      );
+    throw e;
+  }
+  const pr = normalizeManualPr({
+    title: fetched.title,
+    body: fetched.body.trim() ? fetched.body : '(empty PR description)',
+    labels: fetched.labels,
+    changedFiles: fetched.changedFiles.map((f) => f.path),
+  });
+  const detail = new Map(fetched.changedFiles.map((f) => [f.path, f]));
+  const changedFiles = pr.changedFiles.map((f) => {
+    const d = detail.get(f.path);
+    return d ? { path: f.path, status: d.status, additions: d.additions, deletions: d.deletions } : f;
+  });
+  if (fetched.filesTruncated)
+    limitations.push({
+      code: 'changed_files_truncated',
+      message: `only the first ${changedFiles.length} changed files were fetched`,
+    });
+  if (!fetched.body.trim()) limitations.push({ code: 'empty_description', message: 'the PR has no description' });
+  const sha = (s: string) => (/^[0-9a-f]{40}$/.test(s) ? { sha: s } : {});
+  const context: PRContext = {
+    id: ports.ids.newId('prc'),
+    schemaVersion: 1,
+    createdAt: iso(ports.clock.now()),
+    source: 'github',
+    repository: { host, owner: gh.owner, name: gh.name, localPath: ws.realPath },
+    number: gh.number,
+    ...(pr.title ? { title: pr.title } : {}),
+    body: pr.body,
+    ...(pr.labels.length ? { labels: pr.labels } : {}),
+    ...(fetched.base.ref ? { base: { ref: fetched.base.ref.slice(0, 255), ...sha(fetched.base.sha) } } : {}),
+    ...(fetched.head.ref ? { head: { ref: fetched.head.ref.slice(0, 255), ...sha(fetched.head.sha) } } : {}),
+    changedFiles,
+    limitations: [...pr.limitations, ...limitations],
+    untrustedFields: ['/title', '/body', '/labels'],
+  };
+  await ports.prContexts.put(context);
+  const page = pageBody(context.body, bodyOffset);
+  return ok<ToolOutput<'get_pr_context'>>({
+    prContextId: context.id,
+    source: 'github',
+    repository: context.repository,
+    number: gh.number,
+    title: context.title ?? null,
+    body: page.chunk,
+    bodyNextOffset: page.nextOffset,
+    labels: context.labels ?? [],
+    base: context.base ?? null,
+    head: context.head ?? null,
+    changedFilesCount: changedFiles.length,
+    changedFilesSample: changedFiles.slice(0, 100),
+    limitations: context.limitations,
+    untrustedFields: ['/title', '/body', '/labels/*', '/changedFilesSample/*/path'],
+  });
 }

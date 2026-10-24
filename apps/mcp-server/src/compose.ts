@@ -20,6 +20,8 @@ import { builtInAdapters } from './adapters.ts';
 import { supervisorEntryPath } from './supervisorPath.ts';
 import { runUseCases } from './tools/runs.ts';
 import { evidenceUseCases } from './tools/evidence.ts';
+import { publishUseCases } from './tools/publish.ts';
+import { createGitHubAccess } from './github.ts';
 import { loadPolicyConfig, type PolicyLoadResult } from '@autotest/policy';
 import { loadOrCreateKey, openDataRoot } from '@autotest/storage';
 import {
@@ -53,6 +55,8 @@ export interface ComposeOptions {
   readonly useCases?: (ports: WorkflowPorts, policy: PolicyLoadResult) => UseCases;
   /** Platform adapters to register (default: the built-in adapters, currently Flutter). */
   readonly adapters?: readonly PlatformAdapter[];
+  /** GitHub API override for tests (a local mock server); production uses https://api.github.com. */
+  readonly github?: { readonly baseUrl?: string; readonly fetch?: typeof fetch };
   /** Absolute path of the supervisor entrypoint (tests; default: the app's own). */
   readonly supervisorEntry?: string;
   /** Skip startup reconciliation and the queue timer (tests that drive them explicitly). */
@@ -145,13 +149,28 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
         }
       : {}),
   });
-  const planning = planningUseCases({ ports, policy, registry, host });
+  const github = policy.ok
+    ? createGitHubAccess({
+        policy: policy.policy,
+        dataRoot,
+        env,
+        ...(opts.github?.baseUrl ? { baseUrl: opts.github.baseUrl } : {}),
+        ...(opts.github?.fetch ? { fetch: opts.github.fetch } : {}),
+      })
+    : undefined;
+  const planning = planningUseCases({ ports, policy, registry, host, ...(github ? { github } : {}) });
   const serverEnvironment = opts.serverEnvironment ?? serverEnvironmentOf(env);
   const coverage = coverageUseCases({ ports, policy, serverEnvironment });
   const approvals = approvalUseCases({ ports, policy, serverEnvironment });
   const runDeps: RunDeps = { ports, policy, registry, serverEnvironment, dataRoot, host };
   const runs = runUseCases(runDeps);
   const evidence = evidenceUseCases(runDeps);
+  const publish = publishUseCases({
+    ports,
+    policy,
+    serverEnvironment,
+    ...(github ? { github: (h: string) => github.client(h) } : {}),
+  });
   const workflow = bindUseCases(
     opts.useCases
       ? opts.useCases(ports, policy)
@@ -162,6 +181,7 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
           ...approvals,
           ...runs,
           ...evidence,
+          ...publish,
         }),
   );
   const sessionId = ids.newId('ses');

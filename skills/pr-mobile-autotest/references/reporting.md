@@ -34,11 +34,15 @@ Keep the narrative short. A few sentences:
 - what failed or was not verified
 - the recommended disposition, consistent with the verdict
 
-## Publication (Phase 2)
+## Publication
 
-`publish_github_report` is not available in v0.1 (`E_CAPABILITY_UNAVAILABLE`). When it arrives:
+`publish_github_report` writes a report to the GitHub PR it was made for. It works only for reports whose PR context came from `get_pr_context` with `source: "github"`; a manual-context report returns `E_VALIDATION`.
 
-- Publish only when the user asked and the publication is authorized.
-- Use `dryRun` to preview.
-- The comment is upserted, so republishing updates the same comment.
-- The PR receives only the redacted summary and links. Screenshots and logs are never published.
+- Publish only when the user asked. Every publication is a GitHub write (P3) and needs a human approval of the exact report, PR head SHA and mechanism set. One approval allows one publication.
+- Preview first with `dryRun: true`. It writes nothing and needs no approval.
+- Mechanisms:
+  - `comment`: upserted. Republishing updates the same comment, or reports `skipped` when nothing changed.
+  - `check_run`: a check named AutoTest on the head commit. A `gh` user login usually cannot create check runs; the result is then `failed` with `E_GITHUB_FEATURE_UNAVAILABLE`, and a commit status `autotest` is written instead. Report both honestly.
+  - `commit_status`: a commit status `autotest`.
+- If the PR gets a new head commit, the approval no longer matches. Re-run and report on the new head before publishing.
+- The PR receives only the redacted summary. Screenshots, logs and quarantined artifacts are never published.

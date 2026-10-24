@@ -10,7 +10,7 @@ There are exactly 18 tools. There is **no** generic shell or command tool (SR-00
 
 | ID | Tool | Tier | Purpose |
 |---|---|---|---|
-| TL-01 | `get_pr_context` | P0 | Normalize a manual PR or fetch a GitHub/GHES PR |
+| TL-01 | `get_pr_context` | P0 | Normalize a manual PR or fetch a GitHub PR (github.com) |
 | TL-02 | `inspect_project` | P0 | Detect frameworks, platforms, toolchains and runners, with evidence |
 | TL-03 | `inspect_test_inventory` | P0 | Discover test targets, helpers and configs (paged) |
 | TL-04 | `extract_requirements` | P0 | Deterministically parse requirements and merge the agent's requirements |
@@ -715,7 +715,7 @@ output = z.object({
 
 - **Validation rules:**
   - Fields must match the kind: `plan_execution` requires `planId` + `planHash` and a current coverage decision of `needs_review` or `pass`. A `fail` decision is rejected with `E_COVERAGE_FAILED`.
-  - `github_publish` requires a report whose verdict exists. Until GH-005 lands it answers `E_CAPABILITY_UNAVAILABLE`.
+  - `github_publish` requires a report whose PR context came from GitHub (with a head SHA). The scope digest covers host, repository, PR number, head SHA, report hash and the mechanism set, sorted and joined with `+`.
   - `environment` must equal this server's environment id (`local:<hostId>`, where `hostId` is the hostname or `AUTOTEST_HOST_ID`); anything else is `E_VALIDATION`.
   - `coverage_exception` takes exactly one entry in `exceptionIds`: each exception is approved on its own, so its approval can be capped at the exception's own expiry.
   - Elicitation: on the 2025-11-25 protocol era the server sends `elicitation/create` when the client advertises the capability; on the 2026 era it returns `input_required`. An `accept` grants AL1 only where policy's minimum for the scope is AL1; otherwise the outcome is `accepted_insufficient`. A decline is reported in `elicitationOutcome`, not as an error.
@@ -1468,6 +1468,11 @@ output = z.object({
   - The comment body is length-capped, with a link to the artifacts.
   - No secret, raw log or screenshot is ever posted.
   - Credentials are resolved by `secretRef`.
+- **Implementation notes (v0.2, GH-005):**
+  - github.com only. The credential is the user's `gh` login (`gh auth token`, allowlisted executable) unless `credentialRef` is set; there is no CI pre-authorization.
+  - The commit status context is `autotest` (one per commit), not `autotest/<planId>`.
+  - A `gh` user token cannot create check runs. `check_run` then reports `failed` with `E_GITHUB_FEATURE_UNAVAILABLE`, and a commit status is written as the fallback, covered by the same approval.
+  - Publication is off unless `github.publication.enabled` is true and the mechanism is listed (`E_POLICY_DENIED`).
 - **Example request:**
 
 ```json

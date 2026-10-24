@@ -4,7 +4,8 @@
  * 1. Host checks (Node 24+, node:sqlite, ps); stop on a failure.
  * 2. `init` (data root 0700 and a commented config 0600; an existing config is kept).
  * 3. Optional: add `--workspace <path>` entries and the Flutter SDK (`--flutter <path>`, or a single SDK found by
- *    `doctor --suggest-executables`, or a choice when interactive) to `config.yaml`, preserving its comments.
+ *    `doctor --suggest-executables`, or a choice when interactive) to `config.yaml`, preserving its comments. `gh`
+ *    found on PATH is allowlisted (read-only login use); `--enable-publication` turns on GitHub writes.
  * 4. Register the MCP server with Claude Code at user scope: `claude mcp add --scope user autotest -- <node> <server>`
  *    using the absolute path of the Node running this command (so a different `node` on PATH cannot break it).
  *    Without the `claude` CLI, print the JSON to add by hand.
@@ -36,6 +37,8 @@ export interface SetupFlags {
   readonly workspaces: readonly string[];
   readonly flutter?: string;
   readonly skipClaude: boolean;
+  /** Turn on GitHub writes (comment, check run, commit status); each write still needs a human approval. */
+  readonly enablePublication?: boolean;
 }
 
 export function parseSetupFlags(args: readonly string[]): SetupFlags | undefined {
@@ -43,16 +46,24 @@ export function parseSetupFlags(args: readonly string[]): SetupFlags | undefined
   let flutter: string | undefined;
   let yes = false;
   let skipClaude = false;
+  let enablePublication = false;
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
     if (a === '--yes') yes = true;
+    else if (a === '--enable-publication') enablePublication = true;
     else if (a === '--skip-claude') skipClaude = true;
     else if ((a === '--workspace' || a === '--flutter') && args[i + 1] && !args[i + 1]!.startsWith('--')) {
       if (a === '--workspace') workspaces.push(args[++i]!);
       else flutter = args[++i]!;
     } else return undefined;
   }
-  return { yes, workspaces, ...(flutter ? { flutter } : {}), skipClaude };
+  return {
+    yes,
+    workspaces,
+    ...(flutter ? { flutter } : {}),
+    skipClaude,
+    ...(enablePublication ? { enablePublication } : {}),
+  };
 }
 
 /** `ws_<name>` from a folder name, unique among existing ids. */
@@ -71,7 +82,10 @@ export function workspaceId(dir: string, taken: ReadonlySet<string>): string {
 }
 
 /** Adds workspaces and the flutter executable to config.yaml, keeping comments. Returns what changed. */
-export function updateConfig(file: string, add: { workspaces: readonly string[]; flutter?: string }): string[] {
+export function updateConfig(
+  file: string,
+  add: { workspaces: readonly string[]; flutter?: string; gh?: string; enablePublication?: boolean },
+): string[] {
   const doc = parseDocument(fs.readFileSync(file, 'utf8'));
   const changes: string[] = [];
   let ws = doc.get('workspaces', true);
@@ -109,6 +123,21 @@ export function updateConfig(file: string, add: { workspaces: readonly string[];
     (ex as { flow?: boolean }).flow = false;
     doc.setIn(['executables', 'flutter'], doc.createNode({ path: add.flutter }));
     changes.push(`executable flutter → ${add.flutter}`);
+  }
+  if (add.gh && !doc.hasIn(['executables', 'gh'])) {
+    if (!isMap(doc.get('executables', true))) doc.set('executables', doc.createNode({}));
+    (doc.get('executables', true) as { flow?: boolean }).flow = false;
+    doc.setIn(['executables', 'gh'], doc.createNode({ path: add.gh }));
+    changes.push(`executable gh → ${add.gh} (read-only use: gh auth token / gh auth status)`);
+  }
+  if (add.enablePublication) {
+    doc.setIn(
+      ['github', 'publication'],
+      doc.createNode({ enabled: true, mechanisms: ['comment', 'check_run', 'commit_status'] }),
+    );
+    changes.push(
+      'github publication enabled (comment, check_run, commit_status); every write still needs `autotest approve`',
+    );
   }
   if (changes.length) fs.writeFileSync(file, doc.toString(), { mode: 0o600 });
   return changes;
@@ -190,7 +219,20 @@ export async function setup(e: CliEnv, io: Io, flags: SetupFlags): Promise<numbe
     io.err('--flutter needs an absolute path');
     return 1;
   }
-  for (const c of updateConfig(config, { workspaces, ...(flutter ? { flutter } : {}) })) io.out(`config: ${c}`);
+  // gh is allowlisted for reading the user's GitHub login (github.com PRs, GH-001); PATH is used only here, once.
+  const ghOnPath = findOnPath('gh', e.env);
+  const gh = ghOnPath ? fs.realpathSync(ghOnPath) : undefined;
+  for (const c of updateConfig(config, {
+    workspaces,
+    ...(flutter ? { flutter } : {}),
+    ...(gh ? { gh } : {}),
+    ...(flags.enablePublication ? { enablePublication: true } : {}),
+  }))
+    io.out(`config: ${c}`);
+  if (!gh)
+    io.out(
+      'GitHub CLI (gh) not found on PATH: GitHub PRs stay unavailable until you install it, `gh auth login`, and rerun setup.',
+    );
 
   const home = e.env['HOME'] ?? os.homedir();
   if (!flags.skipClaude) {

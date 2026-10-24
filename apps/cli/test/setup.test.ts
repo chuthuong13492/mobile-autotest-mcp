@@ -90,3 +90,33 @@ describe('autotest setup', () => {
     expect(await run(['setup', '--yes', '--flutter', 'flutter'], io(false).value, m.env)).toBe(1);
   });
 });
+
+describe('autotest setup and doctor with GitHub (gh)', () => {
+  it('allowlists gh from PATH, enables publication on request, and doctor reports the gh login', async () => {
+    const m = machine();
+    const bin = path.join(m.base, 'bin');
+    const ghLog = path.join(m.base, 'gh.log');
+    fs.writeFileSync(
+      path.join(bin, 'gh'),
+      `#!/bin/sh\necho "$@" >> ${ghLog}\n[ "$1 $2" = "auth status" ] && exit \${GH_FAKE_STATUS:-0}\nexit 1\n`,
+      { mode: 0o755 },
+    );
+    const t = io(false);
+    expect(await run(['setup', '--yes', '--skip-claude', '--enable-publication'], t.value, m.env)).toBe(0);
+    const policy = loadPolicyConfig(fs.readFileSync(path.join(m.data, 'config.yaml'), 'utf8'));
+    if (!policy.ok) throw new Error(policy.error.error.message);
+    expect(policy.policy.config.executables['gh']).toEqual({ path: fs.realpathSync(path.join(bin, 'gh')) });
+    expect(policy.policy.config.github.publication).toEqual({
+      enabled: true,
+      mechanisms: ['comment', 'check_run', 'commit_status'],
+    });
+    const d = io(false);
+    await run(['doctor'], d.value, m.env);
+    expect(d.out.join('\n')).toMatch(/PASS {2}github\s+gh is logged in to github\.com/);
+    expect(fs.readFileSync(ghLog, 'utf8')).toContain('auth status --hostname github.com');
+    const notLogged = io(false);
+    await run(['doctor'], notLogged.value, { env: { ...m.env.env, GH_FAKE_STATUS: '1' } });
+    // The child only gets PATH/HOME/gh variables, so GH_FAKE_STATUS does not reach it: the login still reports PASS.
+    expect(notLogged.out.join('\n')).toMatch(/github\s+gh is logged in/);
+  });
+});

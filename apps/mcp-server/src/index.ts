@@ -16,3 +16,5 @@ export * from './tools/runs.ts';
 export * from './adapters.ts';
 export * from './supervisorPath.ts';
 export * from './tools/evidence.ts';
+export * from './github.ts';
+export * from './tools/publish.ts';

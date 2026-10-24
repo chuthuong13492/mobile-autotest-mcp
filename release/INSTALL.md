@@ -14,8 +14,15 @@ PR-driven, policy-governed mobile test orchestration for Claude Code: an MCP ser
 
 ## Install (3 commands)
 
+Download the package from the GitHub Release (or use a `.tgz` you were given), check it, and install it:
+
 ```bash
-npm install -g ./mobile-autotest-mcp-0.1.0.tgz
+gh release download v0.2.0 -R chuthuong13492/mobile-autotest-mcp -p '*.tgz' -p SHA256SUMS
+shasum -a 256 -c SHA256SUMS --ignore-missing
+```
+
+```bash
+npm install -g ./mobile-autotest-mcp-0.2.0.tgz
 autotest setup --workspace /path/to/your/flutter/repo
 autotest doctor
 ```
@@ -33,6 +40,19 @@ is not on your `PATH`, call the bins by their full path (`$(npm prefix -g)/bin/a
 5. prints recommended deny rules for `~/.claude/settings.json` (add them yourself) and runs `doctor`.
 
 Run `autotest setup --workspace <path>` again for each further repository. `--yes` never asks questions.
+
+## GitHub (optional)
+
+AutoTest reads PRs and publishes reports on github.com through your GitHub CLI login. It never stores the token.
+
+1. Install the GitHub CLI and run `gh auth login`.
+2. Run `autotest setup` (it adds `gh` to the executable allowlist). To allow publishing, add `--enable-publication`;
+   without it GitHub stays read-only.
+3. `autotest doctor` reports whether `gh` is logged in.
+
+Then ask Claude, for example, "Test acme/app#42 in workspace ws_myapp". Publishing happens only when you ask for it,
+and each publication needs `autotest approve` for that exact report and PR head. A `gh` login cannot create check runs:
+AutoTest then sets a commit status `autotest` instead.
 
 ## Use
 

@@ -21,7 +21,7 @@ import {
   type PolicyEnvironment,
   type PolicyLoadResult,
 } from '@autotest/policy';
-import { fail, ok, type UseCases, type WorkflowPorts } from '@autotest/workflow';
+import { fail, ok, publicationTarget, type UseCases, type WorkflowPorts } from '@autotest/workflow';
 
 export interface ApprovalDeps {
   readonly ports: WorkflowPorts;
@@ -105,13 +105,12 @@ export function approvalUseCases(deps: ApprovalDeps): Pick<UseCases, 'request_ap
         });
         summary = `${s.deviceAction.action} on device ${s.deviceAction.deviceId}`;
       } else {
-        return fail(
-          toolError(
-            'E_CAPABILITY_UNAVAILABLE',
-            'GitHub publication approvals arrive with GitHub publication (Phase 2)',
-            [],
-          ),
-        );
+        if (!s.publish) return invalid('/scope/publish', 'github_publish requires publish {reportId, mechanisms}');
+        const target = await publicationTarget(ports, s.publish.reportId, s.publish.mechanisms);
+        if (!target.ok) return fail(target.error);
+        scope = target.target.scope;
+        const { pr, mechanisms, report } = target.target;
+        summary = `publish report ${report.id} (${report.verdict}) to ${pr.owner}/${pr.name}#${pr.number} at ${pr.headSha.slice(0, 7)} as ${mechanisms.join(' + ')}`;
       }
 
       const { required } = minAssurance(scope.kind, deps.serverEnvironment.kind, policy.config.approvals.minAssurance);

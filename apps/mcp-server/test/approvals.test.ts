@@ -120,7 +120,7 @@ describe('AUTH-004 request_approval', () => {
           justification: 'x',
         }),
       ),
-    ).toMatchObject({ error: { code: 'E_CAPABILITY_UNAVAILABLE' } });
+    ).toMatchObject({ error: { code: 'E_NOT_FOUND' } });
     await c.close();
   });
 

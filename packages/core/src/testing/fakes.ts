@@ -46,6 +46,8 @@ import {
   type InventoryStore,
   type PrContextStore,
   type ProfileStore,
+  type PublicationRecord,
+  type PublicationStore,
   type ReportStore,
 } from '../ports.ts';
 
@@ -259,6 +261,16 @@ export class InMemoryAnalysisStore implements AnalysisStore {
     return [...this.rows.values()]
       .filter((r) => r.analysis.runId === runId && r.ruleset === rulesetVersion)
       .map((r) => clone(r.analysis));
+  }
+}
+
+export class InMemoryPublicationStore implements PublicationStore {
+  private readonly rows = new Map<string, PublicationRecord>();
+  async put(r: PublicationRecord): Promise<void> {
+    this.rows.set(`${r.scopeDigest}\u0000${r.mechanism}`, clone(r));
+  }
+  async listByReport(reportId: string): Promise<PublicationRecord[]> {
+    return [...this.rows.values()].filter((r) => r.reportId === reportId).map(clone);
   }
 }
 

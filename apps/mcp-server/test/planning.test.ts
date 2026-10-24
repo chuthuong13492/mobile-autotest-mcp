@@ -95,7 +95,8 @@ describe('PLN-001 get_pr_context (manual)', () => {
           github: { owner: 'o', name: 'n', number: 1 },
         }),
       ),
-    ).toMatchObject({ error: { code: 'E_CAPABILITY_UNAVAILABLE' } });
+      // GitHub mode needs `gh` in the executables allowlist (GH-002); this setup has none.
+    ).toMatchObject({ error: { code: 'E_GITHUB_AUTH' } });
     expect(sc(await c.call('get_pr_context', { workspace: 'ws_app', source: 'manual' }))).toMatchObject({
       error: { code: 'E_VALIDATION' },
     });

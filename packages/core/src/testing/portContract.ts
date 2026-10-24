@@ -20,6 +20,7 @@ import {
   type RunStore,
   type AuthorizationStore,
   type AnalysisStore,
+  type PublicationStore,
   type ReportStore,
   type IdempotencyRecord,
   type IdempotencyStore,
@@ -360,6 +361,37 @@ export function reportStoreCases(make: () => ReportStore): ContractCase[] {
         await s.put(r('rpt_01JC0000000000000000000003', 'd'));
         assert.equal((await s.get('rpt_01JC0000000000000000000003'))?.reportHash, `sha256:${'d'.repeat(64)}`);
         assert.equal(await s.get('rpt_01JC0000000000000000000002'), undefined);
+      },
+    },
+  ];
+}
+
+export function publicationStoreCases(make: () => PublicationStore): ContractCase[] {
+  return [
+    {
+      name: 'publication store: one row per scope digest and mechanism; a republish replaces it',
+      run: async () => {
+        const s = make();
+        const base = {
+          reportId: 'rpt_01JC0000000000000000000001',
+          scopeDigest: `sha256:${'c'.repeat(64)}`,
+          createdAt: '2026-10-24T00:00:00Z',
+        };
+        await s.put({ ...base, id: 'pub-1', mechanism: 'comment', remoteId: '11', status: 'published' });
+        await s.put({ ...base, id: 'pub-2', mechanism: 'commit_status', remoteId: '12', status: 'published' });
+        await s.put({
+          ...base,
+          id: 'pub-3',
+          mechanism: 'comment',
+          remoteId: '11',
+          status: 'updated',
+          createdAt: '2026-10-24T01:00:00Z',
+        });
+        const rows = await s.listByReport(base.reportId);
+        assert.deepEqual(rows.map((r) => [r.mechanism, r.status]).sort(), [
+          ['comment', 'updated'],
+          ['commit_status', 'published'],
+        ]);
       },
     },
   ];

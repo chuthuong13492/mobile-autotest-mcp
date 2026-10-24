@@ -123,6 +123,23 @@ export interface AuthorizationStore {
   listByRun(runId: string): Promise<ExecutionAuthorizationDecision[]>;
 }
 
+/** One external write (or dry run) of a report to GitHub (TL-18). */
+export interface PublicationRecord {
+  readonly id: string;
+  readonly reportId: string;
+  readonly mechanism: PublishMechanism;
+  readonly scopeDigest: string;
+  readonly remoteId: string | null;
+  readonly status: PublishStatus;
+  readonly createdAt: string;
+}
+
+/** Publication records; one row per (scope digest, mechanism), replaced by a later publish of the same scope. */
+export interface PublicationStore {
+  put(record: PublicationRecord): Promise<void>;
+  listByReport(reportId: string): Promise<PublicationRecord[]>;
+}
+
 /** Failure analyses (TL-16), keyed by run, result and ruleset version: a new ruleset re-analyzes, the old stays. */
 export interface AnalysisStore {
   /** Stores analyses; an existing id with identical content is a no-op, different content is a `conflict`. */

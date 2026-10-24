@@ -1,6 +1,6 @@
 /**
- * SEC-003: approval and authorization cannot be bypassed (T-15, T-18; T-06 while publication is unavailable). Every
- * case goes through the real server and `run_tests`, and must be denied with its documented error and reason.
+ * SEC-003: approval and authorization cannot be bypassed (T-15, T-18, T-06). Every case goes through the real server
+ * (`run_tests`, or `publish_github_report` against a mock GitHub) and must be denied with its documented error.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -240,27 +240,51 @@ describe('SEC-003 approval and authorization bypass', () => {
     await c.close();
   });
 
-  T('T-06', 'GitHub publication cannot be requested or performed in v0.1', async () => {
-    const { c } = await setup();
-    expect(
-      err(
-        await c.call('request_approval', {
-          scope: {
-            kind: 'github_publish',
-            publish: { reportId: 'rpt_01JC0000000000000000000001', mechanisms: ['comment'] },
-          },
-          justification: 'x',
-          offerElicitation: false,
-        }),
-      )?.code,
-    ).toBe('E_CAPABILITY_UNAVAILABLE');
-    expect(
-      err(
-        await c.call('publish_github_report', { reportId: 'rpt_01JC0000000000000000000001', mechanisms: ['comment'] }),
-      )?.code,
-    ).toMatch(/E_CAPABILITY_UNAVAILABLE|E_VALIDATION/);
-    await c.close();
-  });
+  T(
+    'T-06',
+    'GitHub writes need an approval for exactly this report, PR head and mechanism set, at AL2, used once',
+    async () => {
+      const gh = await import('../../apps/mcp-server/test/githubSetup.ts');
+      const s = await gh.setup();
+      await s.c.close();
+      const c = await gh.composeAgainst(s.gh, s.f.data);
+      try {
+        const prc = sc<{ prContextId: string }>(await c.call('get_pr_context', gh.pr)).prContextId;
+        const report = await gh.reportFor(c, prc);
+        const publish = (mechanisms: string[]) =>
+          c.call('publish_github_report', { reportId: report.reportId, mechanisms });
+        expect(err(await publish(['comment']))?.code).toBe('E_APPROVAL_REQUIRED');
+        await gh.approve(c, report.reportId, ['comment']);
+        // Wider than approved: comment + commit status needs its own approval.
+        expect(err(await publish(['comment', 'commit_status']))?.code).toBe('E_APPROVAL_REQUIRED');
+        expect(s.gh.comments).toEqual([]);
+        expect((await publish(['comment'])).isError).toBeFalsy();
+        // Single use: the same scope cannot be published again with the consumed approval.
+        expect(err(await publish(['comment']))?.code).toBe('E_APPROVAL_REQUIRED');
+        // An AL1 (elicitation) approval is not enough for a GitHub write.
+        await gh.approve(c, report.reportId, ['comment'], 'AL1');
+        expect(err(await publish(['comment']))?.code).toBe('E_APPROVAL_REQUIRED');
+        expect(s.gh.comments).toHaveLength(1);
+        expect(s.gh.requests.filter((r) => r.method !== 'GET')).toHaveLength(1);
+      } finally {
+        await c.close();
+        await s.gh.close();
+      }
+      const off = await gh.setup({ publication: false });
+      await off.c.close();
+      const c2 = await gh.composeAgainst(off.gh, off.f.data);
+      try {
+        const prc = sc<{ prContextId: string }>(await c2.call('get_pr_context', gh.pr)).prContextId;
+        const report = await gh.reportFor(c2, prc);
+        expect(
+          err(await c2.call('publish_github_report', { reportId: report.reportId, mechanisms: ['comment'] }))?.code,
+        ).toBe('E_POLICY_DENIED');
+      } finally {
+        await c2.close();
+        await off.gh.close();
+      }
+    },
+  );
 
   it('T-ID coverage report: every threat SEC-003 owns has a case', () => {
     const owned = ['T-06', 'T-15', 'T-18'];

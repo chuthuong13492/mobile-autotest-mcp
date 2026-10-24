@@ -10,7 +10,14 @@ import path from 'node:path';
 import { isTerminal } from '@autotest/core';
 import { nodeExecPort } from '@autotest/exec';
 import { supervisorAlive } from '@autotest/execution';
-import { buildRegistry, loadPolicyConfig, nodeFsPort, resolveWorkspaces } from '@autotest/policy';
+import {
+  buildRegistry,
+  loadPolicyConfig,
+  nodeFsPort,
+  resolveWorkspaces,
+  validateSpec,
+  type PolicyConfig,
+} from '@autotest/policy';
 import { openDataRoot, verifyAuditFiles } from '@autotest/storage';
 import { dataRootOf, type CliEnv } from '../context.ts';
 import type { Io } from '../io.ts';
@@ -90,6 +97,85 @@ export async function hostChecks(): Promise<Check[]> {
         },
   );
   return checks;
+}
+
+/** GitHub: `gh` allowlisted and logged in (`gh auth status`, exit code only; the token is never read here). */
+async function githubChecks(cfg: PolicyConfig, env: Readonly<Record<string, string | undefined>>): Promise<Check[]> {
+  const fsp = nodeFsPort();
+  const registry = buildRegistry(fsp, cfg.executables);
+  const pub = cfg.github.publication;
+  const pubCheck: Check = pub.enabled
+    ? {
+        status: 'INFO',
+        name: 'github',
+        detail: `publication enabled: ${pub.mechanisms.join(', ') || 'no mechanism listed'} (each write needs \`autotest approve\`)`,
+      }
+    : {
+        status: 'INFO',
+        name: 'github',
+        detail: 'publication disabled (read-only); enable with `autotest setup --enable-publication`',
+      };
+  if (!registry.executables.has('gh'))
+    return [
+      {
+        status: 'WARN',
+        name: 'github',
+        detail: 'gh is not allowlisted: GitHub PRs are unavailable',
+        fix: 'Install the GitHub CLI, `gh auth login`, then rerun `autotest setup`',
+      },
+      pubCheck,
+    ];
+  const v = validateSpec(
+    {
+      executable: 'gh',
+      args: [
+        { kind: 'word', value: 'auth' },
+        { kind: 'word', value: 'status' },
+        { kind: 'flag', name: '--hostname', value: 'github.com' },
+      ],
+      cwd: '.',
+      envNeeds: [],
+      expectedOutputs: [],
+      timeoutMs: 10_000,
+      cancellation: 'process_group',
+      requires: { host: 'any', device: 'none' },
+    },
+    {
+      fs: fsp,
+      registry,
+      workspaceRoot: os.tmpdir(),
+      runDir: os.tmpdir(),
+      allowDependencyResolution: false,
+      allowedClasses: ['probe'],
+    },
+  );
+  if (!v.ok) return [{ status: 'FAIL', name: 'github', detail: 'gh auth status was denied by policy' }, pubCheck];
+  const childEnv: Record<string, string> = {
+    PATH: `${path.dirname(v.executablePath)}:/usr/bin:/bin`,
+    HOME: env['HOME'] ?? os.homedir(),
+    GH_NO_UPDATE_NOTIFIER: '1',
+  };
+  for (const k of ['GH_CONFIG_DIR', 'XDG_CONFIG_HOME', 'DBUS_SESSION_BUS_ADDRESS', 'XDG_RUNTIME_DIR'])
+    if (env[k]) childEnv[k] = env[k]!;
+  const child = nodeExecPort().spawn({ file: v.executablePath, argv: v.argv, cwd: os.tmpdir(), env: childEnv });
+  child.stdout?.resume();
+  child.stderr?.resume();
+  const code = await new Promise<number>((resolve) => {
+    const timer = setTimeout(() => (child.kill('SIGKILL'), resolve(124)), 10_000);
+    child.on('error', () => resolve(127));
+    child.on('close', (c) => (clearTimeout(timer), resolve(c ?? 1)));
+  });
+  return [
+    code === 0
+      ? { status: 'PASS', name: 'github', detail: 'gh is logged in to github.com' }
+      : {
+          status: 'WARN',
+          name: 'github',
+          detail: 'gh is not logged in to github.com',
+          fix: 'Run `gh auth login --hostname github.com`',
+        },
+    pubCheck,
+  ];
 }
 
 export async function doctorChecks(e: CliEnv): Promise<Check[]> {
@@ -205,6 +291,7 @@ export async function doctorChecks(e: CliEnv): Promise<Check[]> {
           : 'Fix the path in config.yaml (`autotest doctor --suggest-executables`)',
     });
 
+  checks.push(...(await githubChecks(cfg, e.env)));
   if (mode(root) !== 0o700) return checks; // the index refuses an insecure data root; fix that first
   const { sql, stores } = openDataRoot(root);
   try {

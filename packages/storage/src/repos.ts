@@ -30,6 +30,8 @@ import {
   type AnalysisStore,
   type ArtifactIndex,
   type AuthorizationStore,
+  type PublicationRecord,
+  type PublicationStore,
   type ReportStore,
   type DecisionBinding,
   type DecisionStore,
@@ -422,6 +424,48 @@ export class SqliteAnalysisStore implements AnalysisStore {
   }
 }
 
+export class SqlitePublicationStore implements PublicationStore {
+  private readonly sql: SqlPort;
+  constructor(sql: SqlPort) {
+    this.sql = sql;
+  }
+  async put(r: PublicationRecord): Promise<void> {
+    this.sql.run(
+      `INSERT INTO publications (id, report_id, mechanism, scope_digest, remote_id, status, created_at) VALUES (?,?,?,?,?,?,?)
+       ON CONFLICT (scope_digest, mechanism) DO UPDATE SET id = excluded.id, report_id = excluded.report_id,
+         remote_id = excluded.remote_id, status = excluded.status, created_at = excluded.created_at`,
+      r.id,
+      r.reportId,
+      r.mechanism,
+      r.scopeDigest,
+      r.remoteId,
+      r.status,
+      r.createdAt,
+    );
+  }
+  async listByReport(reportId: string): Promise<PublicationRecord[]> {
+    return this.sql
+      .all<{
+        id: string;
+        report_id: string;
+        mechanism: string;
+        scope_digest: string;
+        remote_id: string | null;
+        status: string;
+        created_at: string;
+      }>('SELECT * FROM publications WHERE report_id = ? ORDER BY created_at, rowid', reportId)
+      .map((r) => ({
+        id: r.id,
+        reportId: r.report_id,
+        mechanism: r.mechanism as PublicationRecord['mechanism'],
+        scopeDigest: r.scope_digest,
+        remoteId: r.remote_id,
+        status: r.status as PublicationRecord['status'],
+        createdAt: r.created_at,
+      }));
+  }
+}
+
 export class SqliteReportStore implements ReportStore {
   private readonly sql: SqlPort;
   constructor(sql: SqlPort) {
@@ -607,6 +651,7 @@ export function createStores(sql: SqlPort, root: string) {
     authorizations: new SqliteAuthorizationStore(sql),
     analyses: new SqliteAnalysisStore(sql),
     reports: new SqliteReportStore(sql),
+    publications: new SqlitePublicationStore(sql),
     runs: new SqliteRunStore(sql),
     results: new SqliteResultStore(sql),
     artifacts: new SqliteArtifactIndex(sql),

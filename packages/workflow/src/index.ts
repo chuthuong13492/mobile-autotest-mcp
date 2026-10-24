@@ -99,3 +99,4 @@ export * from './run.ts';
 export * from './evidence.ts';
 export * from './analysis.ts';
 export * from './report.ts';
+export * from './publish.ts';

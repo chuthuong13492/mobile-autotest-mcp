@@ -236,6 +236,8 @@ describe('COV-004 validate_test_coverage', () => {
         policyVersion: c.policy.policy.policyVersion as never,
         source: 'cli',
         assuranceLevel: 'AL2',
+        // Relative to the real clock the server uses (the sample's fixed expiry would make this test age out).
+        expiresAt: new Date(Date.now() + 86_400_000).toISOString().replace(/\.\d{3}Z$/, 'Z'),
       }),
     );
     const after = sc<Decision>(await c.call('validate_test_coverage', { planId: p.planId, planHash: p.planHash }));
