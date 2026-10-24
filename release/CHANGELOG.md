@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.0
+
+Release 1: the first production release, after the hardening of Phase 3.
+
+- Scope: Flutter unit and widget tests on macOS and Linux; PR input pasted or fetched from github.com through `gh`;
+  approved publication to the PR; baseline runs and known failures.
+- Release gates passed with evidence (`release/v1.0-readiness.md`); threat-model review confirmed by the repository
+  owner (`security/review-v1.md`).
+- Waiver: no build-provenance attestation, because GitHub does not offer it for user-owned private repositories. Each
+  release still carries an SBOM and SHA256SUMS, and the audit gate blocks high and critical advisories.
+- Known residual risks: running tests runs PR code without an OS sandbox; an agent with an unrestricted shell can run
+  `autotest approve` (use the deny rules `autotest setup` prints).
+- Next: v1.1 adds simulators and emulators, Flutter `integration_test`, and native iOS and Android tests.
+
 ## 0.3.0
 
 Baseline runs, the known-failure registry and operational hardening.

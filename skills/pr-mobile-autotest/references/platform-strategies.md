@@ -4,7 +4,7 @@ The canonical source for platform behavior is `docs/platform-adapters.md` in the
 
 ## What each release can execute
 
-This build is v0.2: only the first row runs. Every other row is planned work.
+This build is v1.0: only the first row runs. Every other row is planned work.
 
 | Platform / level | Earliest release | Host |
 |---|---|---|

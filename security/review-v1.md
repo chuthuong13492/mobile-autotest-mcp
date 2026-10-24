@@ -2,8 +2,7 @@
 
 Every threat in [docs/security-threat-model.md](../docs/security-threat-model.md) checked against the implementation
 of v0.3.0, with the test that proves the mitigation or the reason it is accepted or not applicable. Prepared
-2026-10-25 by the implementing agent. **Confirmation:** pending — the repository owner reads this review and confirms
-it before the v1.0.0 tag. There is no independent security reviewer for this project; that is recorded as a limitation
+2026-10-25 by the implementing agent. **Confirmation:** Confirmed 2026-10-25 by the repository owner (GitHub `chuthuong13492`) in the Claude Code session: "đã đọc security/review-v1.md và release/v1.0-readiness.md, đồng ý các residual risk và waiver provenance" (read both documents; accepts the residual risks and the provenance waiver). There is no independent security reviewer for this project; that is recorded as a limitation
 of the review, not hidden.
 
 Status values: **verified** (an automated test exercises the mitigation), **accepted residual** (a known gap,
