@@ -69,6 +69,21 @@ export const ExecutionSpec = z.strictObject({
   /** Environment variable names the process needs; values come from the env allowlist or secret references. */
   envNeeds: z.array(z.string().regex(/^[A-Z_][A-Z0-9_]{0,63}$/)).max(50),
   expectedOutputs: z.array(z.strictObject({ kind: ArtifactKind, rel: RelPath })).max(50),
+  /**
+   * Result files a runner writes inside the workspace (AND-003: Gradle's JUnit XML under `build/`). After the process
+   * exits, the supervisor copies regular files with this suffix written since the spawn, found under `dir`
+   * (workspace-relative, symlinks never followed), into `attempts/<n>/runner/<prefix>-<flattened path>`, capped.
+   */
+  collect: z
+    .array(
+      z.strictObject({
+        dir: RelPath,
+        suffix: z.enum(['.xml', '.txt']),
+        prefix: z.string().regex(/^[a-z0-9]{1,16}$/),
+      }),
+    )
+    .max(5)
+    .optional(),
   timeoutMs: z.number().int().min(1000).max(14_400_000),
   cancellation: z.enum(['process_group', 'graceful_then_group']),
   requires: z.strictObject({ host: HostRequirement, device: DeviceNeed }),

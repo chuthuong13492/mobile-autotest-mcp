@@ -13,6 +13,7 @@
     "test": "vitest run --project unit && vitest run --project slow",
     "test:coverage": "vitest run --coverage",
     "test:resilience": "vitest run resilience",
+    "e2e:devices": "AUTOTEST_E2E_DEVICES=1 vitest run --project slow",
     "bench": "node bench/bench.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -25,6 +26,7 @@
     "release:pack": "node scripts/build-release.ts --pack"
   },
   "devDependencies": {
+    "@autotest/adapter-android": "workspace:*",
     "@autotest/adapter-flutter": "workspace:*",
     "@autotest/adapter-ios": "workspace:*",
     "@autotest/adapter-sdk": "workspace:*",

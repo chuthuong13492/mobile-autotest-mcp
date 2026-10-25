@@ -49,7 +49,9 @@ needs your approval (`autotest approve`) for each action, and physical devices a
 needs about 8 GB of free disk space.
 
 Runs on a device: create and boot an AutoTest device (the agent does this with `manage_simulator`), then
-`run_tests` uses it for Flutter `integration_test` and native XCTest/XCUITest targets. For Android builds, setup adds
+`run_tests` uses it for Flutter `integration_test`, native XCTest/XCUITest and Android instrumented targets. Native
+Android unit tests need no device: setup registers your JDK (`java` from `JAVA_HOME`), which runs the project's Gradle
+wrapper offline, so build the project once yourself first to fill the Gradle cache. For Android builds, setup adds
 `ANDROID_HOME`, `JAVA_HOME` and `GRADLE_USER_HOME` to `env.allow` and registers their values with Claude Code, so
 runs can use the SDK, the JDK and your Gradle cache; rerun `autotest setup` if they change.
 

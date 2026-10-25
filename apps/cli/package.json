@@ -17,7 +17,6 @@
     "@autotest/adapter-flutter": "workspace:*",
     "@autotest/adapter-ios": "workspace:*",
     "@autotest/adapter-react-native": "workspace:*",
-    "@autotest/adapter-ios": "workspace:*",
     "@autotest/adapter-android": "workspace:*",
     "@autotest/adapter-appium": "workspace:*",
     "@autotest/devices": "workspace:*",

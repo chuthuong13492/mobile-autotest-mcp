@@ -5,9 +5,10 @@
 import { createAdapterRegistry, type AdapterRegistry, type PlatformAdapter } from '@autotest/adapter-sdk';
 import { createFlutterAdapter } from '@autotest/adapter-flutter';
 import { createIosAdapter } from '@autotest/adapter-ios';
+import { createAndroidAdapter } from '@autotest/adapter-android';
 
 export function cliAdapters(): PlatformAdapter[] {
-  return [createFlutterAdapter(), createIosAdapter()];
+  return [createFlutterAdapter(), createIosAdapter(), createAndroidAdapter()];
 }
 
 export const cliRegistry = (): AdapterRegistry => createAdapterRegistry(cliAdapters());

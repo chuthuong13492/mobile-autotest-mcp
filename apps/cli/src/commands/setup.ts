@@ -176,7 +176,9 @@ export function updateConfig(
 
 /**
  * Device tools (DEV-001/002): xcrun from PATH (macOS), and adb, emulator and avdmanager from the Android SDK
- * (`ANDROID_HOME` or `ANDROID_SDK_ROOT`), falling back to PATH. Only existing files are returned, as real paths.
+ * (`ANDROID_HOME` or `ANDROID_SDK_ROOT`), falling back to PATH; `java` (AND-003, the JDK that runs the Gradle
+ * wrapper) from `JAVA_HOME`, falling back to PATH but never the macOS `/usr/bin/java` launcher stub. Only existing
+ * files are returned, as real paths.
  */
 function findDeviceTools(env: Readonly<Record<string, string | undefined>>): Record<string, string> {
   const sdk = env['ANDROID_HOME'] ?? env['ANDROID_SDK_ROOT'];
@@ -186,6 +188,10 @@ function findDeviceTools(env: Readonly<Record<string, string | undefined>>): Rec
     adb: [sdk && path.join(sdk, 'platform-tools', 'adb'), findOnPath('adb', env)],
     emulator: [sdk && path.join(sdk, 'emulator', 'emulator'), findOnPath('emulator', env)],
     avdmanager: [sdk && path.join(sdk, 'cmdline-tools', 'latest', 'bin', 'avdmanager'), findOnPath('avdmanager', env)],
+    java: [
+      env['JAVA_HOME'] && path.join(env['JAVA_HOME'], 'bin', 'java'),
+      ...[findOnPath('java', env)].filter((p) => p !== '/usr/bin/java'),
+    ],
   };
   const out: Record<string, string> = {};
   for (const [name, paths] of Object.entries(candidates)) {

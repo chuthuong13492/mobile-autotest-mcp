@@ -38,6 +38,11 @@ export interface SpawnContext extends ValidationContext {
   readonly stderrPath: string;
   readonly outputCapBytes?: number;
   readonly port?: ExecPort;
+  /**
+   * The run's leased Android emulator (AND-004): set as `ANDROID_SERIAL`, which adb and the Android Gradle plugin use
+   * to pick the device, so argv never carries a serial and a run cannot reach another device.
+   */
+  readonly androidSerial?: string;
 }
 
 export interface ExitInfo {
@@ -86,7 +91,11 @@ export async function spawnSpec(spec: ExecutionSpec, ctx: SpawnContext): Promise
     file: v.executablePath,
     argv: v.argv,
     cwd: v.cwd,
-    env: { ...env.env, [RUN_MARKER_ENV]: ctx.runId },
+    env: {
+      ...env.env,
+      ...(ctx.androidSerial ? { ANDROID_SERIAL: ctx.androidSerial } : {}),
+      [RUN_MARKER_ENV]: ctx.runId,
+    },
   });
   const exitPromise = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
     child.once('exit', (code, signal) => resolve({ code, signal }));

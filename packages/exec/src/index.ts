@@ -6,3 +6,4 @@ export * from './spawn.ts';
 export * from './terminate.ts';
 export * from './quota.ts';
 export * from './launch.ts';
+export * from './collect.ts';

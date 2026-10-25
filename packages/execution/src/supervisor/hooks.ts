@@ -69,6 +69,9 @@ export function defaultHooks(
         stdoutPath,
         stderrPath,
         outputCapBytes: header.outputCapBytes,
+        ...(header.execution?.device?.platform === 'android' && /^emulator-\d{4,5}$/.test(header.execution.device.id)
+          ? { androidSerial: header.execution.device.id }
+          : {}),
       };
     },
   };

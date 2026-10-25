@@ -189,6 +189,10 @@ Every task has all 16 fields:
 | FL-006 | **Done** | Flutter `integration_test` on an AutoTest-owned, booted device: one inventory target per platform (iOS: simulator on macOS; Android: emulator), plan cases pick the target of their platform, `flutter test --no-pub -d <UDID|emulator serial>` (`packages/adapter-flutter/src/execution.ts`). `run_tests` takes one device: it must be owned, booted and free; the lease is bound to the run and released at import; dispatch re-checks it. Verified end to end with real Flutter 3.47 on an iOS 26.4 simulator and an API 36 emulator (`test/e2e/device-flutter.test.ts`, opt-in `AUTOTEST_E2E_DEVICES=1`). Fixes found on the way: the supervisor now passes the policy's `env.allow` variables to runs (they never reached the runner before); `autotest setup` allowlists ANDROID_HOME, JAVA_HOME, GRADLE_USER_HOME and registers their values with Claude Code | Failure screenshots are not captured yet; one device per run |
 | IOS-002 | **Done** | `packages/adapter-ios`: detection of `.xcodeproj` (root or one level; a Flutter project's `ios/` is left to the Flutter adapter), shared-scheme testables, product types from `project.pbxproj`, one target per XCTestCase class (`unit` or, for UI-testing bundles, `e2e`). Static parsing only. Tests: `test/adapters/ios.test.ts` on `fixtures/fixture-ios` | Swift Testing (`@Test`) functions run but are not inventoried |
 | IOS-003 | **Done** | `xcodebuild test -project -scheme -destination id=<UDID> -resultBundlePath -derivedDataPath -only-testing …` then `xcresulttool get test-results tests` and `get build-results` (their stdout is parsed: runner outputs now include `attempts/<n>/stdout-<k>.log`); pass, fail with the assertion message, skip, and build failures as `load_error`; signals for simulator and signing problems. End to end on a real simulator (`test/e2e/device-ios.test.ts`, opt-in). Fix found on the way: the disk quota counted apparent size, and Xcode's sparse 16 GB compilation cache cancelled runs; quota now counts allocated space | Verified on Xcode 26.4.1 only; xcresult bundles are kept in the run directory but not indexed as evidence |
+| AND-002 | **Done** | `packages/adapter-android`: static detection (`settings.gradle(.kts)` at the root or one level down, `include` statements, Android plugin in the module build file, wrapper jar; a Flutter project's `android/` is left to the Flutter adapter) and one target per JUnit class (`src/test` → `unit`, host JVM; `src/androidTest` → `integration`, emulator). Gradle is never run for discovery. Tests: `test/adapters/android.test.ts` on `fixtures/fixture-android` | Only the debug variant; modules with product flavors and moved project directories are reported, not inventoried |
+| AND-003 | **Done** | The configured JDK runs the project's Gradle wrapper jar (new `java` argument schema: the wrapper jar as the only JVM option, a fixed main class, one test task, offline, no daemon; leading-flag and workspace-path flag support in the policy validator); `:<module>:testDebugUnitTest --rerun --tests <Class>`; JUnit XML copied from `build/` by the new ExecutionSpec `collect` step in the supervisor (files written since the spawn, no symlinks, capped) and parsed without entity expansion; build failures become `load_error`; signals for SDK, offline cache and device. Real Gradle end to end through the MCP workflow (`test/e2e/device-android.test.ts`, opt-in). `autotest setup` registers `java` from `JAVA_HOME` | Gradle reads `GRADLE_USER_HOME/gradle.properties`; the wrapper may download its distribution when it is not cached |
+| AND-004 | **Done** | `:<module>:connectedDebugAndroidTest --project-prop android.testInstrumentationRunnerArguments.class=<classes>` on the run's AutoTest-owned emulator, selected by `ANDROID_SERIAL` (set by the supervisor from the lease, never in argv); AGP's per-test logcat files are collected as evidence. Verified on an API 36 emulator (pass and fail mapped; device deleted afterwards) | No failure screenshots; one device per run |
+| E2E-005 | **Done** | `pnpm e2e:devices` (opt-in, this Mac): 4 files, 7 tests, all passed in 569 s on Node 24 — device lifecycle, Flutter `integration_test` on an iOS 26.4 simulator and an API 36 emulator, native XCTest/XCUITest, native Android unit (host JVM) and instrumented (emulator). Each test creates its own AutoTest device and deletes it; verdicts match the fixtures' intended failures | Not run in CI (the release workflow has no simulators or emulators); one host (macOS 26.6, Xcode 26.4.1, Gradle 9.3.1, AGP 9.1.0) |
 | DISC-004 | **Removed** | Removed from scope on 2026-10-24 (user decision): CI is not part of the product: AutoTest is not run inside CI (user decision 2026-10-24). ADR-0012 is withdrawn. | — |
 | DISC-005 | **Removed** | Removed from scope on 2026-10-24 (user decision): Only github.com is supported, through the `gh` credential; GHES capabilities are no longer needed. | — |
 | CI-001 | **Removed** | Removed from scope on 2026-10-24 (user decision): AutoTest does not run inside CI pipelines (user decision 2026-10-24). | — |
@@ -2331,7 +2335,7 @@ Every task has all 16 fields:
 - **Acceptance criteria:** (1) The fixture's integration tests run on an iOS simulator (macOS) and an Android emulator.
 - **Required automated tests:** Integration tests (nightly).
 - **Security considerations:** Screenshots are never published.
-- **Verification:** `pnpm e2e:devices -- flutter`.
+- **Verification:** `pnpm e2e:devices device-flutter`.
 - **Completion evidence:** CI logs.
 - **Risks and rollback:** —
 
@@ -2457,7 +2461,7 @@ Every task has all 16 fields:
 - **Acceptance criteria:** (1) The fixture's instrumented outcomes map correctly.
 - **Required automated tests:** Integration tests (nightly).
 - **Security considerations:** —
-- **Verification:** `pnpm e2e:devices -- android`.
+- **Verification:** `pnpm e2e:devices device-android`.
 - **Completion evidence:** CI logs.
 - **Risks and rollback:** —
 
@@ -2533,7 +2537,7 @@ Every task has all 16 fields:
 - **Acceptance criteria:** (1) Fixture E2E runs on Android, and on iOS (macOS).
 - **Required automated tests:** Integration tests (nightly).
 - **Security considerations:** —
-- **Verification:** `pnpm e2e:devices -- rn`.
+- **Verification:** `pnpm e2e:devices device-react-native`.
 - **Completion evidence:** CI logs.
 - **Risks and rollback:** —
 

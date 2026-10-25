@@ -112,13 +112,26 @@ export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecV
   if (ctx.allowedClasses && !ctx.allowedClasses.includes(form.class)) return deny('class_not_allowed', form.id);
 
   const denials: Denial[] = [];
-  const argv: string[] = [...form.words];
+  const argv: string[] = [];
+  const lead = form.leading ?? [];
+  for (const [i, rule] of lead.entries()) {
+    const tok = spec.args[i];
+    if (tok?.kind !== 'flag' || tok.name !== rule.name) {
+      denials.push({ code: 'unexpected_token', detail: `#${i}` });
+      continue;
+    }
+    const rendered = renderFlag(rule, tok, ctx);
+    if ('code' in rendered) denials.push(rendered);
+    else argv.push(...rendered.argv);
+  }
+  argv.push(...form.words);
   const seen = new Map<string, number>();
   let positional = 0;
   let next = 0;
 
-  for (const [i, tok] of spec.args.slice(form.words.length).entries()) {
-    const at = `#${i + form.words.length}`;
+  const skip = lead.length + form.words.length;
+  for (const [i, tok] of spec.args.slice(skip).entries()) {
+    const at = `#${i + skip}`;
     switch (tok.kind) {
       case 'word': {
         const p = form.positionals?.[next];
@@ -164,7 +177,7 @@ export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecV
           denials.push({ code: 'duplicate_flag', detail: rule.name });
           break;
         }
-        const rendered = tok.kind === 'flag' ? renderFlag(rule, tok) : renderRunPathFlag(rule, tok, ctx);
+        const rendered = tok.kind === 'flag' ? renderFlag(rule, tok, ctx) : renderRunPathFlag(rule, tok, ctx);
         if ('code' in rendered) denials.push(rendered);
         else argv.push(...rendered.argv);
         break;
@@ -172,6 +185,10 @@ export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecV
     }
   }
   for (const req of form.requiredFlags) if (!seen.has(req)) denials.push({ code: 'missing_flag', detail: req });
+  for (const [i, c] of (spec.collect ?? []).entries()) {
+    const r = checkPath(ctx.fs, ctx.workspaceRoot, c.dir);
+    if (!r.ok) denials.push({ code: 'path_denied', detail: `collect#${i}:${r.reason}` });
+  }
   if (next < (form.positionals?.length ?? 0)) denials.push({ code: 'missing_positional', detail: `#${next}` });
   if (denials.length) return { ok: false, denials };
   return { ok: true, executablePath: exe.realPath, argv, cwd: cwd.path, formId: form.id, class: form.class };
@@ -180,20 +197,25 @@ export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecV
 const deny = (code: DenialCode, detail: string): SpecValidation => ({ ok: false, denials: [{ code, detail }] });
 
 function matchForm(schema: ArgSchema, spec: ExecutionSpec): CommandForm | undefined {
-  const lead: string[] = [];
-  for (const t of spec.args) {
-    if (t.kind !== 'word') break;
-    lead.push(t.value);
-  }
-  // The longest form whose words are exactly the leading words; a form with positionals may be followed by more
-  // words (its positional words, checked one by one afterwards).
+  const leadWords = (skip: number) => {
+    const out: string[] = [];
+    for (const t of spec.args.slice(skip)) {
+      if (t.kind !== 'word') break;
+      out.push(t.value);
+    }
+    return out;
+  };
+  // The longest form whose words are exactly the leading words (after its leading flags); a form with positionals
+  // may be followed by more words (its positional words, checked one by one afterwards).
   return [...schema.forms]
     .sort((a, b) => b.words.length - a.words.length)
-    .find(
-      (f) =>
+    .find((f) => {
+      const lead = leadWords(f.leading?.length ?? 0);
+      return (
         (f.positionals ? f.words.length <= lead.length : f.words.length === lead.length) &&
-        f.words.every((w, i) => w === lead[i]),
-    );
+        f.words.every((w, i) => w === lead[i])
+      );
+    });
 }
 
 function flagRule(schema: ArgSchema, form: CommandForm, name: string, denials: Denial[]): FlagRule | undefined {
@@ -209,11 +231,18 @@ function flagRule(schema: ArgSchema, form: CommandForm, name: string, denials: D
 function renderFlag(
   rule: FlagRule,
   tok: { name: string; value?: string | undefined; inline?: boolean | undefined },
+  ctx: ValidationContext,
 ): { argv: string[] } | Denial {
   const v = rule.value;
   if (v.kind === 'none')
     return tok.value === undefined ? { argv: [rule.name] } : { code: 'bad_value', detail: rule.name };
   if (v.kind === 'runPath' || tok.value === undefined) return { code: 'bad_value', detail: rule.name };
+  if (v.kind === 'workspacePath') {
+    if (tok.inline || !v.pattern.test(tok.value)) return { code: 'bad_value', detail: rule.name };
+    const r = checkPath(ctx.fs, ctx.workspaceRoot, tok.value, { mustExist: true });
+    if (!r.ok || !ctx.fs.lstat(r.path)?.isFile) return { code: 'path_denied', detail: rule.name };
+    return { argv: [rule.name, r.path] };
+  }
   const ok = v.kind === 'enum' ? v.values.includes(tok.value) : v.pattern.test(tok.value);
   if (!ok) return { code: 'bad_value', detail: rule.name };
   // A separate value that starts with '-' could be parsed as another flag; it must be inline.

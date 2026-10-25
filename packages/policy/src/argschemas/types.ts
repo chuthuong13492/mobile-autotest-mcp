@@ -8,7 +8,9 @@ export type FlagValue =
   | { readonly kind: 'enum'; readonly values: readonly string[] }
   | { readonly kind: 'pattern'; readonly pattern: RegExp }
   /** Value is a run-directory path supplied as a `flagRunPath` token, with an exact prefix (may be empty). */
-  | { readonly kind: 'runPath'; readonly prefix: string };
+  | { readonly kind: 'runPath'; readonly prefix: string }
+  /** Value is an existing workspace path (rendered absolute) whose relative form matches `pattern`. */
+  | { readonly kind: 'workspacePath'; readonly pattern: RegExp };
 
 export interface FlagRule {
   readonly name: string;
@@ -26,6 +28,11 @@ export type Positional =
 export interface CommandForm {
   readonly id: string;
   readonly class: ExecClass;
+  /**
+   * Flags that must come first, exactly these and in this order, before the words (AND-003: the JVM options before
+   * the main class, so no runner flag can reach the JVM and no JVM option can follow).
+   */
+  readonly leading?: readonly FlagRule[];
   /** Exact leading subcommand words. */
   readonly words: readonly string[];
   readonly flags: readonly FlagRule[];

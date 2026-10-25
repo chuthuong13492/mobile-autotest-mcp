@@ -28,6 +28,7 @@ import {
   type TestTarget,
 } from '@autotest/core';
 import {
+  collectOutputs,
   nodeExecPort,
   spawnSpec,
   startTimer,
@@ -199,6 +200,7 @@ export async function runSupervisor(opts: SupervisorOptions): Promise<TerminalRe
           stderrPath: path.join(attemptDir, `stderr-${index}.log`),
         });
         let spawned: Awaited<ReturnType<typeof spawnSpec>> | undefined;
+        const spawnedAt = Date.now();
         try {
           spawned = ctx ? await spawnSpec(spec, { ...ctx, port }) : undefined;
         } catch {
@@ -236,6 +238,17 @@ export async function runSupervisor(opts: SupervisorOptions): Promise<TerminalRe
         };
         attemptProcesses.push(rec);
         processes.push({ pid: p.identity.pid, ...rec });
+        // Result files the runner left in the workspace (AND-003), copied before the next spec can touch them.
+        if (spec.collect?.length && ctx) {
+          const got = collectOutputs({
+            fs: ctx.fs,
+            workspaceRoot: ctx.workspaceRoot,
+            entries: spec.collect,
+            destDir: path.join(attemptDir, 'runner'),
+            sinceMs: spawnedAt,
+          });
+          if (got.truncated) fs.appendFileSync(paths.log, `${ts()} spec ${index}: collected outputs truncated\n`);
+        }
       }
 
       if (cancelReason) await cancelSequence(current);

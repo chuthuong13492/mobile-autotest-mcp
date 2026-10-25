@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@autotest/adapter-android':
+        specifier: workspace:*
+        version: link:packages/adapter-android
       '@autotest/adapter-flutter':
         specifier: workspace:*
         version: link:packages/adapter-flutter

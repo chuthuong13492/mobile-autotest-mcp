@@ -1,44 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { AdapterWorkspace, ExecutionSpec, TestTarget } from '@autotest/adapter-sdk';
+import type { ExecutionSpec, TestTarget } from '@autotest/adapter-sdk';
+import { fixture } from './fixtureWorkspace.ts';
 
 type ArgToken = ExecutionSpec['args'][number];
 import { buildIosExecution, createIosAdapter, parseIosResults, xctestClasses } from '@autotest/adapter-ios';
 
 const ROOT = path.resolve(import.meta.dirname, '../../fixtures');
 const CORPUS = path.join(ROOT, 'ios-corpus/xcode-26.4.1');
-
-/** A read-only workspace over a fixture directory (globs: `*`, `**`). */
-function fixture(dir: string): AdapterWorkspace {
-  const all: string[] = [];
-  const walk = (rel: string) => {
-    for (const e of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {
-      const r = rel ? `${rel}/${e.name}` : e.name;
-      if (e.isDirectory()) walk(r);
-      else all.push(r);
-    }
-  };
-  walk('');
-  const re = (g: string) =>
-    new RegExp(
-      `^${g
-        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-        .replace(/\*\*\//g, '(?:.*/)?')
-        .replace(/\*/g, '[^/]*')}$`,
-    );
-  return {
-    readText: (rel, max = 1 << 20) => {
-      const text = fs.readFileSync(path.join(dir, rel), 'utf8').slice(0, max);
-      return { text, sizeBytes: text.length, truncated: false, binary: false };
-    },
-    exists: (rel) => fs.existsSync(path.join(dir, rel)),
-    list: (globs) => {
-      const files = all.filter((f) => globs.some((g) => re(g).test(f)));
-      return { files, matched: files.length, truncated: false };
-    },
-  };
-}
 
 const adapter = createIosAdapter();
 const ctx = { workspace: fixture(path.join(ROOT, 'fixture-ios')), host: { os: 'macos' as const } };

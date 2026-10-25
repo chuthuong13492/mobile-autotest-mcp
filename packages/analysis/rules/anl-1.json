@@ -17,7 +17,10 @@
     "flutter.pub_get_required": { "subtype": "dependency", "unambiguous": true },
     "flutter.runner_incomplete": { "subtype": "infrastructure", "unambiguous": true },
     "ios.simulator_unavailable": { "subtype": "device", "unambiguous": true },
-    "ios.code_signing": { "subtype": "toolchain", "unambiguous": true }
+    "ios.code_signing": { "subtype": "toolchain", "unambiguous": true },
+    "android.sdk_missing": { "subtype": "toolchain", "unambiguous": true },
+    "android.offline_cache": { "subtype": "dependency", "unambiguous": true },
+    "android.device_unavailable": { "subtype": "device", "unambiguous": true }
   },
   "setupSignals": ["flutter.missing_plugin"],
   "environmentPatterns": [

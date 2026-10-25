@@ -26,7 +26,7 @@ You may still list a case the current release or host cannot run. The server mar
   - These actions are safe because AutoTest owns the device: `create`, `boot`, and `erase` or `delete` of devices it created.
   - Booting, shutting down, erasing or deleting a simulator the user owns requires human approval. Request it through `request_approval` with kind `device_action`.
   - Physical devices are never erased.
-- **Running on a device.** Flutter `integration_test` cases and native iOS cases need a device. Create and boot one with `manage_simulator`, then pass its id: `run_tests { devices: [deviceId] }`. Only one device per run, and it must be AutoTest-owned and booted. The run holds the device until its results are imported; delete it afterwards.
+- **Running on a device.** Flutter `integration_test` cases, native iOS cases and Android instrumented (`src/androidTest`) cases need a device; Android unit (`src/test`) cases run on the host. Create and boot one with `manage_simulator`, then pass its id: `run_tests { devices: [deviceId] }`. Only one device per run, and it must be AutoTest-owned and booted. The run holds the device until its results are imported; delete it afterwards.
 - **Before v1.1.** Device actions return `E_CAPABILITY_UNAVAILABLE`.
 
 ## Choosing the runner

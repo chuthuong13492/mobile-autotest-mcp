@@ -1,6 +1,6 @@
 # Platform Adapters
 
-> **Status:** Planned design, baseline of 2026-10-22. Nothing described here is implemented yet.
+> **Status:** Design baseline of 2026-10-22, updated as adapters land. Implemented in v1.1: Flutter (host and `integration_test`), native iOS and native Android; React Native and Appium are still planned.
 
 **Canonical home for:** the adapter interface, the capability model, per-platform adapter specifications, the native-vs-Appium selection matrix, macOS-only capabilities, and the Autotrader mapping.
 **Decisions:** [ADR-0009](architecture-decisions/ADR-0009.md) (capability model and ports), [ADR-0010](architecture-decisions/ADR-0010.md) (Flutter first), [ADR-0011](architecture-decisions/ADR-0011.md) (native vs Appium), [ADR-0014](architecture-decisions/ADR-0014.md) (shell-free execution).
@@ -216,21 +216,22 @@ The contract test kit (ADP-001) requires every adapter to pass all of the follow
 
 Scope: v1.1.
 
-- **Detection signals:** `settings.gradle(.kts)` plus `app/build.gradle(.kts)` with `com.android.application`/`com.android.library`. `gradlew` present. In a Flutter repo, `android/` is a sub-project. Its native tests are detected separately and are rare.
+- **Detection signals:** `settings.gradle(.kts)` (workspace root or one level down) whose `include` statements name a module whose build file applies `com.android.application`/`com.android.library` (or the `android.application`/`android.library` plugin aliases), and a Gradle wrapper jar. A Flutter project's `android/` is left to the Flutter adapter (AND-002).
 - **Discovery:**
   - `src/test/**` → `unit` (JUnit). `src/androidTest/**` → `integration` (instrumented).
-  - Variants are read statically from build files where possible. Gradle is **not** run for discovery, because doing so would execute build scripts (T-02).
+  - One target per JUnit class (the top-level class named like its file, with `@Test` methods; abstract classes skipped).
+  - Only the `debug` variant is run. A module with `productFlavors` is reported (`android_product_flavors`) and not inventoried; `projectDir` overrides in settings are reported and not followed. Gradle is **not** run for discovery, because doing so would execute build scripts (T-02).
 - **Selection:**
   - Unit tests: `--tests <pattern>` ✅ (RL-018).
-  - Instrumented tests: either the `connected<Variant>AndroidTest` task, or `adb shell am instrument -w -e class <Class>[#method] <pkg>/<runner>` ✅ (RL-018) for class-level selection.
-- **Commands:**
-  - `["./gradlew", "test<Variant>UnitTest", "--tests", "<pattern>", "--console=plain"]`
-  - `["./gradlew", "connected<Variant>AndroidTest"]`
-  - The flag `--console=plain` ✅ (AND-001, RL-018).
-  - `gradlew` runs repository-supplied build logic. This is an inherent risk (T-02), mitigated by policy class `build_tool`, CI isolation and the minimal environment.
+  - Instrumented tests: the `connected<Variant>AndroidTest` task with `--project-prop android.testInstrumentationRunnerArguments.class=<Class>,…` (AND-004). `adb shell am instrument` ✅ (RL-018) is not used.
+- **Commands (AND-003/004).** The configured JDK (`java`, registered by `autotest setup` from `JAVA_HOME`) runs the project's wrapper jar; the repository's `gradlew` shell script is never executed and is not an allowlisted executable:
+  - `["java", "-classpath", "<ws>/gradle/wrapper/gradle-wrapper.jar", "org.gradle.wrapper.GradleWrapperMain", ":app:testDebugUnitTest", "--rerun", "--tests", "<Class>", …, "--offline", "--no-daemon", "--console=plain"]` ✅ (Gradle 9.3.1, AGP 9.1.0)
+  - `[…, ":app:connectedDebugAndroidTest", "--project-prop", "android.testInstrumentationRunnerArguments.class=<Class>,…", "--offline", "--no-daemon", "--console=plain"]` ✅; the emulator is chosen by `ANDROID_SERIAL`, which the supervisor sets from the run's device lease (argv never carries a serial).
+  - The `java` argument schema allows only that classpath (first token), that main class, one test task, and the flags above. Init scripts, other build or settings files, system properties, arbitrary project properties, daemons and online builds are refused. `--rerun` forces the unit-test task to run, so its report is never stale.
+  - The build scripts are repository code. This is an inherent risk (T-02), mitigated by the policy class `test_runner`, the minimal environment and offline mode. Gradle can still read `GRADLE_USER_HOME/gradle.properties`.
 - **Prerequisites:** JDK, Android SDK (`ANDROID_HOME`), an emulator image or GMD for instrumented tests.
-- **Result formats.** JUnit XML under `<module>/build/test-results/` (unit) and `<module>/build/outputs/androidTest-results/connected/` (instrumented) ✅ (RL-018). Subfolders are discovered recursively because they vary by variant and AGP version; AGP 9.1.0 verified ✅ (AND-001, RL-018).
-- **Evidence:** JUnit XML, the Gradle HTML report directory (excluded from publication), logcat captured by the supervisor during instrumented runs (`adb logcat -d`; ⚠ to verify in DEV-001), and failure screenshots.
+- **Result formats.** JUnit XML under `<module>/build/test-results/` (unit) and `<module>/build/outputs/androidTest-results/connected/` (instrumented) ✅ (RL-018). Subfolders are discovered recursively because they vary by variant and AGP version; AGP 9.1.0 verified ✅ (AND-001, RL-018). Gradle cannot write them elsewhere, so the spec's `collect` entries make the supervisor copy the files written since the spawn into `attempts/<n>/runner/` (no symlinks followed, capped). The reader decodes only predefined and numeric entities; a build failure without a report becomes `load_error` with Gradle's "What went wrong" text.
+- **Evidence:** JUnit XML and AGP's per-test logcat files (`logcat-<Class>-<method>.txt`), copied by `collect`. Failure screenshots are not captured yet.
 - **Failure signals:**
   - Gradle daemon or OOM → `environment_failure/toolchain`
   - `INSTALL_FAILED_*` → `environment_failure/device`
