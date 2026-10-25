@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.1.0
+
+Simulators, emulators and native platforms (Phase 4).
+
+- Devices: `list_devices` and `manage_simulator` create, boot, erase and delete iOS simulators and Android emulators
+  that AutoTest owns (a lease per device); devices you own need a single-use approval, physical devices are never
+  touched. `autotest cleanup` removes expired AutoTest devices.
+- `run_tests { devices: [id] }` runs on one AutoTest-owned, booted device; the run holds it until its results are
+  imported.
+- Flutter `integration_test` on a simulator or an emulator.
+- Native iOS: XCTest and XCUITest classes from shared schemes, run with `xcodebuild test` and read from the result
+  bundle (macOS, Xcode 26.4.1 verified).
+- Native Android: JUnit classes from Gradle modules; unit tests on the host JVM, instrumented tests on the run's
+  emulator. Your JDK runs the project's Gradle wrapper offline and without a daemon; the `gradlew` script is never
+  executed. Build the project once yourself so the Gradle cache is filled.
+- `autotest setup` registers `xcodebuild`, the device tools and `java`, and passes `ANDROID_HOME`, `JAVA_HOME` and
+  `GRADLE_USER_HOME` to runs.
+- Fixes: runs now receive the policy's `env.allow` variables; the run disk quota counts allocated space (Xcode's sparse
+  caches no longer cancel runs).
+- Limits: one device per run; only the debug variant on Android; no failure screenshots yet; device tests are verified
+  on one Mac and do not run in CI. The release workflow skips build-provenance attestation on private repositories.
+
 ## 1.0.0
 
 Release 1: the first production release, after the hardening of Phase 3.

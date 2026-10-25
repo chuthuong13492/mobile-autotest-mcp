@@ -230,5 +230,5 @@ for (const s of scenarios)
 const out = path.join(import.meta.dirname, 'results');
 fs.mkdirSync(out, { recursive: true });
 const file = path.join(out, `${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
-fs.writeFileSync(file, `${JSON.stringify({ skillVersion: '1.0.0', results }, null, 2)}\n`);
+fs.writeFileSync(file, `${JSON.stringify({ skillVersion: '1.1.0', results }, null, 2)}\n`);
 console.log(`results: ${file}`);

@@ -4,7 +4,7 @@ The canonical source for platform behavior is `docs/platform-adapters.md` in the
 
 ## What each release can execute
 
-This build is v1.0: only the first row runs. Every other row is planned work.
+This build is v1.1: every v0.1 and v1.1 row runs (native Android unit tests on any host with a JDK and the Android SDK). The v1.2 rows are planned work.
 
 | Platform / level | Earliest release | Host |
 |---|---|---|
