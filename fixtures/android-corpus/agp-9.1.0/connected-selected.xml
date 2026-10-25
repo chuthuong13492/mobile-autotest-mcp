@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="0" errors="0" skipped="0" time="1.169" timestamp="2026-10-25T08:50:09" hostname="localhost">
+  <testsuite name="dev.autotest.fixture.CalculatorInstrumentedTest" tests="1" failures="0" errors="0" skipped="0" time="0.012" timestamp="2026-10-25T08:50:09" hostname="localhost">
+    <properties>
+      <property name="device" value="autotest-spike-android(AVD) - 16" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="runsOnTheDevice" classname="dev.autotest.fixture.CalculatorInstrumentedTest" time="0.012" />
+  </testsuite>
+</testsuites>

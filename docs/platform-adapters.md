@@ -225,10 +225,10 @@ Scope: v1.1.
 - **Commands:**
   - `["./gradlew", "test<Variant>UnitTest", "--tests", "<pattern>", "--console=plain"]`
   - `["./gradlew", "connected<Variant>AndroidTest"]`
-  - The flag `--console=plain` is ⚠ to verify in AND-001.
+  - The flag `--console=plain` ✅ (AND-001, RL-018).
   - `gradlew` runs repository-supplied build logic. This is an inherent risk (T-02), mitigated by policy class `build_tool`, CI isolation and the minimal environment.
 - **Prerequisites:** JDK, Android SDK (`ANDROID_HOME`), an emulator image or GMD for instrumented tests.
-- **Result formats.** JUnit XML under `<module>/build/test-results/` (unit) and `<module>/build/outputs/androidTest-results/connected/` (instrumented) ✅ (RL-018). Subfolders are discovered recursively because they vary by variant and AGP version (⚠ to verify in AND-001, OQ-09).
+- **Result formats.** JUnit XML under `<module>/build/test-results/` (unit) and `<module>/build/outputs/androidTest-results/connected/` (instrumented) ✅ (RL-018). Subfolders are discovered recursively because they vary by variant and AGP version; AGP 9.1.0 verified ✅ (AND-001, RL-018).
 - **Evidence:** JUnit XML, the Gradle HTML report directory (excluded from publication), logcat captured by the supervisor during instrumented runs (`adb logcat -d`; ⚠ to verify in DEV-001), and failure screenshots.
 - **Failure signals:**
   - Gradle daemon or OOM → `environment_failure/toolchain`
@@ -243,16 +243,16 @@ Scope: v1.1.
 Scope: v1.1. Requires macOS.
 
 - **Detection signals:** `*.xcworkspace` / `*.xcodeproj`, `Package.swift`, test targets (`*Tests` folders, `.xctestplan`). In Flutter repos, `ios/Runner.xcodeproj`.
-- **Discovery.** Schemes and test plans are found statically from `xcshareddata/xcschemes/*.xcscheme` and `*.xctestplan`. `xcodebuild -list -json` may be used as an allowlisted probe (⚠ to verify in IOS-001).
-- **Selection.** By scheme and test plan, and by `-only-testing:<Target>/<Class>/<method>` (⚠ to verify in IOS-001).
+- **Discovery.** Schemes and test plans are found statically from `xcshareddata/xcschemes/*.xcscheme` and `*.xctestplan`. `xcodebuild -list -json` may be used as an allowlisted probe ✅ (IOS-001).
+- **Selection.** By scheme and test plan, and by `-only-testing:<Target>/<Class>/<method>` ✅ (IOS-001, repeatable).
 - **Command:**
 
   ```text
   ["xcodebuild", "test", "-workspace|-project", <path>, "-scheme", <scheme>, "-destination", "id=<udid>", "-resultBundlePath", "<runDir>/attempts/<n>/runner/Test.xcresult"]
   ```
 
-  These flags are ⚠ to verify against Apple documentation in IOS-001. No official page was fetched for them during research.
-- **Result parsing.** `xcrun xcresulttool get test-results summary --path <bundle> --compact` ✅ (medium confidence, RL-017). Per-test detail uses `get test-results tests` / `test-details` (low confidence, ⚠ OQ-08). The parser is version-probed: it runs `xcrun xcresulttool help get test-results` once per Xcode version and selects a strategy. `--legacy` is used only as a fallback, and that fallback is recorded.
+  Verified on Xcode 26.4.1 ✅ (IOS-001, RL-017); exit code 65 covers both test and build failures, so `get build-results` tells them apart.
+- **Result parsing.** `xcrun xcresulttool get test-results summary --path <bundle> --compact` ✅ (medium confidence, RL-017). Per-test detail uses `get test-results tests` ✅ (IOS-001: node tree with `result` and `Failure Message` children; use `durationInSeconds`, the `duration` string is locale-formatted). The parser is version-probed: it runs `xcrun xcresulttool help get test-results` once per Xcode version and selects a strategy. `--legacy` is used only as a fallback, and that fallback is recorded.
 - **Evidence:**
   - The `.xcresult` bundle (kept as a directory artifact, excluded from publication)
   - extracted failure attachments and screenshots (after redaction, where the format allows)

@@ -80,6 +80,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Owner (role).** Mobile Automation Architect.
 - **Decision phase.** Phase 4 (IOS-001).
 - **Closure criteria.** A corpus is captured, the parser strategy is selected, and the markers in platform-adapters.md are resolved.
+- **Status.** **Closed 2026-10-25** (IOS-001, [RL-017](research-log.md#rl-017--xcode-result-bundles)): Xcode 26.4.1 provides `get test-results summary|tests|test-details` and `get build-results`; the corpus is in `fixtures/ios-corpus/`; the parser reads the `tests` node tree.
 
 ### OQ-09
 - **Question.** What are the exact Android result subpaths for each AGP version and variant? Do Gradle offline mode and the GMD options behave as documented?
@@ -87,6 +88,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Owner (role).** Mobile Automation Architect.
 - **Decision phase.** Phase 4 (AND-001).
 - **Closure criteria.** A corpus is captured and the documentation is updated.
+- **Status.** **Closed 2026-10-25** (AND-001, [RL-018](research-log.md#rl-018--android-test-result-locations)) for AGP 9.1.0: subpaths, `--offline` and class selection verified; corpus in `fixtures/android-corpus/`. Gradle Managed Devices were not re-verified (optional, not used by the adapter).
 
 ### OQ-10
 - **Question.** What do Bitrise and Codemagic actually cost for this workload, and do they support integration with GHES?

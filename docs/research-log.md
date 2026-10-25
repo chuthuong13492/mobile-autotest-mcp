@@ -237,6 +237,12 @@ The Autotrader observations (section B) came from read-only inspection: `find`, 
 - **Confidence:** Medium for `summary`. **Low** for `tests` and `test-details`.
 - **Architectural impact:** The iOS adapter parses through a version-probed strategy, starting with `help` introspection ([platform-adapters §iOS](platform-adapters.md#native-ios)). Phase 3 cannot start iOS parsing until IOS-001 is done.
 - **Follow-up:** [OQ-08](risks-and-open-questions.md#oq-08).
+- **Verified 2026-10-25 (IOS-001)** on Xcode 26.4.1 (xcresulttool 24757), iOS 26.4 simulator, with `fixtures/fixture-ios` (hand-written project, objectVersion 77; corpus `fixtures/ios-corpus/xcode-26.4.1/`):
+  - `xcodebuild test -project <p> -scheme <s> -destination id=<udid> -resultBundlePath <dir>/Test.xcresult -derivedDataPath <dir>` works; `-only-testing:<Target>/<Class>[/<method>]` selects (repeatable). Exit code 0 when all pass, 65 for test failures **and** for build failures.
+  - `xcrun xcresulttool get test-results tests --path <bundle> --compact` (no `--legacy`) returns a node tree: `nodeType` `Unit test bundle` / `UI test bundle` / `Test Suite` / `Test Case`; each case has `nodeIdentifier` (`Class/method()`), `result` (`Passed`, `Failed`, `Skipped`, `Expected Failure`), `durationInSeconds`, and `Failure Message` children. The string `duration` is locale-formatted (`0,31s`): do not parse it.
+  - `get test-results summary` gives counts and `result` (`Passed`, `Failed`, or `unknown` with zero tests when the build failed). `get build-results` lists compiler errors (`issueType: "Swift Compiler Error"`), which tells a build failure from a test failure.
+  - `xcodebuild -list -json -project <p>` lists schemes and targets without building.
+  - **Confidence:** High for Xcode 26.4.1. The adapter still probes `xcresulttool version` and records it.
 
 ### RL-018 — Android test result locations
 - **Source:** "Test from the command line" — https://developer.android.com/studio/test/command-line
@@ -249,6 +255,11 @@ The Autotrader observations (section B) came from read-only inspection: `find`, 
 - **Confidence:** High for the directories. **Medium** for the exact subfolders per variant and AGP version, which the documentation does not spell out.
 - **Architectural impact:** The Android adapter discovers XML recursively under the documented roots and does not hard-code subpaths ([platform-adapters §Android](platform-adapters.md#native-android)).
 - **Follow-up:** [OQ-09](risks-and-open-questions.md#oq-09).
+- **Verified 2026-10-25 (AND-001)** with Gradle 9.3.1, AGP 9.1.0, JDK 21, API 36 emulator (`fixtures/fixture-android`; corpus `fixtures/android-corpus/agp-9.1.0/`):
+  - Unit: `./gradlew testDebugUnitTest --console=plain [--tests <Class|Class.method>] [--offline]` writes `app/build/test-results/testDebugUnitTest/TEST-<class>.xml`; Gradle deletes earlier results of the task first. Exit 1 when a test fails. `@Ignore` appears as `<skipped/>`.
+  - Instrumented: `./gradlew connectedDebugAndroidTest --console=plain` with `ANDROID_SERIAL=<serial>` writes `app/build/outputs/androidTest-results/connected/debug/TEST-<device> - <api>-_app-.xml`; class or method selection with `-Pandroid.testInstrumentationRunnerArguments.class=<Class>[#method]` keeps the XML output (`am instrument` gives text only).
+  - `adb -s <serial> logcat -d` dumps the log; `emulator -avd <name> -no-window -no-snapshot -port <even port>` boots headless (serial `emulator-<port>`); the emulator refuses to start when the disk is nearly full (needs about 8 GB free; `-partition-size` lowers the data partition).
+  - **Confidence:** High for this AGP version; other AGP versions may change the subfolders, so XML is still found recursively.
 
 ### RL-019 — Gradle Managed Devices
 - **Source:** https://developer.android.com/studio/test/managed-devices, from the preliminary pass.
