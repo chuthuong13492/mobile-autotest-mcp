@@ -109,12 +109,15 @@ describe('FL-001 detection and SDK resolution', () => {
 describe('FL-002 inventory', () => {
   it('classifies unit, widget and integration files; build output is excluded', async () => {
     const inv = await inventoryFlutter({ ...ctx, limits });
-    expect(inv.targets.map((t) => [t.path, t.level, t.requires.device])).toEqual([
-      ['integration_test/app_test.dart', 'integration', 'simulator'],
-      ['test/calc_test.dart', 'unit', 'none'],
-      ['test/ui/counter_test.dart', 'widget', 'none'],
+    expect(inv.targets.map((t) => [t.path, t.level, t.platforms.join(), t.requires.host, t.requires.device])).toEqual([
+      ['integration_test/app_test.dart', 'integration', 'android', 'any', 'emulator'],
+      ['integration_test/app_test.dart', 'integration', 'ios', 'macos', 'simulator'],
+      ['test/calc_test.dart', 'unit', 'host', 'any', 'none'],
+      ['test/ui/counter_test.dart', 'widget', 'host', 'any', 'none'],
     ]);
-    expect(inv.targets[1]!.tags).toEqual(['fast', 'math']);
+    // One target per platform: distinct, stable ids for the same file.
+    expect(new Set(inv.targets.map((t) => t.id)).size).toBe(4);
+    expect(inv.targets[2]!.tags).toEqual(['fast', 'math']);
     expect(inv.helpers).toEqual([
       { path: 'test/flutter_test_config.dart', kind: 'config' },
       { path: 'test/helpers/values.dart', kind: 'helper' },
@@ -128,6 +131,43 @@ describe('FL-002 inventory', () => {
   it('reports truncation honestly', async () => {
     const inv = await inventoryFlutter({ ...ctx, limits: { maxFiles: 1, maxReadBytes: 1 << 20 } });
     expect(inv).toMatchObject({ complete: false, reasons: ['max_files'] });
+  });
+});
+
+describe('FL-006 integration_test on a device', () => {
+  it('builds a -d spec only for the run device platform, and nothing without a device', async () => {
+    const inv = await inventoryFlutter({ ...ctx, limits });
+    const req = (device?: { platform: 'ios' | 'android'; id: string }) => ({
+      attemptNo: 1,
+      targets: inv.targets,
+      options: { coverage: true, timeoutMs: 600_000 },
+      ...(device ? { device } : {}),
+    });
+    const words = (specs: ReturnType<typeof buildFlutterExecution>) =>
+      specs.map((s) =>
+        s.args.map((a) =>
+          'value' in a ? `${'name' in a ? a.name + '=' : ''}${a.value}` : 'rel' in a ? a.rel : a.name,
+        ),
+      );
+    expect(buildFlutterExecution(req()).every((s) => s.requires.device === 'none')).toBe(true);
+    const ios = buildFlutterExecution(req({ platform: 'ios', id: 'A59793A1-207D-4223-9A07-7A25E3124218' }));
+    expect(ios.at(-1)!.requires).toEqual({ host: 'macos', device: 'simulator' });
+    expect(words(ios).at(-1)).toEqual([
+      'test',
+      '--no-pub',
+      '-d=A59793A1-207D-4223-9A07-7A25E3124218',
+      'attempts/1/runner/flutter-device.jsonl',
+      '--reporter=expanded',
+      'integration_test/app_test.dart',
+    ]);
+    const android = buildFlutterExecution(req({ platform: 'android', id: 'emulator-5554' }));
+    expect(android.at(-1)!.requires).toEqual({ host: 'any', device: 'emulator' });
+    // A device run of host targets only adds no device spec.
+    const hostOnly = buildFlutterExecution({
+      ...req({ platform: 'ios', id: 'A59793A1-207D-4223-9A07-7A25E3124218' }),
+      targets: inv.targets.filter((t) => t.requires.device === 'none'),
+    });
+    expect(hostOnly.some((s) => s.requires.device !== 'none')).toBe(false);
   });
 });
 

@@ -120,6 +120,11 @@ export interface ResolveResult {
 export interface ExecutionRequest {
   readonly attemptNo: number;
   readonly targets: readonly TestTarget[];
+  /**
+   * The device of a device run (FL-006, v1.1): the platform and the id the runner addresses it by — a simulator
+   * UDID, or an Android emulator serial (`emulator-<port>`). Absent for host runs.
+   */
+  readonly device?: { readonly platform: 'ios' | 'android'; readonly id: string };
   readonly options: {
     readonly coverage: boolean;
     readonly timeoutMs: number;

@@ -76,6 +76,10 @@ export const RunHeader = z.strictObject({
       coverage: z.boolean(),
       maxAttempts: z.number().int().min(1).max(3),
       retryOn: z.array(z.enum(['flaky', 'infrastructure'])).max(2),
+      /** FL-006: the run's device (platform and the id the runner addresses it by). */
+      device: z
+        .strictObject({ platform: z.enum(['ios', 'android']), id: z.string().regex(/^[A-Za-z0-9-]{1,64}$/) })
+        .optional(),
     })
     .optional(),
   /**

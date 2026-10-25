@@ -16,6 +16,7 @@ import {
   androidCreate,
   androidDelete,
   androidErase,
+  androidSerial,
   androidShutdown,
   iosBoot,
   iosCreate,
@@ -315,4 +316,69 @@ export async function cleanupExpiredDevices(
     out.push({ deviceId: lease.deviceId, result });
   }
   return out;
+}
+
+/** The device of a run (FL-006): its lease and the id the runner addresses it by. */
+export interface RunDevice {
+  readonly deviceId: string;
+  readonly platform: 'ios' | 'android';
+  /** Simulator UDID, or the emulator serial (`emulator-<port>`). */
+  readonly address: string;
+  readonly lease: DeviceLease;
+}
+
+/**
+ * Checks that a run may use `deviceId`: AutoTest owns it (lease), no other unfinished run holds it, and it is
+ * booted. Devices the user owns are not used for runs in this version (create and boot an AutoTest device instead).
+ */
+export async function prepareRunDevice(
+  deps: DeviceDeps,
+  deviceId: string,
+): Promise<{ ok: true; device: RunDevice } | { ok: false; error: ToolError }> {
+  const ctx = deviceContext(deps);
+  if (!ctx) return { ok: false, error: policyUnavailable() };
+  const lease = await deps.ports.deviceLeases.findByDevice(deviceId);
+  if (!lease?.createdByAutotest)
+    return {
+      ok: false,
+      error: toolError('E_DEVICE_NOT_OWNED', `${deviceId} is not an AutoTest device`, [
+        'Create one with manage_simulator {action: "create"}, boot it, then pass its deviceId',
+      ]),
+    };
+  if (await busy(deps, lease))
+    return {
+      ok: false,
+      error: toolError('E_DEVICE_UNAVAILABLE', `${deviceId} is in use by run ${lease.runId}`, [
+        'Wait for that run to end',
+      ]),
+    };
+  const platform = platformOf(deviceId);
+  const listing = await listDevices(ctx, platform, deps.hostOs);
+  const d = listing.devices.find((x) => x.deviceId === deviceId);
+  if (!d || d.state !== 'Booted')
+    return {
+      ok: false,
+      error: toolError('E_DEVICE_UNAVAILABLE', `${deviceId} is ${d ? d.state : 'not found'}`, [
+        'Boot it with manage_simulator {action: "boot"}',
+      ]),
+    };
+  const address = platform === 'ios' ? deviceId : await androidSerial(ctx, deviceId);
+  if (!address)
+    return {
+      ok: false,
+      error: toolError('E_DEVICE_UNAVAILABLE', `${deviceId} has no running emulator`, ['Boot it again']),
+    };
+  return { ok: true, device: { deviceId, platform, address, lease } };
+}
+
+/** Releases the run binding of a device lease (the device stays AutoTest's until its lease expires). */
+export async function releaseRunDevices(
+  ports: WorkflowPorts,
+  runId: string,
+  deviceIds: readonly string[],
+): Promise<void> {
+  for (const id of deviceIds) {
+    const lease = await ports.deviceLeases.findByDevice(id);
+    if (lease?.runId === runId) await ports.deviceLeases.put({ ...lease, runId: null });
+  }
 }

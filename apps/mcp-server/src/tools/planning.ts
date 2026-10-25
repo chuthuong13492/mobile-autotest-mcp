@@ -262,7 +262,10 @@ export function planningUseCases(
           capabilities: target ? capabilities.get(target.adapterId) : undefined,
           hostOs: deps.host.os,
           executableAvailable: target ? (executables.get(target.adapterId) ?? false) : false,
-          deviceAvailable: false,
+          // FL-006: a device target is runnable when this host can provide an AutoTest-owned device of its kind.
+          deviceAvailable: target
+            ? deviceKindAvailable(target.requires.device, deps.host.os, exeRegistry.executables)
+            : false,
           readOnlyReference: !usable || ws.readOnlyReference,
           platformsInScope: input.platformsInScope,
         }),
@@ -479,4 +482,15 @@ async function githubContext(
     limitations: context.limitations,
     untrustedFields: ['/title', '/body', '/labels/*', '/changedFilesSample/*/path'],
   });
+}
+
+/** Whether this host can create and run the device kind a target needs (simctl on macOS; emulator + adb). */
+function deviceKindAvailable(
+  need: 'none' | 'simulator' | 'emulator' | 'physical',
+  hostOs: string,
+  executables: ReadonlyMap<string, unknown>,
+): boolean {
+  if (need === 'simulator') return hostOs === 'macos' && executables.has('xcrun');
+  if (need === 'emulator') return executables.has('emulator') && executables.has('adb');
+  return false;
 }

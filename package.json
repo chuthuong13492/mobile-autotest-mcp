@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@autotest/adapter-flutter": "workspace:*",
+    "@autotest/adapter-ios": "workspace:*",
     "@autotest/adapter-sdk": "workspace:*",
     "@autotest/cli": "workspace:*",
     "@autotest/core": "workspace:*",

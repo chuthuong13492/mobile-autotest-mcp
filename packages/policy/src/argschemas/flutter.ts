@@ -44,6 +44,11 @@ export const FLUTTER_SCHEMA: ArgSchema = {
         { name: '--total-shards', value: { kind: 'pattern', pattern: INT } },
         { name: '--shard-index', value: { kind: 'pattern', pattern: INT } },
         { name: '--concurrency', value: { kind: 'pattern', pattern: INT } },
+        // FL-006: the device of an integration_test run (a simulator UDID or an emulator serial).
+        {
+          name: '-d',
+          value: { kind: 'pattern', pattern: /^(?:[0-9A-F]{8}-(?:[0-9A-F]{4}-){3}[0-9A-F]{12}|emulator-\d{4})$/ },
+        },
       ],
     },
     {

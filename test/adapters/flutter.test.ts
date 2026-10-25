@@ -104,12 +104,15 @@ describe('FL-002/003 the fixture through the real workspace reader and policy', 
   const limits = { maxFiles: 1000, maxReadBytes: 4 << 20 };
   const inv = await createFlutterAdapter().inventory({ ...ctx, limits });
 
-  it('detects the fixture and inventories exactly its two host test files', async () => {
+  it('detects the fixture and inventories its two host test files and its integration test per platform', async () => {
     expect((await createFlutterAdapter().detect(ctx)).detected).toBe(true);
-    expect(inv.targets.map((t) => [t.path, t.level, t.tags])).toEqual([
-      ['test/calculator_test.dart', 'unit', ['math']],
-      ['test/counter_widget_test.dart', 'widget', []],
+    expect(inv.targets.map((t) => [t.path, t.level, t.platforms.join()])).toEqual([
+      ['integration_test/app_test.dart', 'integration', 'android'],
+      ['integration_test/app_test.dart', 'integration', 'ios'],
+      ['test/calculator_test.dart', 'unit', 'host'],
+      ['test/counter_widget_test.dart', 'widget', 'host'],
     ]);
+    expect(inv.targets[2]!.tags).toEqual(['math']);
     expect(inv.helpers).toEqual([{ path: 'test/helpers/numbers.dart', kind: 'helper' }]);
   });
 
@@ -227,7 +230,7 @@ describe('the default server build ships the Flutter adapter', () => {
     { timeout: 120_000 },
     async () => {
       const { composeServer, builtInAdapters } = await import('@autotest/mcp-server');
-      expect(builtInAdapters().map((a) => a.id)).toEqual(['flutter']);
+      expect(builtInAdapters().map((a) => a.id)).toEqual(['flutter', 'ios']);
       // The CLI keeps its own copy of the list (apps may not import each other): both must agree.
       const { cliAdapters } = await import('@autotest/cli');
       expect(cliAdapters().map((a) => [a.id, a.version])).toEqual(builtInAdapters().map((a) => [a.id, a.version]));

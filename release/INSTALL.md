@@ -48,6 +48,11 @@ AutoTest creates its own devices (`autotest-…`) and may boot, erase and delete
 needs your approval (`autotest approve`) for each action, and physical devices are never managed. The Android emulator
 needs about 8 GB of free disk space.
 
+Runs on a device: create and boot an AutoTest device (the agent does this with `manage_simulator`), then
+`run_tests` uses it for Flutter `integration_test` and native XCTest/XCUITest targets. For Android builds, setup adds
+`ANDROID_HOME`, `JAVA_HOME` and `GRADLE_USER_HOME` to `env.allow` and registers their values with Claude Code, so
+runs can use the SDK, the JDK and your Gradle cache; rerun `autotest setup` if they change.
+
 ## Baseline runs (optional)
 
 `autotest setup` also allowlists `git` (for baseline runs: a checkout of the PR's base commit inside the run

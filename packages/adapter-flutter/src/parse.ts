@@ -51,17 +51,20 @@ interface ErrorInfo {
   readonly isFailure: boolean;
 }
 
-/** Runner files of one attempt, in a stable order: `flutter.jsonl` first, then `flutter-name-<i>.jsonl`. */
+/**
+ * Runner files of one attempt, in a stable order: `flutter.jsonl` first, then `flutter-name-<i>.jsonl`, then the
+ * device run's `flutter-device.jsonl` (FL-006).
+ */
 export function runnerFiles(outputs: RunnerOutputs): string[] {
   const prefix = `attempts/${outputs.attemptNo}/runner/`;
-  const re = /^flutter(?:-name-(\d+))?\.jsonl$/;
+  const re = /^flutter(?:-name-(\d+)|-(device))?\.jsonl$/;
+  const rank = (k: string) => {
+    const m = re.exec(k.slice(prefix.length))!;
+    return m[2] ? Number.MAX_SAFE_INTEGER : Number(m[1] ?? 0);
+  };
   return Object.keys(outputs.files)
     .filter((k) => k.startsWith(prefix) && re.test(k.slice(prefix.length)))
-    .sort((a, b) => {
-      const na = Number(re.exec(a.slice(prefix.length))![1] ?? 0);
-      const nb = Number(re.exec(b.slice(prefix.length))![1] ?? 0);
-      return na - nb;
-    });
+    .sort((a, b) => rank(a) - rank(b));
 }
 
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);

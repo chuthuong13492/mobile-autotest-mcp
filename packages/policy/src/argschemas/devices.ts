@@ -48,6 +48,21 @@ export const XCRUN_SCHEMA: ArgSchema = {
       flags: [{ name: '-b', value: { kind: 'none' } }],
       requiredFlags: ['-b'],
     }),
+    // IOS-003: reading a run's result bundle (stdout is the JSON the adapter parses); test_runner like the run itself.
+    form('xcresulttool.tests', 'test_runner', ['xcresulttool', 'get', 'test-results', 'tests'], {
+      flags: [
+        { name: '--path', value: { kind: 'runPath', prefix: '' } },
+        { name: '--compact', value: { kind: 'none' } },
+      ],
+      requiredFlags: ['--path'],
+    }),
+    form('xcresulttool.build', 'test_runner', ['xcresulttool', 'get', 'build-results'], {
+      flags: [
+        { name: '--path', value: { kind: 'runPath', prefix: '' } },
+        { name: '--compact', value: { kind: 'none' } },
+      ],
+      requiredFlags: ['--path'],
+    }),
     form('simctl.screenshot', 'probe', ['simctl', 'io'], {
       positionals: [
         { kind: 'word', pattern: UDID },

@@ -1,7 +1,8 @@
 /**
  * Flutter test inventory (FL-002; platform-adapters §Flutter "Test discovery"). `test/**\/*_test.dart` files are
  * `widget` when a bounded scan (256 KiB) finds `testWidgets(`, otherwise `unit`. `integration_test/**\/*_test.dart`
- * files are `integration` targets that need a device (they run from v1.1, so eligibility marks them unavailable).
+ * files are `integration` targets that need a device: one target per platform (FL-006) — iOS on a simulator (macOS
+ * hosts) and Android on an emulator — so a plan case picks the platform it verifies.
  * File-level `@Tags([...])` annotations become target tags; `dart_test.yaml` is listed as an automation config.
  */
 import {
@@ -56,16 +57,31 @@ export async function inventoryFlutter(ctx: InventoryContext): Promise<Inventory
       budget -= Math.min(r.sizeBytes, SCAN_BYTES);
       source = r.binary ? '' : r.text;
     } else reasons.add('max_read_bytes');
-    targets.push({
-      id: targetId(ADAPTER_ID, path),
-      adapterId: ADAPTER_ID,
-      level: integration ? 'integration' : classifyLevel(source),
-      path,
-      selector: { kind: 'file', value: path },
-      platforms: integration ? ['android', 'ios'] : ['host'],
-      requires: integration ? { host: 'any', device: 'simulator' } : { host: 'any', device: 'none' },
-      tags: fileTags(source),
-    });
+    const tags = fileTags(source);
+    if (!integration) {
+      targets.push({
+        id: targetId(ADAPTER_ID, path),
+        adapterId: ADAPTER_ID,
+        level: classifyLevel(source),
+        path,
+        selector: { kind: 'file', value: path },
+        platforms: ['host'],
+        requires: { host: 'any', device: 'none' },
+        tags,
+      });
+      continue;
+    }
+    for (const platform of ['android', 'ios'] as const)
+      targets.push({
+        id: targetId(ADAPTER_ID, path, platform),
+        adapterId: ADAPTER_ID,
+        level: 'integration',
+        path,
+        selector: { kind: 'file', value: path },
+        platforms: [platform],
+        requires: platform === 'ios' ? { host: 'macos', device: 'simulator' } : { host: 'any', device: 'emulator' },
+        tags,
+      });
   }
   const helpers = new Map<string, 'mock' | 'fixture' | 'helper' | 'config'>();
   for (const h of HELPERS) {

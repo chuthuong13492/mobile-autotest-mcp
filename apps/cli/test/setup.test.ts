@@ -54,12 +54,18 @@ describe('autotest setup', () => {
     // setup also allowlists a gh and a git it finds on PATH; the test PATH includes /usr/bin and /bin, which have gh on some
     // hosts (GitHub's Ubuntu runners) and not on others.
     const system = (name: string) => ['/usr/bin', '/bin'].map((d) => `${d}/${name}`).find((p) => fs.existsSync(p));
-    const [systemGh, systemGit, systemXcrun] = [system('gh'), system('git'), system('xcrun')];
+    const [systemGh, systemGit, systemXcrun, systemXcodebuild] = [
+      system('gh'),
+      system('git'),
+      system('xcrun'),
+      system('xcodebuild'),
+    ];
     expect(policy.policy.config.executables).toEqual({
       flutter: { path: m.flutter },
       ...(systemGh ? { gh: { path: fs.realpathSync(systemGh) } } : {}),
       ...(systemGit ? { git: { path: fs.realpathSync(systemGit) } } : {}),
       ...(systemXcrun ? { xcrun: { path: fs.realpathSync(systemXcrun) } } : {}),
+      ...(systemXcodebuild ? { xcodebuild: { path: fs.realpathSync(systemXcodebuild) } } : {}),
     });
     expect(fs.statSync(path.join(m.data, 'config.yaml')).mode & 0o777).toBe(0o600);
     const calls = fs.readFileSync(m.log, 'utf8').trim().split('\n');

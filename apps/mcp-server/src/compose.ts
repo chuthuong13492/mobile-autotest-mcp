@@ -127,7 +127,13 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
     ...domainStores,
     execution: {
       startSupervisor: async (runId) =>
-        launchSupervisor(dataRoot, runId, supervisorEnv(env), undefined, opts.supervisorEntry ?? supervisorEntryPath()),
+        launchSupervisor(
+          dataRoot,
+          runId,
+          supervisorEnv(env, policy.ok ? policy.policy.config.env.allow : []),
+          undefined,
+          opts.supervisorEntry ?? supervisorEntryPath(),
+        ),
     },
     cursors: createCursorCodec(loadOrCreateKey(dataRoot, 'cursor'), clock),
   };
@@ -256,7 +262,18 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
 }
 
 /** The variables a supervisor needs from the server: the host id (shared environment binding) and nothing else. */
-function supervisorEnv(env: Readonly<Record<string, string | undefined>>): Record<string, string> {
+/**
+ * The supervisor's environment: the host id, plus the variables the policy allowlists for runs (`env.allow`, whose
+ * names the config schema already vets), so they can reach the runner (FL-006: ANDROID_HOME, JAVA_HOME,
+ * GRADLE_USER_HOME for Android builds). Nothing else from the server's environment is passed on.
+ */
+function supervisorEnv(
+  env: Readonly<Record<string, string | undefined>>,
+  allow: readonly string[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
   const id = env['AUTOTEST_HOST_ID'];
-  return id && /^[A-Za-z0-9._-]{1,64}$/.test(id) ? { AUTOTEST_HOST_ID: id } : {};
+  if (id && /^[A-Za-z0-9._-]{1,64}$/.test(id)) out['AUTOTEST_HOST_ID'] = id;
+  for (const name of allow) if (env[name] !== undefined) out[name] = env[name]!;
+  return out;
 }

@@ -15,7 +15,9 @@
   },
   "environmentSignals": {
     "flutter.pub_get_required": { "subtype": "dependency", "unambiguous": true },
-    "flutter.runner_incomplete": { "subtype": "infrastructure", "unambiguous": true }
+    "flutter.runner_incomplete": { "subtype": "infrastructure", "unambiguous": true },
+    "ios.simulator_unavailable": { "subtype": "device", "unambiguous": true },
+    "ios.code_signing": { "subtype": "toolchain", "unambiguous": true }
   },
   "setupSignals": ["flutter.missing_plugin"],
   "environmentPatterns": [

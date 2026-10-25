@@ -11,6 +11,9 @@ importers:
       '@autotest/adapter-flutter':
         specifier: workspace:*
         version: link:packages/adapter-flutter
+      '@autotest/adapter-ios':
+        specifier: workspace:*
+        version: link:packages/adapter-ios
       '@autotest/adapter-sdk':
         specifier: workspace:*
         version: link:packages/adapter-sdk

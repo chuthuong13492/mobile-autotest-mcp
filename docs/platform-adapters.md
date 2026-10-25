@@ -202,14 +202,15 @@ The contract test kit (ADP-001) requires every adapter to pass all of the follow
   - plugins requiring platform channels in widget tests (missing mocks)
   - a global `flutter_test_config.dart` that requires environment setup
 
-### Later: Flutter `integration_test` (v1.1, FL-006)
+### Flutter `integration_test` (v1.1, FL-006)
 
-- Command: `["flutter", "test", "integration_test/<file>", "-d", "<deviceId>", "--file-reporter", "json:<path>"]`. Using `flutter test integration_test` on devices is documented ✅ (preliminary RL). The exact flags are ⚠ to verify in FL-006.
+- Command: `["flutter", "test", "--no-pub", "-d", "<deviceId>", "--file-reporter", "json:<runDir>/attempts/<n>/runner/flutter-device.jsonl", "--reporter", "expanded", "integration_test/<file>"]` ✅ (FL-006, Flutter 3.47 on an iOS 26.4 simulator and an API 36 emulator).
+- Inventory: one target per platform (selector `ios` or `android`); a plan case picks the target of its platform.
 - Requirements:
   - a booted, run-owned simulator or emulator (`devices` lease)
   - macOS for iOS targets
   - Linux CI needs `xvfb-run` for desktop targets (out of scope)
-- Screenshots come from the test's own binding calls, or from `xcrun simctl io <udid> screenshot` / `adb exec-out screencap -p` on failure, run by the supervisor as allowlisted probe-class commands. These commands are ⚠ to verify in DEV-001.
+- Screenshots come from the test's own binding calls, or from `xcrun simctl io <udid> screenshot` / `adb exec-out screencap -p` on failure, run by the supervisor as allowlisted probe-class commands. These commands are ⚠ not implemented yet (failure screenshots are a v1.1 limitation).
 
 ## Native Android
 
@@ -243,7 +244,7 @@ Scope: v1.1.
 Scope: v1.1. Requires macOS.
 
 - **Detection signals:** `*.xcworkspace` / `*.xcodeproj`, `Package.swift`, test targets (`*Tests` folders, `.xctestplan`). In Flutter repos, `ios/Runner.xcodeproj`.
-- **Discovery.** Schemes and test plans are found statically from `xcshareddata/xcschemes/*.xcscheme` and `*.xctestplan`. `xcodebuild -list -json` may be used as an allowlisted probe ✅ (IOS-001).
+- **Discovery.** Shared schemes are read statically from `xcshareddata/xcschemes/*.xcscheme` (testables, skipped ones excluded), product types from `project.pbxproj`, and one target per `XCTestCase` class (IOS-002). `.xctestplan` files are not read yet. `xcodebuild -list -json` may be used as an allowlisted probe ✅ (IOS-001). A Flutter project's `ios/` is left to the Flutter adapter.
 - **Selection.** By scheme and test plan, and by `-only-testing:<Target>/<Class>/<method>` ✅ (IOS-001, repeatable).
 - **Command:**
 
@@ -252,7 +253,7 @@ Scope: v1.1. Requires macOS.
   ```
 
   Verified on Xcode 26.4.1 ✅ (IOS-001, RL-017); exit code 65 covers both test and build failures, so `get build-results` tells them apart.
-- **Result parsing.** `xcrun xcresulttool get test-results summary --path <bundle> --compact` ✅ (medium confidence, RL-017). Per-test detail uses `get test-results tests` ✅ (IOS-001: node tree with `result` and `Failure Message` children; use `durationInSeconds`, the `duration` string is locale-formatted). The parser is version-probed: it runs `xcrun xcresulttool help get test-results` once per Xcode version and selects a strategy. `--legacy` is used only as a fallback, and that fallback is recorded.
+- **Result parsing.** `xcrun xcresulttool get test-results summary --path <bundle> --compact` ✅ (medium confidence, RL-017). Per-test detail uses `get test-results tests` ✅ (IOS-001: node tree with `result` and `Failure Message` children; use `durationInSeconds`, the `duration` string is locale-formatted). IOS-003 runs `get test-results tests` and `get build-results` after each `xcodebuild test` and parses their stdout; build errors become `load_error`. Only Xcode 26.4.1 is verified; there is no version probe or `--legacy` fallback yet.
 - **Evidence:**
   - The `.xcresult` bundle (kept as a directory artifact, excluded from publication)
   - extracted failure attachments and screenshots (after redaction, where the format allows)

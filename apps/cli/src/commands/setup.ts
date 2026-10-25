@@ -144,6 +144,16 @@ export function updateConfig(
     doc.setIn(['executables', 'git'], doc.createNode({ path: add.git }));
     changes.push(`executable git → ${add.git} (baseline worktrees only: rev-parse, worktree add/remove/prune)`);
   }
+  // Android device runs build with Gradle: the SDK, the JDK and the shared Gradle cache must reach the runner.
+  if (add.devices?.['emulator']) {
+    const allow = (doc.getIn(['env', 'allow']) as { toJSON(): unknown } | undefined)?.toJSON?.() as
+      string[] | undefined;
+    const missing = ANDROID_RUN_ENV.filter((n) => !(allow ?? []).includes(n));
+    if (missing.length) {
+      doc.setIn(['env', 'allow'], doc.createNode([...(allow ?? []), ...missing]));
+      changes.push(`env.allow + ${missing.join(', ')} (Android builds on emulators)`);
+    }
+  }
   for (const [name, exe] of Object.entries(add.devices ?? {})) {
     if (doc.hasIn(['executables', name])) continue;
     if (!isMap(doc.get('executables', true))) doc.set('executables', doc.createNode({}));
@@ -172,6 +182,7 @@ function findDeviceTools(env: Readonly<Record<string, string | undefined>>): Rec
   const sdk = env['ANDROID_HOME'] ?? env['ANDROID_SDK_ROOT'];
   const candidates: Record<string, (string | undefined)[]> = {
     xcrun: [findOnPath('xcrun', env)],
+    xcodebuild: [findOnPath('xcodebuild', env)],
     adb: [sdk && path.join(sdk, 'platform-tools', 'adb'), findOnPath('adb', env)],
     emulator: [sdk && path.join(sdk, 'emulator', 'emulator'), findOnPath('emulator', env)],
     avdmanager: [sdk && path.join(sdk, 'cmdline-tools', 'latest', 'bin', 'avdmanager'), findOnPath('avdmanager', env)],
@@ -213,13 +224,21 @@ async function runTool(
   return { code, out: out.slice(0, 4000) };
 }
 
+/** Variables an Android device run needs (the runner otherwise gets a minimal environment). */
+const ANDROID_RUN_ENV = ['ANDROID_HOME', 'JAVA_HOME', 'GRADLE_USER_HOME'] as const;
+
 function mcpEntry(e: CliEnv): { command: string; args: string[]; env?: Record<string, string> } {
   const home = e.env['AUTOTEST_HOME'];
-  return {
-    command: process.execPath,
-    args: [serverEntryPath()],
-    ...(home && path.isAbsolute(home) ? { env: { AUTOTEST_HOME: home } } : {}),
-  };
+  const env: Record<string, string> = {};
+  if (home && path.isAbsolute(home)) env['AUTOTEST_HOME'] = home;
+  // Values for the Android run variables, so the server (and its runs) see them however Claude Code is started.
+  const sdk = e.env['ANDROID_HOME'] ?? e.env['ANDROID_SDK_ROOT'];
+  if (sdk && path.isAbsolute(sdk)) {
+    env['ANDROID_HOME'] = sdk;
+    if (e.env['JAVA_HOME'] && path.isAbsolute(e.env['JAVA_HOME'])) env['JAVA_HOME'] = e.env['JAVA_HOME'];
+    env['GRADLE_USER_HOME'] = e.env['GRADLE_USER_HOME'] ?? path.join(e.env['HOME'] ?? os.homedir(), '.gradle');
+  }
+  return { command: process.execPath, args: [serverEntryPath()], ...(Object.keys(env).length ? { env } : {}) };
 }
 
 export async function setup(e: CliEnv, io: Io, flags: SetupFlags): Promise<number> {

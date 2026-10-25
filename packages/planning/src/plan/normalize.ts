@@ -145,8 +145,14 @@ export function normalizePlan(input: NormalizeInput): NormalizeResult {
   }
 
   // ---- targets, risk, eligibility
-  const byPath = new Map<string, TestTarget>();
-  for (const t of input.inventory.targets) if (!byPath.has(t.path)) byPath.set(t.path, t);
+  // A file can have one target per platform (FL-006: integration_test on iOS and on Android): the case's first
+  // in-scope platform picks among them; otherwise the first target of the file.
+  const byPath = new Map<string, TestTarget[]>();
+  for (const t of input.inventory.targets) byPath.set(t.path, [...(byPath.get(t.path) ?? []), t]);
+  const pickTarget = (rel: string, platforms: readonly string[]) => {
+    const all = byPath.get(rel);
+    return all?.find((t) => t.platforms.some((p) => platforms.includes(p))) ?? all?.[0];
+  };
   const unresolvedTargets: { clientKey: string; targetPath: string; reason: string }[] = [];
   const testCases: TestCase[] = draft.testCases.map((c) => {
     let target: TestTarget | undefined;
@@ -157,7 +163,13 @@ export function normalizePlan(input: NormalizeInput): NormalizeResult {
       } catch {
         rel = undefined;
       }
-      target = rel === undefined ? undefined : byPath.get(rel);
+      target =
+        rel === undefined
+          ? undefined
+          : pickTarget(
+              rel,
+              c.platforms.filter((p) => input.platformsInScope.includes(p)),
+            );
       if (!target)
         unresolvedTargets.push({
           clientKey: c.clientKey,

@@ -12,15 +12,16 @@ import { parseFlutterResults } from './parse.ts';
 export const FLUTTER_ADAPTER_VERSION = '1.0.0';
 
 export const FLUTTER_CAPABILITIES: CapabilitySet = {
-  levels: ['unit', 'widget'],
+  levels: ['unit', 'widget', 'integration'],
   host: { requires: 'any', available: true },
-  devices: { needs: 'none', available: true },
+  // integration_test needs a simulator or an emulator (FL-006); whether one is usable is decided per target.
+  devices: { needs: 'simulator', available: true },
   selection: ['file', 'name', 'tag'],
   resultFormats: ['dart-json-reporter@0.1'],
   resultGranularity: 'test',
   cancellation: 'graceful_then_group',
   coverage: true,
-  limitations: ['integration_test on simulators and emulators arrives in v1.1 (FL-006)'],
+  limitations: ['integration_test runs on an AutoTest-owned, booted simulator or emulator (one device per run)'],
 };
 
 export function createFlutterAdapter(): PlatformAdapter {

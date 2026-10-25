@@ -856,7 +856,7 @@ output = z.object({
   - The targets must be a subset of the plan's eligible targets. Ineligible targets are rejected with `E_POLICY_DENIED` and reason `target_not_eligible`.
   - Timeouts and `maxAttempts` must be within the policy maximum.
   - `environment` must be allowlisted.
-  - Devices are allowed only for device-capable adapters (v1.1+).
+  - Devices (v1.1+): at most one per run. It must be owned by AutoTest (a lease), booted and not held by another run; otherwise `E_DEVICE_NOT_OWNED` or `E_DEVICE_UNAVAILABLE`. Targets that need a device (Flutter `integration_test`, native iOS) require one of the matching platform, otherwise `E_VALIDATION`. The lease is bound to the run and released when results are imported.
 - **Preconditions:** A current coverage decision. A usable approval if the decision is `needs_review`. Prerequisites satisfied.
 - **Postconditions:** The run row and authorization decision are persisted **before** the response. A `plan_execution` approval use is consumed at dispatch, not at creation, so that a run cancelled while queued does not consume it.
 - **Implementation notes (RUN-001 – RUN-006):**

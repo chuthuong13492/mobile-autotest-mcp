@@ -15,6 +15,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
+          globalSetup: ['test/globalSetup.ts'],
           include: [
             'packages/*/test/**/*.test.ts',
             'apps/*/test/**/*.test.ts',
@@ -27,7 +28,15 @@ export default defineConfig({
           maxWorkers: 4,
         },
       },
-      { test: { name: 'slow', environment: 'node', include: SLOW, fileParallelism: false } },
+      {
+        test: {
+          name: 'slow',
+          environment: 'node',
+          globalSetup: ['test/globalSetup.ts'],
+          include: SLOW,
+          fileParallelism: false,
+        },
+      },
     ],
     coverage: {
       provider: 'v8',

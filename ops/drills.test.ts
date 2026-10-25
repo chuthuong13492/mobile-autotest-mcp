@@ -202,8 +202,8 @@ describe('OPS-007 operations drills (operations §4)', () => {
     await waitTerminal(c, runId);
     await c.close();
     const big = path.join(f.data, 'runs', runId, 'attempts', '1', 'big.log');
-    fs.writeFileSync(big, ''); // sparse: usage is counted by file size
-    fs.truncateSync(big, 300 * 1024 * 1024);
+    // Real data: disk usage counts allocated space, so a sparse file would not count (the drills run one at a time).
+    fs.writeFileSync(big, Buffer.alloc(300 * 1024 * 1024, 1));
     const cfg = path.join(f.data, 'config.yaml');
     fs.appendFileSync(cfg, 'retention: { totalCapBytes: 268435456 }\n');
     expect((await autotest(f.data, ['doctor'])).text).toMatch(/WARN {2}disk/);

@@ -139,7 +139,7 @@ describe('CLI-002 doctor', () => {
     expect(tampered.text).toMatch(/FAIL {2}audit-chain {2}hash_mismatch/);
   });
 
-  it('OPS-004: keychain secrets, unset env secrets, leftover baseline worktrees, disk over cap, and --stats', async () => {
+  it('OPS-004: keychain secrets, unset env secrets, leftover baseline worktrees, disk usage, and --stats', async () => {
     const h = home({
       config: (ws, flutter) =>
         `version: 1\nworkspaces: [{ id: ws_app, path: ${ws} }]\nexecutables: { flutter: { path: ${flutter} } }\n` +
@@ -153,14 +153,12 @@ describe('CLI-002 doctor', () => {
     ctx.close();
     const dir = path.join(h.data, 'runs', 'run_01JC000000000000000000000C');
     fs.mkdirSync(path.join(dir, 'baseline'), { recursive: true });
-    // Sparse: usage is counted by file size, so no 300 MiB of I/O is needed.
-    fs.writeFileSync(path.join(dir, 'baseline', 'big.bin'), '');
-    fs.truncateSync(path.join(dir, 'baseline', 'big.bin'), 300 * 1024 * 1024 + 1);
+    fs.writeFileSync(path.join(dir, 'baseline', 'marker'), 'x'); // disk usage over the cap is drilled in ops/drills.test.ts
     const d = await doctorLines(h.env);
     expect(d.code).toBe(1);
     expect(d.text).toMatch(/FAIL {2}secrets\s+env\.secrets\.API_A uses a keychain: reference/);
     expect(d.text).toMatch(/WARN {2}secrets\s+env\.secrets\.API_B: env:AUTOTEST_TEST_UNSET is not set/);
-    expect(d.text).toMatch(/WARN {2}disk\s+run data uses 300 MiB, above the 256 MiB cap/);
+    expect(d.text).toMatch(/PASS {2}disk\s+run data 0 MiB of 256 MiB/);
     expect(d.text).toMatch(/WARN {2}worktrees\s+1 finished baseline run\(s\) still have a git worktree/);
     const st = io(false);
     expect(await run(['doctor', '--stats'], st.value, h.env)).toBe(0);

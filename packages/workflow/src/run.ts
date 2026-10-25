@@ -80,6 +80,7 @@ import {
 } from '@autotest/policy';
 import { createWorkspaceReader } from '@autotest/workspace';
 import { prepareBaseline, releaseBaseline, type PreparedBaseline } from './baseline.ts';
+import { prepareRunDevice, releaseRunDevices, type RunDevice } from './devices.ts';
 import type { CallContext, WorkflowPorts } from './ports.ts';
 import { fail, ok, type UseCaseResult } from './result.ts';
 
@@ -129,6 +130,13 @@ interface GatherArgs {
   readonly cancellationRequested?: boolean;
   /** ANL-002: a baseline run executes in this worktree root instead of the workspace root. */
   readonly executionRoot?: string;
+  /** FL-006: the run's device and whether policy allows this run to use it. */
+  readonly device?: {
+    readonly deviceId: string;
+    readonly platform: 'ios' | 'android';
+    readonly address: string;
+    readonly allowed: boolean;
+  };
 }
 
 export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise<GatheredAuthorization> {
@@ -184,6 +192,28 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
       'Select targets of one adapter per run_tests call',
     ]);
   const adapter = adapterIds.length === 1 ? deps.registry.get(adapterIds[0]!) : undefined;
+  // FL-006: device targets need the run's device, of their platform; a device run needs device targets.
+  const deviceTargets = targets.filter((t) => t.requires.device !== 'none');
+  if (
+    !problem &&
+    deviceTargets.length > 0 &&
+    (!a.device || deviceTargets.some((t) => !t.platforms.includes(a.device!.platform)))
+  )
+    problem = toolError(
+      'E_VALIDATION',
+      'the selected targets run on a device: pass one booted AutoTest device of their platform in `devices`',
+      ['Create and boot one with manage_simulator, then call run_tests with devices: [deviceId]'],
+      { issues: [{ pointer: '/devices', message: 'device required for integration targets' }] },
+    );
+  if (!problem && a.device && targets.length > 0 && deviceTargets.length === 0)
+    problem = toolError(
+      'E_VALIDATION',
+      'none of the selected targets runs on a device',
+      ['Omit `devices` for host tests'],
+      {
+        issues: [{ pointer: '/devices', message: 'no device targets selected' }],
+      },
+    );
   if (!problem && targets.length > 0 && !adapter)
     problem = toolError('E_CAPABILITY_UNAVAILABLE', `adapter ${adapterIds[0]} is not installed in this build`, []);
 
@@ -200,6 +230,7 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
           attemptNo: 1,
           targets,
           options: { coverage: a.coverage, timeoutMs: policy.config.execution.defaultTimeoutMs },
+          ...(a.device ? { device: { platform: a.device.platform, id: a.device.address } } : {}),
         });
       const registry = buildRegistry(fsp, policy.config.executables);
       commandsOk =
@@ -235,7 +266,7 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
       planId: a.plan.id,
       planHash: a.plan.planHash,
       targets: targetIds,
-      deviceIds: [],
+      deviceIds: a.device ? [a.device.deviceId] : [],
       environment: a.environment,
     },
     serverEnvironment: deps.serverEnvironment,
@@ -246,7 +277,7 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
     coverage,
     approvals,
     workspace,
-    devices: [],
+    devices: a.device ? [{ deviceId: a.device.deviceId, allowed: a.device.allowed }] : [],
     commands: targetIds.map((targetId) => ({ targetId, ok: commandsOk })),
     prerequisites: { satisfied: missing.length === 0 },
     ...(a.phase === 'dispatch' ? { cancellation: { requested: a.cancellationRequested === true } } : {}),
@@ -372,9 +403,11 @@ export async function createRun(
       });
     }
   }
-  if (input.devices.length > 0)
+  if (input.devices.length > 1)
     return fail(
-      toolError('E_CAPABILITY_UNAVAILABLE', 'device runs arrive in v1.1; this build runs host tests only', []),
+      toolError('E_VALIDATION', 'one device per run', ['Start one run per device'], {
+        issues: [{ pointer: '/devices', message: 'at most one device' }],
+      }),
     );
   const maxAttempts = input.retry?.maxAttempts ?? 1 + exec.maxRetries;
   if (maxAttempts > 1 + exec.maxRetries)
@@ -421,6 +454,12 @@ export async function createRun(
     fs.rmSync(runDir, { recursive: true, force: true });
     return fail<ToolOutput<'run_tests'>>(error);
   };
+  let device: RunDevice | undefined;
+  if (input.devices.length === 1) {
+    const d = await prepareRunDevice(deviceDepsOf(deps), input.devices[0]!);
+    if (!d.ok) return refuse(d.error);
+    device = d.device;
+  }
   if (input.baseline) {
     const b = await prepareBaseline(baselineDeps(deps), {
       plan,
@@ -439,6 +478,9 @@ export async function createRun(
     runId,
     coverage,
     ...(baseline ? { executionRoot: baseline.root } : {}),
+    ...(device
+      ? { device: { deviceId: device.deviceId, platform: device.platform, address: device.address, allowed: true } }
+      : {}),
   });
   await recordDecision(deps, g.outcome.decision, 'agent');
   if (g.problem) return refuse(g.problem);
@@ -467,6 +509,7 @@ export async function createRun(
       coverage,
       maxAttempts,
       retryOn: [...DEFAULT_RETRY_ON],
+      ...(device ? { device: { platform: device.platform, id: device.address } } : {}),
     },
     ...(baseline ? { baseline: { commit: baseline.commit, dir: 'baseline' as const } } : {}),
   };
@@ -478,7 +521,7 @@ export async function createRun(
     planHash: plan.planHash,
     targets: [...g.outcome.resolvedTargets],
     environment,
-    devices: [],
+    devices: device ? [device.deviceId] : [],
     state: 'queued',
     statusCategory: 'pending',
     ...(idempotencyKey ? { idempotencyKey } : {}),
@@ -493,6 +536,7 @@ export async function createRun(
     createdAt: iso(now),
   };
   await ports.runs.create(run);
+  if (device) await ports.deviceLeases.put({ ...device.lease, runId });
   await ports.audit.append({
     ts: iso(now),
     actor: 'agent',
@@ -511,6 +555,19 @@ export async function createRun(
     pollAfterMs: POLL_AFTER_MS,
     limitations: [...run.limitations],
   });
+}
+
+/** The device helpers' view of the run dependencies (the device tools see the server's environment). */
+export function deviceDepsOf(deps: RunDeps) {
+  return {
+    ports: deps.ports,
+    policy: deps.policy,
+    dataRoot: deps.dataRoot,
+    hostOs: deps.host.os,
+    serverEnvironment: deps.serverEnvironment,
+    parentEnv: process.env,
+    ...(deps.execPort ? { execPort: deps.execPort } : {}),
+  };
 }
 
 /** The baseline helpers' view of the run dependencies. */
@@ -600,6 +657,17 @@ export async function dispatchAuthorize(deps: RunDeps, header: RunHeader): Promi
     specs: header.specs,
     cancellationRequested: fs.existsSync(runPaths(deps.dataRoot, run.id).control),
     ...(header.baseline ? { executionRoot: baselineRoot(deps, run.id) } : {}),
+    ...(run.devices[0] && header.execution?.device
+      ? {
+          device: {
+            deviceId: run.devices[0],
+            platform: header.execution.device.platform,
+            address: header.execution.device.id,
+            // The lease still names this run and AutoTest still owns the device.
+            allowed: (await ports.deviceLeases.findByDevice(run.devices[0]))?.runId === run.id,
+          },
+        }
+      : {}),
   });
   let decision = g.outcome.decision;
   const binding = bindingDigest(g, run.environment, deps.policy, header.baseline?.commit);
@@ -772,6 +840,7 @@ export async function finishBaseline(deps: RunDeps, runId: string): Promise<void
 export async function importResults(deps: RunDeps, run: Run): Promise<Run> {
   const { ports } = deps;
   if (run.baseline) await finishBaseline(deps, run.id);
+  if (run.devices.length) await releaseRunDevices(ports, run.id, run.devices);
   const existing = await ports.results.list(run.id, { offset: 0, limit: 1 });
   if (existing.total > 0) return run;
   const attempts = readAttemptResults(deps.dataRoot, run.id);

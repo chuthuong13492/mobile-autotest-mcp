@@ -3,7 +3,7 @@
  * `flutter test --no-pub --file-reporter json:<runDir>/attempts/<n>/runner/flutter.jsonl --reporter expanded
  * [--coverage --coverage-path <lcov>] [--total-shards N --shard-index I] <sorted test paths>`.
  * `--no-pub` is always present so runs never resolve dependencies over the network (SR-014). Targets selected by
- * test name get their own spec with `--plain-name`. Integration targets need a device and are never built here.
+ * test name get their own spec with `--plain-name`. Integration targets run on the run's device (`deviceSpecs`).
  */
 import {
   buildSpec,
@@ -65,5 +65,41 @@ export function buildFlutterExecution(req: ExecutionRequest): ExecutionSpec[] {
   const specs: ExecutionSpec[] = [];
   if (byFile.length > 0) specs.push(spec(req, sortedPaths(byFile.map((t) => t.path)), RESULTS_FILE));
   byName.forEach((t, i) => specs.push(spec(req, [t.path], `flutter-name-${i + 1}.jsonl`, t.selector!.value)));
+  specs.push(...deviceSpecs(req));
   return specs;
+}
+
+export const DEVICE_RESULTS_FILE = 'flutter-device.jsonl';
+
+/**
+ * FL-006: `flutter test --no-pub -d <device> --file-reporter json:<…> <integration_test files>` for the targets of
+ * the run's device platform (verified with Flutter 3.47 on an iOS 26.4 simulator and an API 36 emulator). Device
+ * targets are built only when the run has a device; coverage is not collected on devices.
+ */
+function deviceSpecs(req: ExecutionRequest): ExecutionSpec[] {
+  const device = req.device;
+  if (!device) return [];
+  const targets = req.targets.filter((t) => t.requires.device !== 'none' && t.platforms.includes(device.platform));
+  if (targets.length === 0) return [];
+  const out = runnerOutput(req.attemptNo, DEVICE_RESULTS_FILE);
+  return [
+    buildSpec({
+      executable: 'flutter',
+      args: [
+        word('test'),
+        flag('--no-pub'),
+        flag('-d', device.id),
+        flagRunPath('--file-reporter', out, 'json:'),
+        flag('--reporter', 'expanded'),
+        ...sortedPaths(targets.map((t) => t.path)).map(workspacePath),
+      ],
+      cwd: '.',
+      envNeeds: [],
+      expectedOutputs: [{ kind: 'runner_json', rel: out }],
+      timeoutMs: req.options.timeoutMs,
+      cancellation: 'graceful_then_group',
+      requires:
+        device.platform === 'ios' ? { host: 'macos', device: 'simulator' } : { host: 'any', device: 'emulator' },
+    }),
+  ];
 }

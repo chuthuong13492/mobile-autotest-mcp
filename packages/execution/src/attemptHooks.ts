@@ -38,6 +38,7 @@ export function adapterAttemptHooks(registry: AdapterRegistry): AttemptHooks {
         attemptNo,
         targets,
         options: { coverage: header.execution?.coverage ?? false, timeoutMs: header.timeouts.runMs },
+        ...(header.execution?.device ? { device: header.execution.device } : {}),
       });
     },
     parseAttempt({ header, runDir, attemptNo, targets, processes, interrupted }) {

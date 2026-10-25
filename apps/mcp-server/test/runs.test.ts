@@ -184,7 +184,7 @@ describe('RUN-001/002 authorization at creation and dispatch', () => {
     expect(
       err(await c.call('run_tests', { planId: review.planId, planHash: review.planHash, devices: ['emulator-5554'] }))
         ?.code,
-    ).toBe('E_CAPABILITY_UNAVAILABLE');
+    ).toBe('E_DEVICE_NOT_OWNED'); // FL-006: only devices AutoTest owns (a lease) can be used by a run
     const kinds = (await c.ports.audit.readAll()).filter((e) => e.kind === 'authorization.decision');
     expect(kinds.length).toBeGreaterThanOrEqual(2);
     await c.close();

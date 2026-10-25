@@ -1,4 +1,5 @@
 /**
+ * Opt-in (they take minutes and need simulators or emulators): AUTOTEST_E2E_DEVICES=1.
  * DEV-001/DEV-002 end to end on this host's real simulators and emulators (macOS with Xcode for iOS; the Android SDK
  * with a system image for Android). Skips the platforms the host cannot run. Never touches a device it did not
  * create: the "not owned" cases use a simulator this test creates directly with simctl, outside AutoTest (no lease),
@@ -21,9 +22,10 @@ for (const [n, rel] of [
   ['avdmanager', 'cmdline-tools/latest/bin/avdmanager'],
 ] as const)
   if (SDK && fs.existsSync(path.join(SDK, rel))) tools[n] = path.join(SDK, rel);
-const IOS = 'xcrun' in tools && spawnSync(tools['xcrun']!, ['simctl', 'help']).status === 0;
+const OPT_IN = process.env['AUTOTEST_E2E_DEVICES'] === '1';
+const IOS = OPT_IN && 'xcrun' in tools && spawnSync(tools['xcrun']!, ['simctl', 'help']).status === 0;
 const ANDROID_IMAGE = SDK && fs.existsSync(path.join(SDK, 'system-images', 'android-36'));
-const ANDROID = 'adb' in tools && 'emulator' in tools && 'avdmanager' in tools && ANDROID_IMAGE;
+const ANDROID = OPT_IN && 'adb' in tools && 'emulator' in tools && 'avdmanager' in tools && ANDROID_IMAGE;
 const FREE_GB =
   Number(spawnSync('/bin/df', ['-k', os.homedir()], { encoding: 'utf8' }).stdout.split('\n')[1]?.split(/\s+/)[3] ?? 0) /
   1048576;

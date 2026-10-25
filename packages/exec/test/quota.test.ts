@@ -17,6 +17,17 @@ describe('EXE-004 disk quota', () => {
     expect(directoryUsage(d, 500).partial).toBe(true);
   });
 
+  it('counts the space a sparse file occupies, not its apparent size (Xcode compilation caches)', () => {
+    const d = tmp('autotest-q-sparse-');
+    fs.writeFileSync(path.join(d, 'cache.data'), '');
+    fs.truncateSync(path.join(d, 'cache.data'), 16 * 1024 ** 3);
+    fs.writeFileSync(path.join(d, 'real'), Buffer.alloc(3000, 1));
+    const u = directoryUsage(d);
+    expect(u.files).toBe(2);
+    expect(u.bytes).toBeLessThan(1024 * 1024);
+    expect(u.bytes).toBeGreaterThanOrEqual(3000);
+  });
+
   it('fires once on breach', () => {
     const d = tmp('autotest-q2-');
     const hits: number[] = [];
