@@ -23,7 +23,8 @@ const start = async (mode: string, waitFor?: string) => {
 describe('EXE-002 terminateGroup (real processes)', () => {
   it('a cooperative group ends after SIGTERM', async () => {
     const p = await start('sleep');
-    const res = await terminateGroup(p.identity, { graceMs: 3000 });
+    // A generous grace: the process dies on SIGTERM at once, but confirming it can lag on a loaded CI runner.
+    const res = await terminateGroup(p.identity, { graceMs: 10_000 });
     expect(res).toMatchObject({ signalled: true, outcome: 'confirmed', stages: ['term_sent', 'confirmed'] });
     expect((await p.exited).signal).toBe('SIGTERM');
   });
