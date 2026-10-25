@@ -38,7 +38,7 @@ describe('SKL-001 Skill packaging', () => {
     expect(fm['description']!.length).toBeGreaterThan(50);
     expect(fm['description']!.length).toBeLessThanOrEqual(1024);
     expect(fm['compatibility']!.length).toBeLessThanOrEqual(500);
-    expect(skill).toMatch(/\n {2}version: "1\.1\.0"\n/);
+    expect(skill).toMatch(/\n {2}version: "1\.1\.1"\n/);
     expect(skill.split('\n').length).toBeLessThan(500);
   });
 

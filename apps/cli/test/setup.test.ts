@@ -71,7 +71,7 @@ describe('autotest setup', () => {
     const calls = fs.readFileSync(m.log, 'utf8').trim().split('\n');
     expect(calls).toEqual([
       'mcp remove --scope user autotest',
-      `mcp add --scope user -e AUTOTEST_HOME=${m.data} autotest -- ${process.execPath} ${serverEntryPath()}`,
+      `mcp add --scope user autotest -e AUTOTEST_HOME=${m.data} -- ${process.execPath} ${serverEntryPath()}`,
     ]);
     expect(fs.existsSync(serverEntryPath())).toBe(true);
     const skill = path.join(m.base, '.claude', 'skills', 'pr-mobile-autotest', 'SKILL.md');

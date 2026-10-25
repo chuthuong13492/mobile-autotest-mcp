@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.1
+
+- Fix: `autotest setup` failed to register the server with Claude Code when it passed environment variables
+  (`AUTOTEST_HOME`, or the Android variables new in 1.1.0): the server name came after `claude mcp add -e`, which
+  swallowed it. Upgrade from 1.1.0 and rerun `autotest setup`.
+- `autotest setup` explains what `xcodebuild` and `java` are registered for.
+- The repository is public again, so releases now carry a build-provenance attestation
+  (`gh attestation verify <tarball> -R chuthuong13492/mobile-autotest-mcp`; needs a recent `gh`).
+
 ## 1.1.0
 
 Simulators, emulators and native platforms (Phase 4).

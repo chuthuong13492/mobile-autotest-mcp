@@ -6,7 +6,7 @@
  * 3. Optional: add `--workspace <path>` entries and the Flutter SDK (`--flutter <path>`, or a single SDK found by
  *    `doctor --suggest-executables`, or a choice when interactive) to `config.yaml`, preserving its comments. `gh`
  *    found on PATH is allowlisted (read-only login use); `--enable-publication` turns on GitHub writes.
- * 4. Register the MCP server with Claude Code at user scope: `claude mcp add --scope user autotest -- <node> <server>`
+ * 4. Register the MCP server with Claude Code at user scope: `claude mcp add --scope user autotest [-e K=V…] -- <node> <server>`
  *    using the absolute path of the Node running this command (so a different `node` on PATH cannot break it).
  *    Without the `claude` CLI, print the JSON to add by hand.
  * 5. Copy the Skill to `~/.claude/skills/pr-mobile-autotest`.
@@ -159,7 +159,13 @@ export function updateConfig(
     if (!isMap(doc.get('executables', true))) doc.set('executables', doc.createNode({}));
     (doc.get('executables', true) as { flow?: boolean }).flow = false;
     doc.setIn(['executables', name], doc.createNode({ path: exe }));
-    changes.push(`executable ${name} → ${exe} (simulators and emulators AutoTest owns; others need approval)`);
+    const why: Record<string, string> = {
+      xcodebuild: 'native iOS tests on simulators AutoTest owns',
+      java: 'runs the Gradle wrapper for native Android tests, offline',
+    };
+    changes.push(
+      `executable ${name} → ${exe} (${why[name] ?? 'simulators and emulators AutoTest owns; others need approval'})`,
+    );
   }
   if (add.enablePublication) {
     doc.setIn(
@@ -315,7 +321,8 @@ export async function setup(e: CliEnv, io: Io, flags: SetupFlags): Promise<numbe
       const envArgs = Object.entries(entry.env ?? {}).flatMap(([k, v]) => ['-e', `${k}=${v}`]);
       const r = await runTool(
         claude,
-        ['mcp', 'add', '--scope', 'user', ...envArgs, 'autotest', '--', entry.command, ...entry.args],
+        // The name goes before `-e`: that option takes several values and would swallow it.
+        ['mcp', 'add', '--scope', 'user', 'autotest', ...envArgs, '--', entry.command, ...entry.args],
         e.env,
       );
       if (r.code !== 0) {
