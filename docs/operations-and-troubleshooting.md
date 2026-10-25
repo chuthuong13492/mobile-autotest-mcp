@@ -99,7 +99,7 @@ Any change to the policy sections changes the policy version. Coverage decisions
 
 - **Run processes.** Reconciliation at startup handles them. `autotest cleanup` re-runs reconciliation on demand.
 - **Temporary directories.** `~/.autotest/tmp/<runId>` is removed when the run reaches a terminal state. `cleanup` removes leftovers older than 24 h.
-- **Owned simulators and emulators (v1.1, planned).** Cleanup of devices whose leases have expired arrives with DEV-002. Devices AutoTest does not own are never touched.
+- **Owned simulators and emulators (v1.1).** `autotest cleanup` deletes the simulators and emulators AutoTest created whose lease expired (24 h unless a run extends it) and that no running run uses; `--dry-run` lists them, and `doctor` warns about them. Devices AutoTest does not own are never touched.
 
 - **Baseline worktrees (ANL-002).** A baseline run's checkout (`runs/<runId>/baseline`) is removed when the run ends. If a supervisor died first, `autotest cleanup` removes it and runs `git worktree prune`.
 

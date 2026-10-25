@@ -11,7 +11,7 @@
   "packages/adapter-ios": ["packages/adapter-sdk"],
   "packages/adapter-android": ["packages/adapter-sdk"],
   "packages/adapter-appium": ["packages/adapter-sdk"],
-  "packages/devices": ["packages/exec", "packages/policy"],
+  "packages/devices": ["packages/contracts", "packages/exec", "packages/policy"],
   "packages/inspect": ["packages/core", "packages/workspace", "packages/adapter-sdk"],
   "packages/planning": ["packages/core"],
   "packages/coverage-gate": ["packages/core"],

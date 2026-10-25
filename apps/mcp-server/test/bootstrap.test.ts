@@ -62,9 +62,12 @@ describe('MCP-001 bootstrap (SDK client, in process)', () => {
     expect(bad.structuredContent).toMatchObject({
       error: { code: 'E_VALIDATION', recoverable: true, details: { issues: [{ pointer: '/runId' }] } },
     });
-    const stub = await client.callTool({ name: 'list_devices', arguments: {} });
-    expect(stub).toMatchObject({ isError: true, structuredContent: { error: { code: 'E_CAPABILITY_UNAVAILABLE' } } });
-    expect((stub.content as { text: string }[])[0]!.text).toMatch(/^E_CAPABILITY_UNAVAILABLE: /);
+    // Every tool is implemented since v1.1; the stub set still answers E_CAPABILITY_UNAVAILABLE for builds without one.
+    const { notImplementedUseCases } = await import('../src/stubs.ts');
+    const stub = await notImplementedUseCases().list_devices({ platform: 'all', includeUnavailable: false }, {
+      toolCallId: 'call_01JCAAAAAAAAAAAAAAAAAAAAAA',
+    } as never);
+    expect(stub).toMatchObject({ ok: false, error: { error: { code: 'E_CAPABILITY_UNAVAILABLE' } } });
     const missing = await client.callTool({
       name: 'get_run_status',
       arguments: { runId: 'run_01JCAAAAAAAAAAAAAAAAAAAAAA' },
@@ -162,7 +165,7 @@ describe('MCP-001 bootstrap (real stdio process)', () => {
     const pid = transport.pid!;
     expect((await client.listTools()).tools.map((t) => t.name)).toEqual(CATALOG);
     const r = await client.callTool({ name: 'list_devices', arguments: {} });
-    expect(r.isError).toBe(true);
+    expect(r.structuredContent).toBeDefined();
     await client.close();
     for (let i = 0; i < 100; i++) {
       try {

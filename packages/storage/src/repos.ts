@@ -34,6 +34,8 @@ import {
   type PublicationRecord,
   type PublicationStore,
   type KnownFailureStore,
+  type DeviceLease,
+  type DeviceLeaseStore,
   type ReportStore,
   type DecisionBinding,
   type DecisionStore,
@@ -471,6 +473,67 @@ export class SqliteKnownFailureStore implements KnownFailureStore {
   }
 }
 
+/** Device leases (DEV-002) in the `device_leases` table of schema v1. */
+export class SqliteDeviceLeaseStore implements DeviceLeaseStore {
+  private readonly sql: SqlPort;
+  constructor(sql: SqlPort) {
+    this.sql = sql;
+  }
+  async put(l: DeviceLease): Promise<void> {
+    this.sql.transaction(() => {
+      const other = this.sql.get<{ id: string }>(
+        'SELECT id FROM device_leases WHERE device_id = ? AND id != ?',
+        l.deviceId,
+        l.id,
+      );
+      if (other) throw new PortError('conflict', `device ${l.deviceId} already has lease ${other.id}`);
+      this.sql.run(
+        `INSERT INTO device_leases (id, device_id, run_id, owned, created_by_autotest, expires_at) VALUES (?,?,?,?,?,?)
+         ON CONFLICT (id) DO UPDATE SET device_id = excluded.device_id, run_id = excluded.run_id, owned = excluded.owned,
+           created_by_autotest = excluded.created_by_autotest, expires_at = excluded.expires_at`,
+        l.id,
+        l.deviceId,
+        l.runId,
+        l.owned ? 1 : 0,
+        l.createdByAutotest ? 1 : 0,
+        l.expiresAt,
+      );
+    });
+  }
+  private row(r: {
+    id: string;
+    device_id: string;
+    run_id: string | null;
+    owned: number;
+    created_by_autotest: number;
+    expires_at: string;
+  }): DeviceLease {
+    return {
+      id: r.id,
+      deviceId: r.device_id,
+      runId: r.run_id,
+      owned: r.owned === 1,
+      createdByAutotest: r.created_by_autotest === 1,
+      expiresAt: r.expires_at,
+    };
+  }
+  async findByDevice(deviceId: string): Promise<DeviceLease | undefined> {
+    const r = this.sql.get<Parameters<SqliteDeviceLeaseStore['row']>[0]>(
+      'SELECT * FROM device_leases WHERE device_id = ?',
+      deviceId,
+    );
+    return r && this.row(r);
+  }
+  async list(): Promise<DeviceLease[]> {
+    return this.sql
+      .all<Parameters<SqliteDeviceLeaseStore['row']>[0]>('SELECT * FROM device_leases ORDER BY id')
+      .map((r) => this.row(r));
+  }
+  async remove(id: string): Promise<boolean> {
+    return this.sql.run('DELETE FROM device_leases WHERE id = ?', id).changes > 0;
+  }
+}
+
 export class SqlitePublicationStore implements PublicationStore {
   private readonly sql: SqlPort;
   constructor(sql: SqlPort) {
@@ -708,6 +771,7 @@ export function createStores(sql: SqlPort, root: string) {
     reports: new SqliteReportStore(sql),
     publications: new SqlitePublicationStore(sql),
     knownFailures: new SqliteKnownFailureStore(sql),
+    deviceLeases: new SqliteDeviceLeaseStore(sql),
     runs: new SqliteRunStore(sql),
     results: new SqliteResultStore(sql),
     artifacts: new SqliteArtifactIndex(sql),

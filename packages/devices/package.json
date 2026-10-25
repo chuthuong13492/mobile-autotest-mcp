@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@autotest/contracts": "workspace:*",
     "@autotest/exec": "workspace:*",
     "@autotest/policy": "workspace:*"
   }

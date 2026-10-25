@@ -158,6 +158,30 @@ export interface AnalysisStore {
   replaceForRun(runId: string, rulesetVersion: string, analyses: readonly FailureAnalysis[]): Promise<void>;
 }
 
+/**
+ * A device lease (DEV-002; TL-14). Ownership is the lease record plus the device id, never the device's name:
+ * `createdByAutotest` marks devices AutoTest created (it may boot, erase and delete them without approval); `runId`
+ * binds a device to the run using it. A lease past `expiresAt` is cleaned up by `autotest cleanup`.
+ */
+export interface DeviceLease {
+  readonly id: string;
+  /** Simulator UDID, or the AVD name for an Android emulator. */
+  readonly deviceId: string;
+  readonly runId: string | null;
+  readonly owned: boolean;
+  readonly createdByAutotest: boolean;
+  readonly expiresAt: string;
+}
+
+export interface DeviceLeaseStore {
+  /** Inserts or replaces by id; a second lease for the same device is a `conflict`. */
+  put(lease: DeviceLease): Promise<void>;
+  findByDevice(deviceId: string): Promise<DeviceLease | undefined>;
+  list(): Promise<DeviceLease[]>;
+  /** Returns false when no lease has this id. */
+  remove(id: string): Promise<boolean>;
+}
+
 /** The user-owned known-failure registry (ANL-002; `autotest known-failures`). Ids are `KF-001`, `KF-002`, … */
 export interface KnownFailureStore {
   /** Adds an entry with the next free id. */

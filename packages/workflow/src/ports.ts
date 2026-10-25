@@ -16,6 +16,7 @@ import type {
   ProfileStore,
   PublicationStore,
   KnownFailureStore,
+  DeviceLeaseStore,
   Publisher,
   ReportStore,
   RequirementStore,
@@ -41,6 +42,7 @@ export interface WorkflowPorts {
   readonly reports: ReportStore;
   readonly publications: PublicationStore;
   readonly knownFailures: KnownFailureStore;
+  readonly deviceLeases: DeviceLeaseStore;
   readonly artifacts: ArtifactIndex;
   readonly audit: AuditSink;
   readonly execution: ExecutionBackend;

@@ -2,13 +2,14 @@
  * `autotest cleanup [--dry-run]` (CLI-003; operations §5): reconciles runs left by a stopped server (without
  * starting queued runs), applies retention (EVD-003) and removes per-run scratch directories older than 24 h whose
  * run is terminal or unknown, and baseline worktrees (ANL-002) of terminal runs. The dry run prints exactly what a
- * real run deletes. Devices arrive with v1.1.
+ * real run deletes. Simulators and emulators AutoTest created whose lease expired are deleted too (DEV-002); devices
+ * AutoTest does not own are never touched.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { isTerminal } from '@autotest/core';
 import { applyRetention, measureRun, planRetention, type RetentionRun } from '@autotest/evidence';
-import { finishBaseline, reconcileRuns, type RunDeps } from '@autotest/workflow';
+import { cleanupExpiredDevices, finishBaseline, reconcileRuns, type RunDeps } from '@autotest/workflow';
 import { cliRegistry } from '../adapters.ts';
 import type { CliContext } from '../context.ts';
 import type { Io } from '../io.ts';
@@ -91,7 +92,20 @@ export async function cleanup(ctx: CliContext, io: Io, flags: readonly string[])
     applyRetention(ctx.dataRoot, plan.retention);
     for (const id of plan.scratch) fs.rmSync(path.join(ctx.dataRoot, 'tmp', id), { recursive: true, force: true });
   }
-  if (plan.retention.length === 0 && plan.scratch.length === 0 && plan.worktrees.length === 0)
+  const devices = await cleanupExpiredDevices(
+    {
+      ports: ctx.ports,
+      policy: ctx.policy,
+      dataRoot: ctx.dataRoot,
+      hostOs: deps.host.os,
+      serverEnvironment: ctx.environment,
+      parentEnv: process.env,
+    },
+    { dryRun },
+  );
+  for (const d of devices)
+    io.out(`${d.result === 'would_delete' ? 'would remove' : d.result} expired AutoTest device ${d.deviceId}`);
+  if (plan.retention.length === 0 && plan.scratch.length === 0 && plan.worktrees.length === 0 && devices.length === 0)
     io.out('Nothing to clean up.');
   return 0;
 }

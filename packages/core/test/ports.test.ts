@@ -14,6 +14,7 @@ import {
   InMemoryAuthorizationStore,
   InMemoryPublicationStore,
   InMemoryKnownFailureStore,
+  InMemoryDeviceLeaseStore,
   InMemoryReportStore,
   InMemoryRunStore,
   approvalStoreCases,
@@ -29,6 +30,7 @@ import {
   authorizationStoreCases,
   publicationStoreCases,
   knownFailureStoreCases,
+  deviceLeaseStoreCases,
   reportStoreCases,
   runStoreCases,
 } from '@autotest/core/testing';
@@ -42,6 +44,7 @@ const suites = [
   ...reportStoreCases(() => new InMemoryReportStore()),
   ...publicationStoreCases(() => new InMemoryPublicationStore()),
   ...knownFailureStoreCases(() => new InMemoryKnownFailureStore()),
+  ...deviceLeaseStoreCases(() => new InMemoryDeviceLeaseStore()),
   ...runStoreCases(() => new InMemoryRunStore()),
   ...resultStoreCases(() => new InMemoryResultStore()),
   ...auditSinkCases(() => new InMemoryAuditSink()),

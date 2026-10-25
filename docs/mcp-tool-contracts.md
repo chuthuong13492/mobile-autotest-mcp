@@ -1132,6 +1132,7 @@ output = z.object({
   - Contract: examples.
   - Integration (macOS CI): live listing.
 - **Dependencies:** `devices`, `exec`, `policy`.
+- **Implementation notes (v1.1, DEV-001):** device ids are the simulator UDID, the AVD name for an Android emulator (stable across boots; its serial is looked up with `adb emu avd name`), and the adb serial for a physical device. `owned` is true only for a device whose lease AutoTest created; a name like `autotest-…` alone never makes a device owned. Missing tools are reported in `unsupported` (`… is not on the policy allowlist`).
 - **Traceability:** FR-035, SR-011.
 
 ---
@@ -1208,6 +1209,11 @@ output = z.object({
   - Integration (macOS): create, boot, erase on owned devices.
   - Security: erasing a non-owned device without approval is denied. Spoofed `autotest-` names on non-leased devices are not treated as owned (ownership = lease record + UDID).
 - **Dependencies:** `devices`, `policy`, `storage`.
+- **Implementation notes (v1.1, DEV-002):**
+  - `create`: iOS takes a device type and runtime by name or identifier (`iPhone 17e`, `iOS 26.4`); Android takes a hardware profile (`pixel_7`) and `android-<level>` (resolved to an installed system image for the host ABI) or a full `system-images;…` id. The name is `autotest-<ulid>`; the lease lasts 24 h and a boot for a run extends it.
+  - Android `erase` boots once with `-wipe-data` and shuts down again; `boot` starts the emulator headless (`-no-window -no-snapshot`) on a free even port and waits for `sys.boot_completed` (180 s). An emulator that refuses to start (for example for lack of disk space) is `E_DEVICE_UNAVAILABLE` with its reason.
+  - Approval actions for devices AutoTest does not own: `boot_non_owned`, `shutdown_non_owned`, `erase`, `delete` (the `deviceAction.action` of `request_approval`).
+  - `autotest cleanup` deletes owned devices whose lease expired and no running run uses; `doctor` warns about them.
 - **Traceability:** FR-036, SR-011.
 
 ---

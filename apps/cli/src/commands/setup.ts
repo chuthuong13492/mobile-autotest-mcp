@@ -89,6 +89,8 @@ export function updateConfig(
     flutter?: string;
     gh?: string;
     git?: string;
+    /** Device tools (DEV-001/002): xcrun, adb, emulator, avdmanager → absolute paths. */
+    devices?: Readonly<Record<string, string>>;
     enablePublication?: boolean;
   },
 ): string[] {
@@ -142,6 +144,13 @@ export function updateConfig(
     doc.setIn(['executables', 'git'], doc.createNode({ path: add.git }));
     changes.push(`executable git → ${add.git} (baseline worktrees only: rev-parse, worktree add/remove/prune)`);
   }
+  for (const [name, exe] of Object.entries(add.devices ?? {})) {
+    if (doc.hasIn(['executables', name])) continue;
+    if (!isMap(doc.get('executables', true))) doc.set('executables', doc.createNode({}));
+    (doc.get('executables', true) as { flow?: boolean }).flow = false;
+    doc.setIn(['executables', name], doc.createNode({ path: exe }));
+    changes.push(`executable ${name} → ${exe} (simulators and emulators AutoTest owns; others need approval)`);
+  }
   if (add.enablePublication) {
     doc.setIn(
       ['github', 'publication'],
@@ -153,6 +162,26 @@ export function updateConfig(
   }
   if (changes.length) fs.writeFileSync(file, doc.toString(), { mode: 0o600 });
   return changes;
+}
+
+/**
+ * Device tools (DEV-001/002): xcrun from PATH (macOS), and adb, emulator and avdmanager from the Android SDK
+ * (`ANDROID_HOME` or `ANDROID_SDK_ROOT`), falling back to PATH. Only existing files are returned, as real paths.
+ */
+function findDeviceTools(env: Readonly<Record<string, string | undefined>>): Record<string, string> {
+  const sdk = env['ANDROID_HOME'] ?? env['ANDROID_SDK_ROOT'];
+  const candidates: Record<string, (string | undefined)[]> = {
+    xcrun: [findOnPath('xcrun', env)],
+    adb: [sdk && path.join(sdk, 'platform-tools', 'adb'), findOnPath('adb', env)],
+    emulator: [sdk && path.join(sdk, 'emulator', 'emulator'), findOnPath('emulator', env)],
+    avdmanager: [sdk && path.join(sdk, 'cmdline-tools', 'latest', 'bin', 'avdmanager'), findOnPath('avdmanager', env)],
+  };
+  const out: Record<string, string> = {};
+  for (const [name, paths] of Object.entries(candidates)) {
+    const hit = paths.find((p): p is string => !!p && fs.existsSync(p) && fs.statSync(p).isFile());
+    if (hit) out[name] = fs.realpathSync(hit);
+  }
+  return out;
 }
 
 function findOnPath(name: string, env: Readonly<Record<string, string | undefined>>): string | undefined {
@@ -237,11 +266,13 @@ export async function setup(e: CliEnv, io: Io, flags: SetupFlags): Promise<numbe
   // git is allowlisted for baseline runs (ANL-002): a checkout of the base commit inside the run directory.
   const gitOnPath = findOnPath('git', e.env);
   const git = gitOnPath ? fs.realpathSync(gitOnPath) : undefined;
+  const devices = findDeviceTools(e.env);
   for (const c of updateConfig(config, {
     workspaces,
     ...(flutter ? { flutter } : {}),
     ...(gh ? { gh } : {}),
     ...(git ? { git } : {}),
+    devices,
     ...(flags.enablePublication ? { enablePublication: true } : {}),
   }))
     io.out(`config: ${c}`);

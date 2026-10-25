@@ -18,3 +18,4 @@ export * from './supervisorPath.ts';
 export * from './tools/evidence.ts';
 export * from './github.ts';
 export * from './tools/publish.ts';
+export * from './tools/devices.ts';

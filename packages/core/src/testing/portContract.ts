@@ -22,6 +22,7 @@ import {
   type AnalysisStore,
   type PublicationStore,
   type KnownFailureStore,
+  type DeviceLeaseStore,
   type ReportStore,
   type IdempotencyRecord,
   type IdempotencyStore,
@@ -351,6 +352,43 @@ export function analysisStoreCases(make: () => AnalysisStore): ContractCase[] {
         );
         assert.equal((await s.listByRun(other, 'anl-1')).length, 1);
         assert.equal((await s.listByRun(run, 'anl-2')).length, 1);
+      },
+    },
+  ];
+}
+
+export function deviceLeaseStoreCases(make: () => DeviceLeaseStore): ContractCase[] {
+  const lease = (id: string, deviceId: string) => ({
+    id,
+    deviceId,
+    runId: null,
+    owned: true,
+    createdByAutotest: true,
+    expiresAt: '2026-10-26T00:00:00Z',
+  });
+  return [
+    {
+      name: 'device lease store: one lease per device; update in place; remove',
+      run: async () => {
+        const s = make();
+        await s.put(lease('lease_01JC0000000000000000000001', 'A59793A1-207D-4223-9A07-7A25E3124218'));
+        await s.put({
+          ...lease('lease_01JC0000000000000000000001', 'A59793A1-207D-4223-9A07-7A25E3124218'),
+          runId: 'run_01JC000000000000000000000A',
+        });
+        await rejectsWith(
+          s.put(lease('lease_01JC0000000000000000000002', 'A59793A1-207D-4223-9A07-7A25E3124218')),
+          'conflict',
+        );
+        await s.put(lease('lease_01JC0000000000000000000003', 'autotest-a1b2'));
+        assert.equal(
+          (await s.findByDevice('A59793A1-207D-4223-9A07-7A25E3124218'))?.runId,
+          'run_01JC000000000000000000000A',
+        );
+        assert.equal((await s.list()).length, 2);
+        assert.equal(await s.remove('lease_01JC0000000000000000000003'), true);
+        assert.equal(await s.findByDevice('autotest-a1b2'), undefined);
+        assert.equal(await s.remove('lease_01JC0000000000000000000003'), false);
       },
     },
   ];

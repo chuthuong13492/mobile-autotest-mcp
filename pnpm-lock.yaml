@@ -294,6 +294,9 @@ importers:
 
   packages/devices:
     dependencies:
+      '@autotest/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@autotest/exec':
         specifier: workspace:*
         version: link:../exec

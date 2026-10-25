@@ -80,7 +80,7 @@ This table is canonical. `boundaries.json` mirrors it and is enforced by depende
 | `packages/adapter-ios` | Xcode project detection, scheme inventory, xcodebuild specs, xcresult parsing | `iosAdapter` | adapter-sdk (ports only) |
 | `packages/adapter-android` | Gradle detection, inventory, unit and instrumented specs, JUnit XML parsing | `androidAdapter` | adapter-sdk (ports only) |
 | `packages/adapter-appium` | Optional Appium server and driver lifecycle specs and scenario parsing | `appiumAdapter` | adapter-sdk (ports only) |
-| `packages/devices` | simctl, adb and emulator wrappers; ownership tags; device leases | `DeviceManager` | exec, policy |
+| `packages/devices` | simctl, adb and emulator wrappers; ownership tags; device leases | `DeviceManager` | contracts, exec, policy |
 | `packages/inspect` | Orchestration of `inspect_project` and `inspect_test_inventory` over registered adapters | `inspectProject()`, `inspectInventory()` | core, workspace, adapter-sdk |
 | `packages/planning` | Requirement extraction and normalization, plan validation and enrichment, risk model, eligibility | `extractRequirements()`, `normalizePlan()` | core |
 | `packages/coverage-gate` | Independent coverage rules, metrics, exceptions, decisions | `evaluateCoverage()` | core. **Must not depend on planning.** |

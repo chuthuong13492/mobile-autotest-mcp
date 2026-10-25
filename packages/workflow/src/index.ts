@@ -117,3 +117,4 @@ export * from './evidence.ts';
 export * from './analysis.ts';
 export * from './report.ts';
 export * from './publish.ts';
+export * from './devices.ts';

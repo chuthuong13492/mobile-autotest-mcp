@@ -1,0 +1,2 @@
+Medium_Phone
+autotest-spike-android

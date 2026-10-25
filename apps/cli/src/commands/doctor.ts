@@ -393,6 +393,16 @@ export async function doctorChecks(e: CliEnv): Promise<Check[]> {
         .map((r) => r.id),
     );
     checks.push(...diskChecks(root, cfg, (id) => terminalIds.has(id)));
+    const expired = (await stores.deviceLeases.list()).filter(
+      (l) => l.createdByAutotest && Date.parse(l.expiresAt) <= Date.now(),
+    );
+    if (expired.length)
+      checks.push({
+        status: 'WARN',
+        name: 'devices',
+        detail: `${expired.length} AutoTest-owned simulator(s)/emulator(s) with an expired lease`,
+        fix: 'Run `autotest cleanup` (deletes only devices AutoTest created)',
+      });
     for (const run of await stores.runs.listNonTerminal()) {
       if (isTerminal(run.state) || (run.state === 'queued' && !run.supervisor)) continue;
       if (run.state === 'cancel_pending')

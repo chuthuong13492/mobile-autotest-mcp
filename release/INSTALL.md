@@ -41,6 +41,13 @@ is not on your `PATH`, call the bins by their full path (`$(npm prefix -g)/bin/a
 
 Run `autotest setup --workspace <path>` again for each further repository. `--yes` never asks questions.
 
+## Simulators and emulators (v1.1)
+
+`autotest setup` also allowlists `xcrun` (macOS) and, from `ANDROID_HOME`, `adb`, `emulator` and `avdmanager`.
+AutoTest creates its own devices (`autotest-…`) and may boot, erase and delete them; any other simulator or emulator
+needs your approval (`autotest approve`) for each action, and physical devices are never managed. The Android emulator
+needs about 8 GB of free disk space.
+
 ## Baseline runs (optional)
 
 `autotest setup` also allowlists `git` (for baseline runs: a checkout of the PR's base commit inside the run

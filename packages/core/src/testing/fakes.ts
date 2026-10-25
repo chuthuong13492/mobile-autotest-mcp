@@ -46,6 +46,8 @@ import {
   type IdempotencyStore,
   type InventoryStore,
   type KnownFailureStore,
+  type DeviceLease,
+  type DeviceLeaseStore,
   type PrContextStore,
   type ProfileStore,
   type PublicationRecord,
@@ -334,6 +336,25 @@ export class InMemoryRunStore implements RunStore {
   }
   async listByPlanHash(planHash: string): Promise<Run[]> {
     return [...this.runs.values()].filter((r) => r.planHash === planHash).map(clone);
+  }
+}
+
+export class InMemoryDeviceLeaseStore implements DeviceLeaseStore {
+  private readonly rows = new Map<string, DeviceLease>();
+  async put(l: DeviceLease): Promise<void> {
+    const other = [...this.rows.values()].find((x) => x.deviceId === l.deviceId && x.id !== l.id);
+    if (other) throw new PortError('conflict', `device ${l.deviceId} already has lease ${other.id}`);
+    this.rows.set(l.id, clone(l));
+  }
+  async findByDevice(deviceId: string): Promise<DeviceLease | undefined> {
+    const l = [...this.rows.values()].find((x) => x.deviceId === deviceId);
+    return l && clone(l);
+  }
+  async list(): Promise<DeviceLease[]> {
+    return [...this.rows.values()].sort((a, b) => a.id.localeCompare(b.id)).map(clone);
+  }
+  async remove(id: string): Promise<boolean> {
+    return this.rows.delete(id);
   }
 }
 

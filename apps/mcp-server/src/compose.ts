@@ -21,6 +21,7 @@ import { supervisorEntryPath } from './supervisorPath.ts';
 import { runUseCases } from './tools/runs.ts';
 import { evidenceUseCases } from './tools/evidence.ts';
 import { publishUseCases } from './tools/publish.ts';
+import { deviceUseCases } from './tools/devices.ts';
 import { createGitHubAccess } from './github.ts';
 import { loadPolicyConfig, type PolicyLoadResult } from '@autotest/policy';
 import { loadOrCreateKey, openDataRoot } from '@autotest/storage';
@@ -173,6 +174,14 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
     serverEnvironment,
     ...(github ? { github: (h: string) => github.client(h) } : {}),
   });
+  const devices = deviceUseCases({
+    ports,
+    policy,
+    dataRoot,
+    hostOs: host.os,
+    serverEnvironment,
+    parentEnv: env,
+  });
   const workflow = bindUseCases(
     opts.useCases
       ? opts.useCases(ports, policy)
@@ -184,6 +193,7 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
           ...runs,
           ...evidence,
           ...publish,
+          ...devices,
         }),
   );
   const sessionId = ids.newId('ses');
