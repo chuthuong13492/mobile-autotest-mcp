@@ -75,17 +75,37 @@ export async function fetchPullRequest(client: GitHubClient, pr: PrRef): Promise
   };
 }
 
+/** The URL of a remote in git's config text (`[remote "origin"] url = …`). */
+function remoteUrl(configText: string, remote: string): string | undefined {
+  const section = new RegExp(`\\[remote\\s+"${remote}"\\]([\\s\\S]*?)(?=\\n\\s*\\[|$)`).exec(configText)?.[1];
+  return /^\s*url\s*=\s*(\S+)\s*$/m.exec(section ?? '')?.[1];
+}
+
 /**
- * The GitHub `owner/name` of a remote in git's config text (`[remote "origin"] url = …`), for github.com URLs in
- * https, ssh or scp form. Returns undefined when the remote is missing or not on `host`.
+ * The host of a remote in git's config text, for https, ssh and scp-form URLs (B0: the GitHub host of a workspace,
+ * e.g. a GitHub Enterprise Server). Lower-case; undefined when the remote is missing or not one of those forms.
+ */
+export function gitRemoteHost(configText: string, remote = 'origin'): string | undefined {
+  const url = remoteUrl(configText, remote);
+  if (!url) return undefined;
+  const m =
+    /^(?:https?:\/\/(?:[^@/]+@)?|ssh:\/\/[^@/]+@)([A-Za-z0-9.-]{1,253})(?::\d+)?\/|^[^@/:]+@([A-Za-z0-9.-]{1,253}):/.exec(
+      url,
+    );
+  return (m?.[1] ?? m?.[2])?.toLowerCase();
+}
+
+/**
+ * The GitHub `owner/name` of a remote in git's config text (`[remote "origin"] url = …`), for URLs on `host`
+ * (github.com or a GitHub Enterprise host) in https, ssh or scp form. Returns undefined when the remote is missing
+ * or not on `host`.
  */
 export function parseGitRemote(
   configText: string,
   host = 'github.com',
   remote = 'origin',
 ): { owner: string; name: string } | undefined {
-  const section = new RegExp(`\\[remote\\s+"${remote}"\\]([\\s\\S]*?)(?=\\n\\s*\\[|$)`).exec(configText)?.[1];
-  const url = /^\s*url\s*=\s*(\S+)\s*$/m.exec(section ?? '')?.[1];
+  const url = remoteUrl(configText, remote);
   if (!url) return undefined;
   const h = host.replace(/\./g, '\\.');
   const m = new RegExp(
@@ -94,13 +114,23 @@ export function parseGitRemote(
   return m ? { owner: m[1]!, name: m[2]! } : undefined;
 }
 
-/** `owner/name#123` or a PR URL on `host`. */
-export function parsePrRef(text: string, host = 'github.com'): PrRef | undefined {
+/**
+ * `owner/name#123` or a PR URL on one of `hosts` (github.com by default; B0: the configured GitHub Enterprise hosts
+ * too). A URL also returns its host; the short form leaves the host to the caller.
+ */
+export function parsePrRef(
+  text: string,
+  hosts: string | readonly string[] = 'github.com',
+): (PrRef & { readonly host?: string }) | undefined {
   const t = text.trim();
   const short = /^([A-Za-z0-9_.-]{1,100})\/([A-Za-z0-9_.-]{1,100})#(\d{1,9})$/.exec(t);
   if (short) return { owner: short[1]!, name: short[2]!, number: Number(short[3]) };
-  const url = new RegExp(
-    `^https://${host.replace(/\./g, '\\.')}/([A-Za-z0-9_.-]{1,100})/([A-Za-z0-9_.-]{1,100})/pull/(\\d{1,9})(?:[/?#].*)?$`,
-  ).exec(t);
-  return url ? { owner: url[1]!, name: url[2]!, number: Number(url[3]) } : undefined;
+  for (const host of typeof hosts === 'string' ? [hosts] : hosts) {
+    const url = new RegExp(
+      `^https://${host.replace(/\./g, '\\.')}/([A-Za-z0-9_.-]{1,100})/([A-Za-z0-9_.-]{1,100})/pull/(\\d{1,9})(?:[/?#].*)?$`,
+      'i',
+    ).exec(t);
+    if (url) return { owner: url[1]!, name: url[2]!, number: Number(url[3]), host };
+  }
+  return undefined;
 }

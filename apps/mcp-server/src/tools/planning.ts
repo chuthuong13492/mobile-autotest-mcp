@@ -31,7 +31,7 @@ import {
 } from '@autotest/policy';
 import { fail, normalizeManualPr, ok, pageBody, type UseCases, type WorkflowPorts } from '@autotest/workflow';
 import { createWorkspaceReader } from '@autotest/workspace';
-import { fetchPullRequest, GitHubError, parseGitRemote } from '@autotest/github';
+import { fetchPullRequest, GitHubError, gitRemoteHost, parseGitRemote } from '@autotest/github';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { GitHubAccess } from '../github.ts';
@@ -374,6 +374,8 @@ function planOutput(
  * GitHub mode of TL-01 (GH-002). The PR must belong to the workspace's repository: `github` in the workspace config,
  * or the `origin` remote in its `.git/config` (read, never executed). Without either, the context records the
  * limitation `repository_unverified`. PR text goes through the same normalization and redaction as manual input.
+ * The host (B0) is the one asked for, else the workspace's configured host, else the host of its `origin` remote
+ * when that host is configured in `github.hosts` (a GitHub Enterprise Server), else github.com.
  */
 async function githubContext(
   deps: PlanningDeps,
@@ -393,17 +395,23 @@ async function githubContext(
     return fail<ToolOutput<'get_pr_context'>>(
       toolError('E_CAPABILITY_UNAVAILABLE', 'GitHub access is not configured', []),
     );
-  const host = gh.host ?? 'github.com';
+  let gitConfig: string | undefined;
+  try {
+    gitConfig = fs.readFileSync(path.join(ws.realPath, '.git', 'config'), 'utf8');
+  } catch {
+    gitConfig = undefined;
+  }
+  const configured = deps.policy.ok ? deps.policy.policy.config.github.hosts.map((h) => h.host) : [];
+  const remoteHost = gitConfig ? gitRemoteHost(gitConfig) : undefined;
+  const host =
+    gh.host ??
+    ws.github?.host ??
+    (remoteHost && configured.includes(remoteHost) ? remoteHost : undefined) ??
+    'github.com';
   const limitations: { code: string; message: string }[] = [];
   let expected: { owner: string; name: string } | undefined =
     ws.github?.owner && ws.github.name ? { owner: ws.github.owner, name: ws.github.name } : undefined;
-  if (!expected) {
-    try {
-      expected = parseGitRemote(fs.readFileSync(path.join(ws.realPath, '.git', 'config'), 'utf8'), host);
-    } catch {
-      expected = undefined;
-    }
-  }
+  if (!expected && gitConfig) expected = parseGitRemote(gitConfig, host);
   if (!expected)
     limitations.push({
       code: 'repository_unverified',

@@ -14,9 +14,21 @@ export const err = (r: { structuredContent: Record<string, unknown> }) =>
 export const mocks: MockGitHub[] = [];
 
 export async function setup(
-  o: { publication?: boolean; checksForbidden?: boolean; gh?: boolean; remote?: string | null } = {},
+  o: {
+    publication?: boolean;
+    checksForbidden?: boolean;
+    gh?: boolean;
+    remote?: string | null;
+    /** B0: a GitHub Enterprise host: configured in github.hosts, served under /api/v3, the only host gh logs in to. */
+    host?: string;
+  } = {},
 ) {
-  const gh = await startMockGitHub({ token: TOKEN, ...(o.checksForbidden ? { checksForbidden: true } : {}) });
+  const host = o.host ?? 'github.com';
+  const gh = await startMockGitHub({
+    token: TOKEN,
+    ...(o.checksForbidden ? { checksForbidden: true } : {}),
+    ...(o.host ? { prefix: '/api/v3' } : {}),
+  });
   mocks.push(gh);
   gh.prs.set('acme/app#7', {
     title: 'Add calculator division',
@@ -32,17 +44,16 @@ export async function setup(
   const f = setupRunData(
     { 'test/a_test.dart': 'pass', 'test/b_test.dart': 'fail' },
     {
-      extraConfig:
-        o.publication === false
-          ? ''
-          : 'github: { publication: { enabled: true, mechanisms: [comment, check_run, commit_status] } }\n',
+      extraConfig: `github: { ${
+        o.host ? `hosts: [{ host: github.com }, { host: ${o.host}, apiBaseUrl: "https://${o.host}/api/v3" }], ` : ''
+      }${o.publication === false ? '' : 'publication: { enabled: true, mechanisms: [comment, check_run, commit_status] } '}}\n`,
     },
   );
-  // A fake gh that answers only `auth token --hostname github.com` with the canary token.
+  // A fake gh that answers only `auth token --hostname <host>` with the canary token.
   const ghBin = path.join(f.base, 'gh');
   fs.writeFileSync(
     ghBin,
-    `#!/bin/sh\n[ "$1 $2 $3 $4" = "auth token --hostname github.com" ] && echo ${TOKEN} && exit 0\nexit 1\n`,
+    `#!/bin/sh\n[ "$1 $2 $3 $4" = "auth token --hostname ${host}" ] && echo ${TOKEN} && exit 0\nexit 1\n`,
     { mode: 0o755 },
   );
   if (o.gh !== false) {

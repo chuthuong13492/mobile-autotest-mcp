@@ -4,6 +4,7 @@ import {
   createGitHubClient,
   fetchPullRequest,
   GitHubError,
+  gitRemoteHost,
   parseGitRemote,
   parsePrRef,
   publishCheckRun,
@@ -128,7 +129,21 @@ describe('GH-002 pull requests', () => {
 
   it('parses PR references and git remotes, and ignores other hosts', () => {
     expect(parsePrRef('acme/app#7')).toEqual({ owner: 'acme', name: 'app', number: 7 });
-    expect(parsePrRef('https://github.com/acme/app/pull/12/files')).toEqual({ owner: 'acme', name: 'app', number: 12 });
+    expect(parsePrRef('https://github.com/acme/app/pull/12/files')).toEqual({
+      owner: 'acme',
+      name: 'app',
+      number: 12,
+      host: 'github.com',
+    });
+    // B0: URLs on a configured GitHub Enterprise host; other hosts stay refused.
+    const hosts = ['github.com', 'ghe.example.com'];
+    expect(parsePrRef('https://ghe.example.com/team/app/pull/3', hosts)).toEqual({
+      owner: 'team',
+      name: 'app',
+      number: 3,
+      host: 'ghe.example.com',
+    });
+    expect(parsePrRef('https://ghe.example.com.evil.example/team/app/pull/3', hosts)).toBeUndefined();
     expect(parsePrRef('https://evil.example/acme/app/pull/1')).toBeUndefined();
     const cfg = (url: string) =>
       `[core]\n\tbare = false\n[remote "origin"]\n\turl = ${url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n`;
@@ -140,6 +155,14 @@ describe('GH-002 pull requests', () => {
     ])
       expect(parseGitRemote(cfg(url)), url).toEqual({ owner: 'acme', name: 'app' });
     expect(parseGitRemote(cfg('https://gitlab.com/acme/app.git'))).toBeUndefined();
+    expect(parseGitRemote(cfg('git@ghe.example.com:team/app.git'), 'ghe.example.com')).toEqual({
+      owner: 'team',
+      name: 'app',
+    });
+    expect(gitRemoteHost(cfg('git@GHE.example.com:team/app.git'))).toBe('ghe.example.com');
+    expect(gitRemoteHost(cfg('ssh://git@ghe.example.com:7999/team/app'))).toBe('ghe.example.com');
+    expect(gitRemoteHost(cfg('https://user@github.com/acme/app'))).toBe('github.com');
+    expect(gitRemoteHost('[core]\n')).toBeUndefined();
     expect(parseGitRemote('[core]\n')).toBeUndefined();
   });
 });

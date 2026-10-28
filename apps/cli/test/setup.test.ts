@@ -136,4 +136,51 @@ describe('autotest setup and doctor with GitHub (gh)', () => {
     // The child only gets PATH/HOME/gh variables, so GH_FAKE_STATUS does not reach it: the login still reports PASS.
     expect(notLogged.out.join('\n')).toMatch(/github\s+gh is logged in/);
   });
+  it('B0: binds a repository on a GitHub Enterprise host, configures the host, and doctor checks each host', async () => {
+    const m = machine();
+    const bin = path.join(m.base, 'bin');
+    const ghLog = path.join(m.base, 'gh.log');
+    // Logged in to the enterprise host only.
+    fs.writeFileSync(
+      path.join(bin, 'gh'),
+      `#!/bin/sh\necho "$@" >> ${ghLog}\n[ "$1 $2 $3 $4" = "auth status --hostname ghe.example.com" ] && exit 0\nexit 1\n`,
+      { mode: 0o755 },
+    );
+    fs.mkdirSync(path.join(m.app, '.git'));
+    fs.writeFileSync(
+      path.join(m.app, '.git', 'config'),
+      '[remote "origin"]\n\turl = git@ghe.example.com:team/app.git\n',
+    );
+    const t = io(false);
+    const args = [
+      'setup',
+      '--yes',
+      '--skip-claude',
+      '--workspace',
+      m.app,
+      '--github-host',
+      'ghe2.example.com=https://api.ghe2.example.com/api/v3',
+    ];
+    expect(await run(args, t.value, m.env)).toBe(0);
+    const policy = loadPolicyConfig(fs.readFileSync(path.join(m.data, 'config.yaml'), 'utf8'));
+    if (!policy.ok) throw new Error(policy.error.error.message);
+    expect(policy.policy.config.github.hosts).toEqual([
+      { host: 'github.com' },
+      { host: 'ghe2.example.com', apiBaseUrl: 'https://api.ghe2.example.com/api/v3' },
+      { host: 'ghe.example.com', apiBaseUrl: 'https://ghe.example.com/api/v3' },
+    ]);
+    expect(policy.policy.config.workspaces[0]!.github).toEqual({ host: 'ghe.example.com', owner: 'team', name: 'app' });
+    // Re-running changes nothing.
+    const again = io(false);
+    expect(await run(['setup', '--yes', '--skip-claude', '--workspace', m.app], again.value, m.env)).toBe(0);
+    expect(again.out.join('\n')).not.toMatch(/github host/);
+    const d = io(false);
+    await run(['doctor'], d.value, m.env);
+    const out = d.out.join('\n');
+    expect(out).toMatch(/PASS {2}github\s+gh is logged in to ghe\.example\.com/);
+    expect(out).toMatch(/WARN {2}github\s+gh is not logged in to github\.com/);
+    expect(out).toMatch(/gh auth login --hostname ghe2\.example\.com/);
+    expect(parseSetupFlags(['--github-host', 'http://insecure'])).toBeUndefined();
+    expect(parseSetupFlags(['--github-host', 'ghe.x=http://ghe.x/api/v3'])).toBeUndefined();
+  });
 });

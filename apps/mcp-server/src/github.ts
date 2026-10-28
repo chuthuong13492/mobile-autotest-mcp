@@ -114,7 +114,10 @@ export function createGitHubAccess(o: GitHubAccessOptions): GitHubAccess {
       if (!entry)
         throw new GitHubError('E_GITHUB_AUTH', `${host} is not a configured GitHub host (github.hosts in config.yaml)`);
       if (host !== 'github.com' && !entry.apiBaseUrl)
-        throw new GitHubError('E_GITHUB_FEATURE_UNAVAILABLE', 'only github.com is supported (GHES is out of scope)');
+        throw new GitHubError(
+          'E_GITHUB_FEATURE_UNAVAILABLE',
+          `${host} needs an apiBaseUrl in github.hosts (GitHub Enterprise Server: https://${host}/api/v3); \`autotest setup --github-host ${host}\` adds it`,
+        );
       const cached = clients.get(host);
       if (cached) return cached;
       let token: string | undefined;

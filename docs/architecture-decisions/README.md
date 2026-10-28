@@ -35,3 +35,4 @@ ADRs map one-to-one to the 15 decision topics in the planning specification. Use
 | [ADR-0013](ADR-0013.md) | GitHub App / Actions token for checks; token-scoped comments; status fallback | Accepted (planning). GHES 3.21.6 capabilities are documented; instance configuration still needs verifying (OQ-07). | FR-040, FR-041, SR-009 |
 | [ADR-0014](ADR-0014.md) | Shell-free, policy-governed execution | Accepted (planning) | SR-001, SR-002, SR-003, SR-004, SR-010 |
 | [ADR-0015](ADR-0015.md) | Dependency-boundary enforcement with dependency-cruiser | Accepted (planning) | NFR-007, NFR-009 |
+| [ADR-0016](ADR-0016.md) | GitHub Enterprise Server is a first-class host | Accepted | FR-002, FR-004 |

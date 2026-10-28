@@ -64,7 +64,8 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Status.** **Partly answered 2026-10-28 (APM-001).** The pinning mechanism is built and verified: `.autotest/appium.json`, probes, refusal on mismatch, and Appium 3.4.2 with UiAutomator2 8.7.0 running the React Native fixture's scenarios on an emulator. On npm, `appium-flutter-integration-driver` 2.0.3 is published and declares `appium ^3.0.0`. That driver was **not** run: no Flutter Appium fixture exists and Autotrader's suite cannot run here (OQ-14). The question stays open for the Flutter driver only.
 
 ### OQ-07
-- **Closed (2026-10-24):** GHES is out of scope; only github.com is supported.
+- **Reopened (2026-10-28, ADR-0016):** GHES is supported again for PR intake and publication through `gh`. Verified against a mock `/api/v3` server only; the live instance check (a read-only `get_pr_context` and a publication dry run on a real PR) is **NOT VERIFIED** yet.
+- **Closed (2026-10-24, superseded):** GHES is out of scope; only github.com is supported.
 - **Question.** Which GHES version runs at `ghe.coxautoinc.com`? Are the Checks API, GitHub App installation, `GITHUB_TOKEN` with `checks: write`, OIDC, and ephemeral/JIT runner registration available?
 - **Impact.** ADR-0013, the fallback order for GH-004, and the CI security design.
 - **Owner (role).** DevSecOps Engineer.
@@ -310,7 +311,8 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Closure criteria.** APM-001 passes with a pinned version pair.
 
 ### RK-15
-- **Retired (2026-10-24):** GHES is out of scope.
+- **Reactivated (2026-10-28, ADR-0016):** GHES is supported again; mitigations are the per-host configuration, honest `failed` for refused check runs, and the commit-status fallback.
+- **Retired (2026-10-24, superseded):** GHES is out of scope.
 - **Risk.** GHES feature gaps compared with github.com, such as the Checks API or OIDC.
 - **L/I.** M / M.
 - **Mitigation.** A capability probe (DISC-005) and fallback mechanisms (ADR-0013).

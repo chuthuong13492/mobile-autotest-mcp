@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { nodeExecPort } from '@autotest/exec';
+import { gitRemoteHost, parseGitRemote } from '@autotest/github';
 import { isMap, isSeq, parseDocument } from 'yaml';
 import { dataRootOf, type CliEnv } from '../context.ts';
 import type { Io } from '../io.ts';
@@ -39,6 +40,8 @@ export interface SetupFlags {
   readonly skipClaude: boolean;
   /** Turn on GitHub writes (comment, check run, commit status); each write still needs a human approval. */
   readonly enablePublication?: boolean;
+  /** B0: GitHub Enterprise hosts to configure, `host` or `host=<https API base URL>`. */
+  readonly githubHosts?: readonly { readonly host: string; readonly apiBaseUrl?: string }[];
 }
 
 export function parseSetupFlags(args: readonly string[]): SetupFlags | undefined {
@@ -47,9 +50,14 @@ export function parseSetupFlags(args: readonly string[]): SetupFlags | undefined
   let yes = false;
   let skipClaude = false;
   let enablePublication = false;
+  const githubHosts: { host: string; apiBaseUrl?: string }[] = [];
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
-    if (a === '--yes') yes = true;
+    if (a === '--github-host' && args[i + 1] && !args[i + 1]!.startsWith('--')) {
+      const m = /^([a-z0-9.-]{1,253})(?:=(https:\/\/\S+))?$/i.exec(args[++i]!);
+      if (!m) return undefined;
+      githubHosts.push({ host: m[1]!.toLowerCase(), ...(m[2] ? { apiBaseUrl: m[2] } : {}) });
+    } else if (a === '--yes') yes = true;
     else if (a === '--enable-publication') enablePublication = true;
     else if (a === '--skip-claude') skipClaude = true;
     else if ((a === '--workspace' || a === '--flutter') && args[i + 1] && !args[i + 1]!.startsWith('--')) {
@@ -63,7 +71,21 @@ export function parseSetupFlags(args: readonly string[]): SetupFlags | undefined
     ...(flutter ? { flutter } : {}),
     skipClaude,
     ...(enablePublication ? { enablePublication } : {}),
+    ...(githubHosts.length ? { githubHosts } : {}),
   };
+}
+
+/** The GitHub host and repository of a folder's `origin` remote (read from `.git/config`, never executed). */
+export function originRepository(dir: string): { host: string; owner: string; name: string } | undefined {
+  let text: string;
+  try {
+    text = fs.readFileSync(path.join(dir, '.git', 'config'), 'utf8');
+  } catch {
+    return undefined;
+  }
+  const host = gitRemoteHost(text);
+  const repo = host ? parseGitRemote(text, host) : undefined;
+  return host && repo ? { host, ...repo } : undefined;
 }
 
 /** `ws_<name>` from a folder name, unique among existing ids. */
@@ -92,6 +114,7 @@ export function updateConfig(
     /** Device tools (DEV-001/002): xcrun, adb, emulator, avdmanager → absolute paths. */
     devices?: Readonly<Record<string, string>>;
     enablePublication?: boolean;
+    githubHosts?: readonly { readonly host: string; readonly apiBaseUrl?: string }[];
   },
 ): string[] {
   const doc = parseDocument(fs.readFileSync(file, 'utf8'));
@@ -105,6 +128,7 @@ export function updateConfig(
   seq.flow = false;
   const existing = (doc.toJS() as { workspaces?: { id: string; path: string }[] }).workspaces ?? [];
   const ids = new Set(existing.map((w) => w.id));
+  const hostsToAdd: { host: string; apiBaseUrl?: string }[] = [...(add.githubHosts ?? [])];
   for (const dir of add.workspaces) {
     const real = fs.realpathSync(dir);
     if (
@@ -119,8 +143,25 @@ export function updateConfig(
       continue;
     const id = workspaceId(real, ids);
     ids.add(id);
-    seq.items.push(doc.createNode({ id, path: real }));
-    changes.push(`workspace ${id} → ${real}`);
+    // B0: a repository on a GitHub Enterprise host is bound to it, and the host is configured below.
+    const origin = originRepository(real);
+    const enterprise = origin && origin.host !== 'github.com' ? origin : undefined;
+    seq.items.push(doc.createNode({ id, path: real, ...(enterprise ? { github: enterprise } : {}) }));
+    changes.push(
+      `workspace ${id} → ${real}${enterprise ? ` (${enterprise.host}/${enterprise.owner}/${enterprise.name})` : ''}`,
+    );
+    if (enterprise) hostsToAdd.push({ host: enterprise.host });
+  }
+  for (const h of hostsToAdd) {
+    const current = ((doc.toJS() as { github?: { hosts?: { host: string }[] } }).github?.hosts ?? [
+      { host: 'github.com' },
+    ]) as { host: string; apiBaseUrl?: string }[];
+    if (current.some((c) => c.host === h.host)) continue;
+    const entry = { host: h.host, apiBaseUrl: h.apiBaseUrl ?? `https://${h.host}/api/v3` };
+    doc.setIn(['github', 'hosts'], doc.createNode([...current, entry]));
+    changes.push(
+      `github host ${entry.host} → ${entry.apiBaseUrl} (log in with \`gh auth login --hostname ${entry.host}\`)`,
+    );
   }
   if (add.flutter) {
     let ex = doc.get('executables', true);
@@ -330,6 +371,7 @@ export async function setup(e: CliEnv, io: Io, flags: SetupFlags): Promise<numbe
     ...(git ? { git } : {}),
     devices,
     ...(flags.enablePublication ? { enablePublication: true } : {}),
+    ...(flags.githubHosts ? { githubHosts: flags.githubHosts } : {}),
   }))
     io.out(`config: ${c}`);
   if (!gh)

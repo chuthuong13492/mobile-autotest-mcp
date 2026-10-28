@@ -100,7 +100,7 @@ export async function hostChecks(): Promise<Check[]> {
   return checks;
 }
 
-/** GitHub: `gh` allowlisted and logged in (`gh auth status`, exit code only; the token is never read here). */
+/** GitHub: `gh` allowlisted and logged in to every configured host (`gh auth status`, exit code only). */
 async function githubChecks(cfg: PolicyConfig, env: Readonly<Record<string, string | undefined>>): Promise<Check[]> {
   const fsp = nodeFsPort();
   const registry = buildRegistry(fsp, cfg.executables);
@@ -126,13 +126,48 @@ async function githubChecks(cfg: PolicyConfig, env: Readonly<Record<string, stri
       },
       pubCheck,
     ];
+  // B0: one login check per configured host (github.com and GitHub Enterprise Servers).
+  const hostChecks: Check[] = [];
+  for (const { host, credentialRef } of cfg.github.hosts) {
+    if (credentialRef) {
+      hostChecks.push({
+        status: 'INFO',
+        name: 'github',
+        detail: `${host}: token from ${credentialRef.split(':')[0]}: reference`,
+      });
+      continue;
+    }
+    const code = await ghAuthStatus(fsp, registry, env, host);
+    hostChecks.push(
+      code === 'denied'
+        ? { status: 'FAIL', name: 'github', detail: `gh auth status for ${host} was denied by policy` }
+        : code === 0
+          ? { status: 'PASS', name: 'github', detail: `gh is logged in to ${host}` }
+          : {
+              status: 'WARN',
+              name: 'github',
+              detail: `gh is not logged in to ${host}`,
+              fix: `Run \`gh auth login --hostname ${host}\``,
+            },
+    );
+  }
+  return [...hostChecks, pubCheck];
+}
+
+/** `gh auth status --hostname <host>` (exit code only; the token is never read here). */
+async function ghAuthStatus(
+  fsp: ReturnType<typeof nodeFsPort>,
+  registry: ReturnType<typeof buildRegistry>,
+  env: Readonly<Record<string, string | undefined>>,
+  host: string,
+): Promise<number | 'denied'> {
   const v = validateSpec(
     {
       executable: 'gh',
       args: [
         { kind: 'word', value: 'auth' },
         { kind: 'word', value: 'status' },
-        { kind: 'flag', name: '--hostname', value: 'github.com' },
+        { kind: 'flag', name: '--hostname', value: host },
       ],
       cwd: '.',
       envNeeds: [],
@@ -150,7 +185,7 @@ async function githubChecks(cfg: PolicyConfig, env: Readonly<Record<string, stri
       allowedClasses: ['probe'],
     },
   );
-  if (!v.ok) return [{ status: 'FAIL', name: 'github', detail: 'gh auth status was denied by policy' }, pubCheck];
+  if (!v.ok) return 'denied';
   const childEnv: Record<string, string> = {
     PATH: `${path.dirname(v.executablePath)}:/usr/bin:/bin`,
     HOME: env['HOME'] ?? os.homedir(),
@@ -161,22 +196,11 @@ async function githubChecks(cfg: PolicyConfig, env: Readonly<Record<string, stri
   const child = nodeExecPort().spawn({ file: v.executablePath, argv: v.argv, cwd: os.tmpdir(), env: childEnv });
   child.stdout?.resume();
   child.stderr?.resume();
-  const code = await new Promise<number>((resolve) => {
+  return new Promise<number>((resolve) => {
     const timer = setTimeout(() => (child.kill('SIGKILL'), resolve(124)), 10_000);
     child.on('error', () => resolve(127));
     child.on('close', (c) => (clearTimeout(timer), resolve(c ?? 1)));
   });
-  return [
-    code === 0
-      ? { status: 'PASS', name: 'github', detail: 'gh is logged in to github.com' }
-      : {
-          status: 'WARN',
-          name: 'github',
-          detail: 'gh is not logged in to github.com',
-          fix: 'Run `gh auth login --hostname github.com`',
-        },
-    pubCheck,
-  ];
 }
 
 /** Secret references: this build resolves `env:` only (OPS-004). */

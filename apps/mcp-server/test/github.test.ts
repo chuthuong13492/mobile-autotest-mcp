@@ -54,6 +54,36 @@ describe('GH-002 get_pr_context GitHub mode', () => {
   });
 });
 
+describe('B0 GitHub Enterprise Server', () => {
+  it(
+    'takes the host from the workspace origin when it is configured, and pages under /api/v3',
+    { timeout: 60_000 },
+    async () => {
+      const s = await setup({ host: 'ghe.example.com', remote: 'git@ghe.example.com:acme/app.git' });
+      // More changed files than one page, so the Link header (under /api/v3) is followed.
+      s.gh.prs.get('acme/app#7')!.files = Array.from({ length: 130 }, (_, i) => ({
+        filename: `lib/f${i}.dart`,
+        status: 'modified',
+      }));
+      await s.c.close();
+      const c = await composeAgainst(s.gh, s.f.data);
+      // No host in the request: the workspace's origin (ghe.example.com, configured) decides.
+      const out = sc<{ number: number; changedFilesCount: number; limitations: { code: string }[] }>(
+        await c.call('get_pr_context', pr),
+      );
+      expect(out).toMatchObject({ number: 7, changedFilesCount: 130 });
+      expect(out.limitations.map((l) => l.code)).not.toContain('repository_unverified');
+      expect(s.gh.requests.filter((r) => r.path.includes('/files')).length).toBeGreaterThan(1);
+      expect(s.gh.requests.every((r) => r.authorized)).toBe(true);
+      // A host that is not configured is never contacted.
+      expect(
+        err(await c.call('get_pr_context', { ...pr, github: { ...pr.github, host: 'ghe.other.example' } }))?.code,
+      ).toBe('E_GITHUB_AUTH');
+      await c.close();
+    },
+  );
+});
+
 describe('GH-002 failure modes', () => {
   it('no git remote is a limitation; gh missing from the allowlist is E_GITHUB_AUTH', { timeout: 60_000 }, async () => {
     const a = await setup({ remote: null });

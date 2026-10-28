@@ -153,6 +153,8 @@ This section is canonical. MCP annotations mirror it only as hints ([RL-002](res
 
 Credentials are referenced by name in config (`secretRef: keychain:autotest/github-read`, `env:GITHUB_TOKEN`). They are never written to the data root, logs, reports or tool I/O.
 
+Hosts (ADR-0016, 1.3.0): each token belongs to one configured host (`github.hosts`), github.com or a GitHub Enterprise Server. It is sent only to that host's `apiBaseUrl`, which must be `https`; pagination follows `Link` URLs under the same base only. A host that is not configured is never contacted, even if a PR URL or a remote names it.
+
 ## Secrets and sensitive information
 
 | Item | Handling |

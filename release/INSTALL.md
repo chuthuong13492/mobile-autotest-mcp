@@ -84,12 +84,19 @@ directory, never a fetch). Failures that already exist on the base branch can be
 
 ## GitHub (optional)
 
-AutoTest reads PRs and publishes reports on github.com through your GitHub CLI login. It never stores the token.
+AutoTest reads PRs and publishes reports on github.com and on GitHub Enterprise Server hosts through your GitHub CLI
+login. It never stores the token.
 
 1. Install the GitHub CLI and run `gh auth login`.
 2. Run `autotest setup` (it adds `gh` to the executable allowlist). To allow publishing, add `--enable-publication`;
    without it GitHub stays read-only.
-3. `autotest doctor` reports whether `gh` is logged in.
+3. `autotest doctor` reports whether `gh` is logged in, for every configured host.
+
+**GitHub Enterprise Server (1.3.0).** When a workspace's `origin` remote is on another host (for example
+`git@ghe.example.com:team/app.git`), `autotest setup --workspace` adds that host to `github.hosts` with
+`apiBaseUrl: https://<host>/api/v3` and binds the workspace to its repository. Add a host by hand with
+`--github-host <host>` or `--github-host <host>=<https API base URL>`, and log in with
+`gh auth login --hostname <host>`. The token is only ever sent to the configured `apiBaseUrl`, over https.
 
 Then ask Claude, for example, "Test acme/app#42 in workspace ws_myapp". Publishing happens only when you ask for it,
 and each publication needs `autotest approve` for that exact report and PR head. A `gh` login cannot create check runs:

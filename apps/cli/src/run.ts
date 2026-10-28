@@ -11,7 +11,7 @@ import { openCli, type CliEnv } from './context.ts';
 import type { Io } from './io.ts';
 
 export const USAGE = `usage:
-  autotest setup [--workspace <path>]... [--flutter <path>] [--enable-publication] [--yes] [--skip-claude]
+  autotest setup [--workspace <path>]... [--flutter <path>] [--github-host <host>[=<api url>]]... [--enable-publication] [--yes] [--skip-claude]
   autotest uninstall-claude
   autotest init
   autotest doctor [--audit | --suggest-executables | --stats]

@@ -19,6 +19,8 @@ export interface MockGitHubOptions {
   readonly login?: string;
   /** Check-run endpoints answer 403 (a user OAuth token cannot create check runs). */
   readonly checksForbidden?: boolean;
+  /** B0: serve the API under a path prefix, as a GitHub Enterprise Server does (`/api/v3`); `url` includes it. */
+  readonly prefix?: string;
 }
 
 export interface MockGitHub {
@@ -43,6 +45,7 @@ export interface MockGitHub {
 
 export async function startMockGitHub(o: MockGitHubOptions): Promise<MockGitHub> {
   const login = o.login ?? 'autotest-user';
+  let origin = '';
   let nextId = 1000;
   const state: Omit<MockGitHub, 'url' | 'close'> = {
     prs: new Map(),
@@ -54,7 +57,8 @@ export async function startMockGitHub(o: MockGitHubOptions): Promise<MockGitHub>
   };
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://x');
-    const path = url.pathname;
+    const prefix = o.prefix ?? '';
+    const path = url.pathname.startsWith(`${prefix}/`) ? url.pathname.slice(prefix.length) : '/__outside_prefix__';
     const method = req.method ?? 'GET';
     const authorized = req.headers.authorization === `Bearer ${o.token}`;
     state.requests.push({ method, path, authorized });
@@ -99,7 +103,7 @@ export async function startMockGitHub(o: MockGitHubOptions): Promise<MockGitHub>
         if (n * per < items.length) {
           const next = new URL(url.toString());
           next.searchParams.set('page', String(n + 1));
-          headers['link'] = `<${mock.url}${next.pathname}${next.search}>; rel="next"`;
+          headers['link'] = `<${origin}${next.pathname}${next.search}>; rel="next"`;
         }
         return send(200, slice, headers);
       };
@@ -171,9 +175,10 @@ export async function startMockGitHub(o: MockGitHubOptions): Promise<MockGitHub>
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
   const address = server.address() as { port: number };
+  origin = `http://127.0.0.1:${address.port}`;
   const mock: MockGitHub = {
     ...state,
-    url: `http://127.0.0.1:${address.port}`,
+    url: `${origin}${o.prefix ?? ''}`,
     close: () => new Promise<void>((r) => server.close(() => r())),
   };
   return mock;
