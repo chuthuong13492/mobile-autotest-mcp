@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.3.0
+
+Real-app reach: approval prompt, Flutter run options, GitHub Enterprise.
+
+- `autotest approve` asks `Approve this? [y/N]` after the same summary, instead of six digest characters. Only `y` or
+  `yes` approves; Enter, other answers and end of input refuse. It still needs a terminal and there is no `--yes`.
+  The old challenge never stopped an agent with a pseudo-terminal either (RK-01); the deny rules and AL3 remain the
+  real protection.
+- Flutter run options per workspace in `~/.autotest/config.yaml`: `run: { flutter: { flavor, dartDefines } }` adds
+  `--flavor` and `--dart-define=K=V` to every `flutter test` of that workspace. Changing them makes approvals stale.
+  Credential-looking keys are refused. (`flutter test` has no `--target`.)
+- GitHub Enterprise Server: `autotest setup --workspace` configures the host of a repository's `origin` remote
+  (`apiBaseUrl https://<host>/api/v3`; `--github-host` to add one by hand); `get_pr_context` uses the workspace's host
+  when none is given; `autotest doctor` checks the `gh` login per host (ADR-0016).
+- `integration_test/appium_test.dart` (an Appium entry point) is no longer run as a Flutter test.
+- Fix: the Skill told the agent to pass `pr: {…}` to `get_pr_context`; the field is `github`.
+- Not verified yet: GitHub Enterprise was tested against a mock `/api/v3` server only; a read-only check against the
+  real instance is pending (OQ-07).
+
 ## 1.2.0
 
 React Native and Appium (Phase 5).

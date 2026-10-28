@@ -46,7 +46,7 @@ import { coverageUseCases } from './tools/coverage.ts';
 import { approvalUseCases } from './tools/approvals.ts';
 import { elicitApproval } from './elicitation.ts';
 
-export const SERVER_VERSION = '1.2.0';
+export const SERVER_VERSION = '1.3.0';
 
 export interface ComposeOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
