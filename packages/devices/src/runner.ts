@@ -40,7 +40,13 @@ export const flag = (name: string, value?: string): ArgToken => ({
   ...(value === undefined ? {} : { value }),
 });
 
-function validated(ctx: DeviceContext, executable: string, args: readonly ArgToken[], runDir: string) {
+function validated(
+  ctx: DeviceContext,
+  executable: string,
+  args: readonly ArgToken[],
+  runDir: string,
+  workspaceRoot = ctx.workDir,
+) {
   fs.mkdirSync(ctx.workDir, { recursive: true, mode: 0o700 });
   const spec: ExecutionSpec = {
     executable,
@@ -55,7 +61,7 @@ function validated(ctx: DeviceContext, executable: string, args: readonly ArgTok
   return validateSpec(spec, {
     fs: ctx.fs,
     registry: ctx.registry,
-    workspaceRoot: ctx.workDir,
+    workspaceRoot,
     runDir,
     allowDependencyResolution: false,
     allowedClasses: ['probe', 'device_tool'],
@@ -88,10 +94,12 @@ export async function runTool(
     readonly timeoutMs?: number;
     readonly stdoutFile?: string;
     readonly runDir?: string;
+    /** Canonical workspace root that `workspacePath` tokens resolve in (RN-003 app installs). */
+    readonly workspaceRoot?: string;
   } = {},
 ): Promise<ToolResult> {
   if (!ctx.registry.executables.has(executable)) return { status: 'missing' };
-  const v = validated(ctx, executable, args, o.runDir ?? ctx.workDir);
+  const v = validated(ctx, executable, args, o.runDir ?? ctx.workDir, o.workspaceRoot);
   if (!v.ok) return { status: 'denied', codes: v.denials.map((d) => `${d.code}:${d.detail}`) };
   fs.mkdirSync(ctx.workDir, { recursive: true, mode: 0o700 });
   const child = (ctx.port ?? nodeExecPort()).spawn({

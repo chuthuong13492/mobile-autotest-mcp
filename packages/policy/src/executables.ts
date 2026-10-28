@@ -93,6 +93,10 @@ export type SpecValidation =
       readonly cwd: string;
       readonly formId: string;
       readonly class: ExecClass;
+      /** The executable's fixed environment (ArgSchema `env`). */
+      readonly env: Readonly<Record<string, string>>;
+      /** Absolute directories to append to PATH (CommandForm `cwdPathDirs` that exist under the cwd). */
+      readonly pathAppend: readonly string[];
     }
   | { readonly ok: false; readonly denials: readonly Denial[] };
 
@@ -113,8 +117,19 @@ export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecV
 
   const denials: Denial[] = [];
   const argv: string[] = [];
+  const at0 = form.script ? 1 : 0;
+  if (form.script) {
+    const tok = spec.args[0];
+    const r =
+      tok?.kind === 'workspacePath' && form.script.test(tok.rel)
+        ? checkPath(ctx.fs, ctx.workspaceRoot, tok.rel, { mustExist: true })
+        : undefined;
+    if (r?.ok && ctx.fs.lstat(r.path)?.isFile) argv.push(r.path);
+    else denials.push({ code: 'path_denied', detail: '#0:script' });
+  }
   const lead = form.leading ?? [];
-  for (const [i, rule] of lead.entries()) {
+  for (const [j, rule] of lead.entries()) {
+    const i = at0 + j;
     const tok = spec.args[i];
     if (tok?.kind !== 'flag' || tok.name !== rule.name) {
       denials.push({ code: 'unexpected_token', detail: `#${i}` });
@@ -129,7 +144,7 @@ export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecV
   let positional = 0;
   let next = 0;
 
-  const skip = lead.length + form.words.length;
+  const skip = at0 + lead.length + form.words.length;
   for (const [i, tok] of spec.args.slice(skip).entries()) {
     const at = `#${i + skip}`;
     switch (tok.kind) {
@@ -189,9 +204,25 @@ export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecV
     const r = checkPath(ctx.fs, ctx.workspaceRoot, c.dir);
     if (!r.ok) denials.push({ code: 'path_denied', detail: `collect#${i}:${r.reason}` });
   }
+  for (const [i, f] of (spec.files ?? []).entries()) {
+    const r = checkPath(ctx.fs, ctx.runDir, f.rel);
+    if (!r.ok || !path.isAbsolute(r.path)) denials.push({ code: 'path_denied', detail: `files#${i}` });
+  }
   if (next < (form.positionals?.length ?? 0)) denials.push({ code: 'missing_positional', detail: `#${next}` });
   if (denials.length) return { ok: false, denials };
-  return { ok: true, executablePath: exe.realPath, argv, cwd: cwd.path, formId: form.id, class: form.class };
+  return {
+    ok: true,
+    executablePath: exe.realPath,
+    argv,
+    cwd: cwd.path,
+    formId: form.id,
+    class: form.class,
+    env: schema.env ?? {},
+    pathAppend: (form.cwdPathDirs ?? [])
+      .map((d) => checkPath(ctx.fs, cwd.path, d, { mustExist: true }))
+      .filter((r) => r.ok && ctx.fs.lstat(r.path)?.isDirectory)
+      .map((r) => (r as { path: string }).path),
+  };
 }
 
 const deny = (code: DenialCode, detail: string): SpecValidation => ({ ok: false, denials: [{ code, detail }] });
@@ -210,7 +241,10 @@ function matchForm(schema: ArgSchema, spec: ExecutionSpec): CommandForm | undefi
   return [...schema.forms]
     .sort((a, b) => b.words.length - a.words.length)
     .find((f) => {
-      const lead = leadWords(f.leading?.length ?? 0);
+      // A form with a script matches only specs whose first token is that script.
+      const first = spec.args[0];
+      if (f.script && !(first?.kind === 'workspacePath' && f.script.test(first.rel))) return false;
+      const lead = leadWords((f.script ? 1 : 0) + (f.leading?.length ?? 0));
       return (
         (f.positionals ? f.words.length <= lead.length : f.words.length === lead.length) &&
         f.words.every((w, i) => w === lead[i])

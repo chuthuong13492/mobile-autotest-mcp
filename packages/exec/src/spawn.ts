@@ -11,6 +11,7 @@ import path from 'node:path';
 import type { ExecutionSpec, ProcessIdentity } from '@autotest/contracts';
 import {
   buildChildEnv,
+  checkPath,
   validateSpec,
   type Denial,
   type EnvDenialCode,
@@ -87,12 +88,25 @@ export async function spawnSpec(spec: ExecutionSpec, ctx: SpawnContext): Promise
 
   for (const d of [ctx.home, ctx.tmpDir, path.dirname(ctx.stdoutPath), path.dirname(ctx.stderrPath)])
     fs.mkdirSync(d, { recursive: true, mode: 0o700 });
+  // Spec files (RN-003), created exclusively inside the run directory (validateSpec checked each path).
+  for (const f of spec.files ?? []) {
+    const r = checkPath(ctx.fs, ctx.runDir, f.rel);
+    try {
+      if (!r.ok) throw new Error('outside');
+      fs.mkdirSync(path.dirname(r.path), { recursive: true, mode: 0o700 });
+      fs.writeFileSync(r.path, f.content, { flag: 'wx', mode: 0o600 });
+    } catch {
+      return { ok: false, denials: [{ code: 'path_denied', detail: 'files' }] };
+    }
+  }
   const child = port.spawn({
     file: v.executablePath,
     argv: v.argv,
     cwd: v.cwd,
     env: {
       ...env.env,
+      ...(v.pathAppend.length ? { PATH: [env.env['PATH'], ...v.pathAppend].filter(Boolean).join(':') } : {}),
+      ...v.env,
       ...(ctx.androidSerial ? { ANDROID_SERIAL: ctx.androidSerial } : {}),
       [RUN_MARKER_ENV]: ctx.runId,
     },

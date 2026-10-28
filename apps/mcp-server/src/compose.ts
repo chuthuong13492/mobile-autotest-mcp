@@ -23,7 +23,7 @@ import { evidenceUseCases } from './tools/evidence.ts';
 import { publishUseCases } from './tools/publish.ts';
 import { deviceUseCases } from './tools/devices.ts';
 import { createGitHubAccess } from './github.ts';
-import { loadPolicyConfig, type PolicyLoadResult } from '@autotest/policy';
+import { loadPolicyConfig, type PolicyLoadResult, type ResolvedWorkspace } from '@autotest/policy';
 import { loadOrCreateKey, openDataRoot } from '@autotest/storage';
 import {
   bindUseCases,
@@ -46,7 +46,7 @@ import { coverageUseCases } from './tools/coverage.ts';
 import { approvalUseCases } from './tools/approvals.ts';
 import { elicitApproval } from './elicitation.ts';
 
-export const SERVER_VERSION = '1.1.1';
+export const SERVER_VERSION = '1.2.0';
 
 export interface ComposeOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
@@ -154,7 +154,13 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
     ...(policy.ok
       ? {
           probes: (ws) =>
-            createProbePort({ config: policy.policy.config, dataRoot, workspaceRoot: ws.realPath, workspaceId: ws.id }),
+            createProbePort({
+              config: policy.policy.config,
+              dataRoot,
+              workspaceRoot: ws.realPath,
+              workspaceId: ws.id,
+              parentEnv: env,
+            }),
         }
       : {}),
   });
@@ -171,7 +177,26 @@ export async function composeServer(opts: ComposeOptions = {}): Promise<Composed
   const serverEnvironment = opts.serverEnvironment ?? serverEnvironmentOf(env);
   const coverage = coverageUseCases({ ports, policy, serverEnvironment });
   const approvals = approvalUseCases({ ports, policy, serverEnvironment });
-  const runDeps: RunDeps = { ports, policy, registry, serverEnvironment, dataRoot, host };
+  const runDeps: RunDeps = {
+    ports,
+    policy,
+    registry,
+    serverEnvironment,
+    dataRoot,
+    host,
+    ...(policy.ok
+      ? {
+          probes: (ws: ResolvedWorkspace) =>
+            createProbePort({
+              config: policy.policy.config,
+              dataRoot,
+              workspaceRoot: ws.realPath,
+              workspaceId: ws.id,
+              parentEnv: env,
+            }),
+        }
+      : {}),
+  };
   const runs = runUseCases(runDeps);
   const evidence = evidenceUseCases(runDeps);
   const publish = publishUseCases({

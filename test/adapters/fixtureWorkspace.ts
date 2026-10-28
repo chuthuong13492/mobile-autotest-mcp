@@ -9,9 +9,9 @@ export function fixture(dir: string): AdapterWorkspace {
   const walk = (rel: string) => {
     for (const e of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {
       const r = rel ? `${rel}/${e.name}` : e.name;
-      // Build outputs and Gradle caches a local fixture build may have left are not part of the fixture.
+      // Build outputs, caches and installed packages a local fixture build may have left are not part of the fixture.
       if (e.isDirectory()) {
-        if (e.name !== 'build' && e.name !== '.gradle') walk(r);
+        if (!['build', '.gradle', 'node_modules', 'Pods'].includes(e.name)) walk(r);
       } else all.push(r);
     }
   };
@@ -30,8 +30,10 @@ export function fixture(dir: string): AdapterWorkspace {
       return { text, sizeBytes: text.length, truncated: false, binary: false };
     },
     exists: (rel) => fs.existsSync(path.join(dir, rel)),
-    list: (globs) => {
-      const files = all.filter((f) => globs.some((g) => re(g).test(f)));
+    list: (globs, options) => {
+      const files = all.filter(
+        (f) => globs.some((g) => re(g).test(f)) && !(options?.exclude ?? []).some((g) => re(g).test(f)),
+      );
       return { files, matched: files.length, truncated: false };
     },
   };

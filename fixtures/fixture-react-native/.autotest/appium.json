@@ -1,0 +1,9 @@
+{
+  "serverVersion": "3.4.2",
+  "drivers": [{ "name": "uiautomator2", "version": "8.7.0" }],
+  "port": 4725,
+  "platforms": ["android"],
+  "runner": { "script": "appium/run-scenario.mjs", "cwd": ".", "passDevice": true, "passPort": true },
+  "scenarios": { "list": "appium/scenario-list.json" },
+  "specs": "appium/spec"
+}

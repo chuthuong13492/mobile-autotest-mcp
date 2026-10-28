@@ -1,9 +1,10 @@
 # Mobile AutoTest MCP
 
 PR-driven, policy-governed mobile test orchestration for Claude Code: an MCP server (`autotest-mcp`), a CLI
-(`autotest`) and the `pr-mobile-autotest` Agent Skill. Version 1.1 runs **Flutter unit and widget tests** on
+(`autotest`) and the `pr-mobile-autotest` Agent Skill. Version 1.2 runs **Flutter unit and widget tests** on
 **macOS or Linux**, and on AutoTest-owned simulators and emulators: Flutter `integration_test`, native iOS
-(XCTest/XCUITest, macOS) and native Android (unit tests on the host JVM, instrumented tests on an emulator).
+(XCTest/XCUITest, macOS) native Android (unit tests on the host JVM, instrumented tests on an emulator), React Native (Jest on the host;
+Maestro and Detox on devices) and pinned Appium suites.
 
 ## Requirements
 
@@ -18,12 +19,12 @@ PR-driven, policy-governed mobile test orchestration for Claude Code: an MCP ser
 Download the package from the GitHub Release (or use a `.tgz` you were given), check it, and install it:
 
 ```bash
-gh release download v1.1.1 -R chuthuong13492/mobile-autotest-mcp -p '*.tgz' -p SHA256SUMS
+gh release download v1.2.0 -R chuthuong13492/mobile-autotest-mcp -p '*.tgz' -p SHA256SUMS
 shasum -a 256 -c SHA256SUMS --ignore-missing
 ```
 
 ```bash
-npm install -g ./mobile-autotest-mcp-1.1.1.tgz
+npm install -g ./mobile-autotest-mcp-1.2.0.tgz
 autotest setup --workspace /path/to/your/flutter/repo
 autotest doctor
 ```

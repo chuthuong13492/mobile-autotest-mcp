@@ -5,7 +5,7 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 FLUTTER=${1:?usage: verify-macos.sh /abs/path/to/flutter [tarball]}
-TGZ=${2:-$ROOT/release/out/mobile-autotest-mcp-1.1.1.tgz}
+TGZ=${2:-$ROOT/release/out/mobile-autotest-mcp-1.2.0.tgz}
 WORK=$(mktemp -d)
 mkdir -p "$WORK/home" "$WORK/prefix"
 cp -R "$ROOT/fixtures/fixture-flutter" "$WORK/app"

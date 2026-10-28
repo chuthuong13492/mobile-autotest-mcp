@@ -40,7 +40,15 @@ export interface AdapterWorkspace {
 
 /** Enumerated read-only probes, executed by `exec` under the `probe` policy class. */
 export type ProbeKind =
-  'flutter_version' | 'dart_version' | 'xcode_version' | 'adb_version' | 'node_version' | 'java_version';
+  | 'flutter_version'
+  | 'dart_version'
+  | 'xcode_version'
+  | 'adb_version'
+  | 'node_version'
+  | 'java_version'
+  /** APM-001: `appium --version` and `appium driver list --installed --json`. */
+  | 'appium_version'
+  | 'appium_drivers';
 
 export type ProbeResult =
   | { readonly available: true; readonly stdout: string; readonly exitCode: number }
@@ -87,7 +95,7 @@ export interface CapabilitySet {
   readonly devices: { readonly needs: DeviceNeed; readonly available: boolean };
   readonly selection: readonly SelectorKind[];
   readonly resultFormats: readonly string[];
-  readonly resultGranularity: 'test' | 'file';
+  readonly resultGranularity: 'test' | 'file' | 'scenario';
   readonly cancellation: 'process_group' | 'graceful_then_group';
   readonly coverage: boolean;
   readonly limitations: readonly string[];

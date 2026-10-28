@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0
+
+React Native and Appium (Phase 5).
+
+- React Native: Jest files on the host (the project's own Jest, run directly, never through `npx`); Maestro flows and
+  Detox tests on an AutoTest-owned simulator or emulator. Detox is pinned to the run's device with a generated config
+  that extends the project's own, because Detox's `--device-name` could select another simulator.
+- `manage_simulator {action: "install"}` installs an app built beforehand (`.app` or `.apk` from an allowlisted
+  workspace) on a booted device AutoTest owns. AutoTest does not build apps; `detox build` is not allowed.
+- Appium (optional): suites run only when `.autotest/appium.json` pins the Appium server and driver versions, and the
+  installed ones match (checked when the run is created and again at dispatch). The server listens on 127.0.0.1 only
+  and stops with the run; results are per scenario. Scenarios are linked to spec documents by name.
+- `autotest setup` registers `node`, `maestro` and `appium`, and allowlists `APPIUM_HOME`.
+- Verified on one Mac with Jest 29.7, Maestro 2.11.0, Detox 20.51.4 (Android), Appium 3.4.2 with UiAutomator2 8.7.0.
+- Not done: Detox on iOS (needs `applesimutils`); the Appium XCUITest and Flutter integration drivers were not run;
+  of Autotrader's 27 scenarios, the 17 with spec documents are mapped.
+
 ## 1.1.1
 
 - Fix: `autotest setup` failed to register the server with Claude Code when it passed environment variables

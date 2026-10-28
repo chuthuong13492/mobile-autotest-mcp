@@ -23,6 +23,7 @@ import {
   iosDelete,
   iosErase,
   iosShutdown,
+  installApp,
   listDevices,
   platformOf,
   type DeviceContext,
@@ -42,6 +43,7 @@ import {
   deviceActionScope,
   NO_AL3,
   nodeFsPort,
+  resolveWorkspaces,
   selectApproval,
   type PolicyEnvironment,
   type PolicyLoadResult,
@@ -112,6 +114,54 @@ export async function listDevicesUseCase(
     } as const);
   }
   return ok({ host: listing.host, devices: devices.slice(0, 100), unsupported: [...listing.unsupported] });
+}
+
+/**
+ * `install` (RN-003): an app built beforehand, from an allowlisted workspace, onto a booted device AutoTest owns
+ * (P1). Devices AutoTest does not own are refused rather than approved: installing changes them for good.
+ */
+async function install(
+  deps: DeviceDeps,
+  ctx: DeviceContext,
+  d: { deviceId: string; owned: boolean; state: string; lease: DeviceLease | undefined },
+  input: ToolInput<'manage_simulator'>,
+  audit: (deviceId: string, tier: 'P1' | 'P2') => Promise<unknown>,
+): Promise<UseCaseResult<ToolOutput<'manage_simulator'>>> {
+  if (!d.owned)
+    return fail(
+      toolError('E_DEVICE_NOT_OWNED', `${d.deviceId} is not an AutoTest device: apps are installed only on those`, [
+        'Create one with manage_simulator {action: "create"} and boot it',
+      ]),
+    );
+  if (d.state !== 'Booted')
+    return fail(
+      toolError('E_DEVICE_UNAVAILABLE', `${d.deviceId} is ${d.state}`, [
+        'Boot it with manage_simulator {action: "boot"}',
+      ]),
+    );
+  const ws = deps.policy.ok
+    ? resolveWorkspaces(nodeFsPort(), deps.policy.policy.config.workspaces).workspaces.find(
+        (w) => w.id === input.install!.workspace,
+      )
+    : undefined;
+  if (!ws)
+    return fail(
+      toolError('E_WORKSPACE_NOT_ALLOWED', `workspace ${input.install!.workspace} is not allowlisted`, [
+        'Use a workspace id from config.yaml (`autotest setup --workspace <repo>`)',
+      ]),
+    );
+  const out = await installApp(ctx, d.deviceId, ws.realPath, input.install!.appPath);
+  if (!out.ok) return fail(outcomeError(out));
+  await audit(d.deviceId, 'P1');
+  return ok({
+    action: 'install',
+    deviceId: d.deviceId,
+    owned: true,
+    tierApplied: 'P1',
+    result: 'done',
+    leaseId: d.lease?.id ?? null,
+    state: out.state,
+  });
 }
 
 const APPROVAL_ACTION = {
@@ -214,6 +264,9 @@ export async function manageSimulator(
     return fail(
       toolError('E_DEVICE_UNAVAILABLE', `${deviceId} is in use by run ${lease!.runId}`, ['Wait for the run to end']),
     );
+
+  if (input.action === 'install')
+    return install(deps, ctx, { deviceId, owned, state: device.state, lease }, input, audit);
 
   let approvalId: string | undefined;
   if (!owned) {

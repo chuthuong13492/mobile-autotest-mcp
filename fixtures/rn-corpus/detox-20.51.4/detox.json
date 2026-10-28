@@ -1,0 +1,80 @@
+{
+ "numFailedTestSuites": 1,
+ "numFailedTests": 1,
+ "numPassedTestSuites": 0,
+ "numPassedTests": 1,
+ "numPendingTestSuites": 0,
+ "numPendingTests": 0,
+ "numRuntimeErrorTestSuites": 0,
+ "numTodoTests": 0,
+ "numTotalTestSuites": 1,
+ "numTotalTests": 2,
+ "openHandles": [],
+ "snapshot": {
+  "added": 0,
+  "didUpdate": false,
+  "failure": false,
+  "filesAdded": 0,
+  "filesRemoved": 0,
+  "filesRemovedList": [],
+  "filesUnmatched": 0,
+  "filesUpdated": 0,
+  "matched": 0,
+  "total": 0,
+  "unchecked": 0,
+  "uncheckedKeysByFile": [],
+  "unmatched": 0,
+  "updated": 0
+ },
+ "startTime": 0,
+ "success": false,
+ "testResults": [
+  {
+   "assertionResults": [
+    {
+     "ancestorTitles": [
+      "counter"
+     ],
+     "duration": 2459,
+     "failureDetails": [],
+     "failureMessages": [],
+     "fullName": "counter tapping increment shows Count: 1",
+     "invocations": 1,
+     "location": null,
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "status": "passed",
+     "title": "tapping increment shows Count: 1"
+    },
+    {
+     "ancestorTitles": [
+      "counter"
+     ],
+     "duration": 1330,
+     "failureDetails": [
+      {
+       "name": "DetoxRuntimeError"
+      }
+     ],
+     "failureMessages": [
+      "Test Failed: '(an instance of android.widget.TextView and view.getText() with or without transformation to match: is \"Count: 5\" and view has effective visibility <VISIBLE>)' doesn't match the selected view.\nExpected: (an instance of android.widget.TextView and view.getText() with or without transformation to match: is \"Count: 5\" and view has effective visibility <VISIBLE>)\n     Got: an instance of android.widget.TextView and view.getText() with or without transformation to match: is \"Count: 5\" view.getText() was \"Count: 1\" transformed text was \"Count: 1\"\nView Details: ReactTextView{id=6, visibility=VISIBLE, width=136, height=51, has-focus=false, has-focusable=false, has-window-focus=true, is-clickable=false, is-enabled=true, is-focused=false, is-focusable=false, is-layout-requested=true, is-selected=false, layout-params=android.widget.FrameLayout$LayoutParams@YYYYYY, tag=count, root-is-layout-requested=false, has-input-connection=false, x=472.0, y=1128.0, text=Count: 1, input-type=0, ime-target=false, has-links=false}\n\n\n    at Object.toHaveText (/work/fixture-react-native/e2e/counter.test.js:14:43)\n    at Generator.next (<anonymous>)\n    at asyncGeneratorStep (/work/fixture-react-native/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)\n    at _next (/work/fixture-react-native/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)\n    at /work/fixture-react-native/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7\n    at new Promise (<anonymous>)\n    at Object.<anonymous> (/work/fixture-react-native/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)\n    at Promise.then.completed (/work/fixture-react-native/node_modules/jest-circus/build/utils.js:298:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/work/fixture-react-native/node_modules/jest-circus/build/utils.js:231:10)\n    at _callCircusTest (/work/fixture-react-native/node_modules/jest-circus/build/run.js:316:40)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at _runTest (/work/fixture-react-native/node_modules/jest-circus/build/run.js:252:3)\n    at _runTestsForDescribeBlock (/work/fixture-react-native/node_modules/jest-circus/build/run.js:126:9)\n    at _runTestsForDescribeBlock (/work/fixture-react-native/node_modules/jest-circus/build/run.js:121:9)\n    at run (/work/fixture-react-native/node_modules/jest-circus/build/run.js:71:3)\n    at runAndTransformResultsToJestFormat (/work/fixture-react-native/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)\n    at jestAdapter (/work/fixture-react-native/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)\n    at runTestInternal (/work/fixture-react-native/node_modules/jest-runner/build/runTest.js:367:16)\n    at runTest (/work/fixture-react-native/node_modules/jest-runner/build/runTest.js:444:34)"
+     ],
+     "fullName": "counter shows Count: 5 on purpose",
+     "invocations": 1,
+     "location": null,
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "status": "failed",
+     "title": "shows Count: 5 on purpose"
+    }
+   ],
+   "endTime": 0,
+   "message": "  \u25cf counter \u203a shows Count: 5 on purpose\n\n    Test Failed: '(an instance of android.widget.TextView and view.getText() with or without transformation to match: is \"Count: 5\" and view has effective visibility <VISIBLE>)' doesn't match the selected view.\n    Expected: (an instance of android.widget.TextView and view.getText() with or without transformation to match: is \"Count: 5\" and view has effective visibility <VISIBLE>)\n         Got: an instance of android.widget.TextView and view.getText() with or without transformation to match: is \"Count: 5\" view.getText() was \"Count: 1\" transformed text was \"Count: 1\"\n    View Details: ReactTextView{id=6, visibility=VISIBLE, width=136, height=51, has-focus=false, has-focusable=false, has-window-focus=true, is-clickable=false, is-enabled=true, is-focused=false, is-focusable=false, is-layout-requested=true, is-selected=false, layout-params=android.widget.FrameLayout$LayoutParams@YYYYYY, tag=count, root-is-layout-requested=false, has-input-connection=false, x=472.0, y=1128.0, text=Count: 1, input-type=0, ime-target=false, has-links=false}\n\n      12 |\n      13 |   it('shows Count: 5 on purpose', async () => {\n    > 14 |     await expect(element(by.id('count'))).toHaveText('Count: 5');\n         |                                           ^\n      15 |   });\n      16 | });\n      17 |\n\n      at Object.toHaveText (e2e/counter.test.js:14:43)\n      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)\n      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)\n      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7\n      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)\n",
+   "name": "/work/fixture-react-native/e2e/counter.test.js",
+   "startTime": 0,
+   "status": "failed",
+   "summary": ""
+  }
+ ],
+ "wasInterrupted": false
+}

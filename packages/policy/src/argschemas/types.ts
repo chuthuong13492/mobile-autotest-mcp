@@ -29,10 +29,21 @@ export interface CommandForm {
   readonly id: string;
   readonly class: ExecClass;
   /**
+   * A script the interpreter runs, as the very first token: an existing workspace file whose relative path matches
+   * (RN-002: `node <ws>/node_modules/jest/bin/jest.js`). Nothing can come before it, so no interpreter option can be
+   * passed.
+   */
+  readonly script?: RegExp;
+  /**
    * Flags that must come first, exactly these and in this order, before the words (AND-003: the JVM options before
    * the main class, so no runner flag can reach the JVM and no JVM option can follow).
    */
   readonly leading?: readonly FlagRule[];
+  /**
+   * Directories under the spec's cwd appended to the end of PATH, when they exist (RN-003: Detox starts its test
+   * runner by name, `jest`, from `node_modules/.bin`). System directories stay first, so they win on a name clash.
+   */
+  readonly cwdPathDirs?: readonly string[];
   /** Exact leading subcommand words. */
   readonly words: readonly string[];
   readonly flags: readonly FlagRule[];
@@ -47,6 +58,8 @@ export interface CommandForm {
 
 export interface ArgSchema {
   readonly executable: string;
+  /** Fixed environment for every spawn of this executable (RN-003: Maestro's analytics off); policy-owned. */
+  readonly env?: Readonly<Record<string, string>>;
   readonly forms: readonly CommandForm[];
   /** Flags denied with a dedicated reason (all other unknown flags are denied as unknown). */
   readonly forbiddenFlags: readonly string[];

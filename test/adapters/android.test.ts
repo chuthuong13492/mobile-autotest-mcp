@@ -7,9 +7,9 @@ import {
   createAndroidAdapter,
   includedProjects,
   parseAndroidResults,
-  parseJUnitXml,
   testClassOf,
 } from '@autotest/adapter-android';
+import { parseJUnitXml } from '@autotest/adapter-sdk';
 import { fixture } from './fixtureWorkspace.ts';
 
 type ArgToken = ExecutionSpec['args'][number];

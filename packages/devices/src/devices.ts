@@ -401,6 +401,40 @@ export async function androidDelete(ctx: DeviceContext, avd: string): Promise<Ou
   return done(avd, 'Deleted');
 }
 
+/**
+ * Installs an app built beforehand on a booted device (RN-003): `simctl install <udid> <ws>/….app` or, for an
+ * emulator, `adb install -r <ws>/….apk` with ANDROID_SERIAL. `appPath` is workspace-relative; policy resolves it
+ * inside `workspaceRoot` and refuses anything else.
+ */
+export async function installApp(
+  ctx: DeviceContext,
+  deviceId: string,
+  workspaceRoot: string,
+  appPath: string,
+): Promise<Outcome> {
+  const ios = platformOf(deviceId) === 'ios';
+  if (ios ? !appPath.endsWith('.app') : !appPath.endsWith('.apk'))
+    return fail('failed', ios ? 'a simulator installs a .app bundle' : 'an emulator installs a .apk package');
+  const serial = ios ? undefined : await runningSerial(ctx, deviceId);
+  if (!ios && !serial) return fail('unavailable', `${deviceId} has no running emulator`);
+  const app = { kind: 'workspacePath' as const, rel: appPath };
+  const r = ios
+    ? await runTool(ctx, 'xcrun', [word('simctl'), word('install'), word(deviceId), app], {
+        workspaceRoot,
+        timeoutMs: 300_000,
+      })
+    : await runTool(ctx, 'adb', [word('install'), word('-r'), app], {
+        serial: serial!,
+        workspaceRoot,
+        timeoutMs: 300_000,
+      });
+  const p = toolProblem(r, ios ? 'simctl install' : 'adb install');
+  if (p) return p;
+  if (r.status === 'ok' && (r.exitCode !== 0 || /Failure \[/.test(r.stdout)))
+    return fail('failed', `install failed: ${(r.stderr || r.stdout).slice(0, 300)}`);
+  return done(deviceId, 'Booted');
+}
+
 /** Serial of a booted emulator (runs address it through ANDROID_SERIAL). */
 export const androidSerial = runningSerial;
 

@@ -154,6 +154,22 @@ export function updateConfig(
       changes.push(`env.allow + ${missing.join(', ')} (Android builds on emulators)`);
     }
   }
+  // APM-001: the Appium launcher finds node on PATH, and drivers live in APPIUM_HOME.
+  if (add.devices?.['appium']) {
+    const allow = (doc.getIn(['env', 'allow']) as { toJSON(): unknown } | undefined)?.toJSON?.() as
+      string[] | undefined;
+    if (!(allow ?? []).includes('APPIUM_HOME')) {
+      doc.setIn(['env', 'allow'], doc.createNode([...(allow ?? []), 'APPIUM_HOME']));
+      changes.push('env.allow + APPIUM_HOME (the pinned Appium drivers)');
+    }
+    const dirs = (doc.getIn(['env', 'pathDirs']) as { toJSON(): unknown } | undefined)?.toJSON?.() as
+      string[] | undefined;
+    const nodeDir = path.dirname(process.execPath);
+    if (!(dirs ?? []).includes(nodeDir)) {
+      doc.setIn(['env', 'pathDirs'], doc.createNode([...(dirs ?? []), nodeDir]));
+      changes.push(`env.pathDirs + ${nodeDir} (the appium launcher runs node)`);
+    }
+  }
   for (const [name, exe] of Object.entries(add.devices ?? {})) {
     if (doc.hasIn(['executables', name])) continue;
     if (!isMap(doc.get('executables', true))) doc.set('executables', doc.createNode({}));
@@ -162,6 +178,9 @@ export function updateConfig(
     const why: Record<string, string> = {
       xcodebuild: 'native iOS tests on simulators AutoTest owns',
       java: 'runs the Gradle wrapper for native Android tests, offline',
+      node: "runs a React Native project's own Jest and Detox",
+      maestro: 'Maestro flows on simulators and emulators AutoTest owns',
+      appium: 'pinned Appium suites; the server listens on 127.0.0.1 only',
     };
     changes.push(
       `executable ${name} → ${exe} (${why[name] ?? 'simulators and emulators AutoTest owns; others need approval'})`,
@@ -183,8 +202,9 @@ export function updateConfig(
 /**
  * Device tools (DEV-001/002): xcrun from PATH (macOS), and adb, emulator and avdmanager from the Android SDK
  * (`ANDROID_HOME` or `ANDROID_SDK_ROOT`), falling back to PATH; `java` (AND-003, the JDK that runs the Gradle
- * wrapper) from `JAVA_HOME`, falling back to PATH but never the macOS `/usr/bin/java` launcher stub. Only existing
- * files are returned, as real paths.
+ * wrapper) from `JAVA_HOME`, falling back to PATH but never the macOS `/usr/bin/java` launcher stub; `node` (the Node
+ * running setup) and `maestro` (`~/.maestro/bin`, then PATH) for React Native. Only existing files are returned, as
+ * real paths.
  */
 function findDeviceTools(env: Readonly<Record<string, string | undefined>>): Record<string, string> {
   const sdk = env['ANDROID_HOME'] ?? env['ANDROID_SDK_ROOT'];
@@ -198,6 +218,10 @@ function findDeviceTools(env: Readonly<Record<string, string | undefined>>): Rec
       env['JAVA_HOME'] && path.join(env['JAVA_HOME'], 'bin', 'java'),
       ...[findOnPath('java', env)].filter((p) => p !== '/usr/bin/java'),
     ],
+    // RN-002/003: the Node running setup runs a project's own Jest and Detox; Maestro from its installer location.
+    node: [process.execPath],
+    maestro: [env['HOME'] && path.join(env['HOME'], '.maestro', 'bin', 'maestro'), findOnPath('maestro', env)],
+    appium: [findOnPath('appium', env)],
   };
   const out: Record<string, string> = {};
   for (const [name, paths] of Object.entries(candidates)) {
@@ -250,6 +274,7 @@ function mcpEntry(e: CliEnv): { command: string; args: string[]; env?: Record<st
     if (e.env['JAVA_HOME'] && path.isAbsolute(e.env['JAVA_HOME'])) env['JAVA_HOME'] = e.env['JAVA_HOME'];
     env['GRADLE_USER_HOME'] = e.env['GRADLE_USER_HOME'] ?? path.join(e.env['HOME'] ?? os.homedir(), '.gradle');
   }
+  if (e.env['APPIUM_HOME'] && path.isAbsolute(e.env['APPIUM_HOME'])) env['APPIUM_HOME'] = e.env['APPIUM_HOME'];
   return { command: process.execPath, args: [serverEntryPath()], ...(Object.keys(env).length ? { env } : {}) };
 }
 

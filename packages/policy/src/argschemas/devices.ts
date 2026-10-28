@@ -12,6 +12,9 @@ export const OWNED_DEVICE_NAME = /^autotest-[a-z0-9-]{4,60}$/;
 const UDID = /^[0-9A-F]{8}-(?:[0-9A-F]{4}-){3}[0-9A-F]{12}$/;
 const DEVICE_TYPE = /^com\.apple\.CoreSimulator\.SimDeviceType\.[A-Za-z0-9.-]{1,100}$/;
 const RUNTIME = /^com\.apple\.CoreSimulator\.SimRuntime\.[A-Za-z0-9.-]{1,100}$/;
+/** RN-003: an app bundle or package inside the workspace. */
+const APP_BUNDLE = /^(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9 ._@()-]{1,200}(?:\/[A-Za-z0-9 ._@()-]{1,200}){0,30}\.app$/;
+const APK = /^(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9 ._@()-]{1,200}(?:\/[A-Za-z0-9 ._@()-]{1,200}){0,30}\.apk$/;
 const SCREENSHOT = /^attempts\/\d{1,2}\/runner\/[a-z0-9_-]{1,64}\.png$/;
 /** Any AVD name `emulator -list-avds` can print (booting one AutoTest does not own needs a P2 approval). */
 const AVD_NAME = /^[A-Za-z0-9._-]{1,100}$/;
@@ -43,6 +46,10 @@ export const XCRUN_SCHEMA: ArgSchema = {
     udidAction('shutdown'),
     udidAction('erase'),
     udidAction('delete'),
+    form('simctl.install', 'device_tool', ['simctl', 'install'], {
+      positionals: [{ kind: 'word', pattern: UDID }],
+      positionalPaths: { pattern: APP_BUNDLE, max: 1 },
+    }),
     form('simctl.bootstatus', 'probe', ['simctl', 'bootstatus'], {
       positionals: [{ kind: 'word', pattern: UDID }],
       flags: [{ name: '-b', value: { kind: 'none' } }],
@@ -84,6 +91,8 @@ export const ADB_SCHEMA: ArgSchema = {
     form('adb.logcat_dump', 'probe', ['logcat', '-d']),
     form('adb.screencap', 'probe', ['exec-out', 'screencap', '-p']),
     form('adb.emu_kill', 'device_tool', ['emu', 'kill']),
+    // RN-003: replace-install an app package from the workspace on the emulator ANDROID_SERIAL names.
+    form('adb.install', 'device_tool', ['install', '-r'], { positionalPaths: { pattern: APK, max: 1 } }),
   ],
 };
 

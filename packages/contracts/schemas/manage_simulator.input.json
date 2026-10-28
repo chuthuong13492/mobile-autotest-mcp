@@ -9,7 +9,8 @@
         "shutdown",
         "create",
         "erase",
-        "delete"
+        "delete",
+        "install"
       ]
     },
     "deviceId": {
@@ -39,6 +40,24 @@
         "platform",
         "deviceType",
         "runtime"
+      ],
+      "additionalProperties": false
+    },
+    "install": {
+      "type": "object",
+      "properties": {
+        "workspace": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "appPath": {
+          "type": "string",
+          "maxLength": 1024
+        }
+      },
+      "required": [
+        "workspace",
+        "appPath"
       ],
       "additionalProperties": false
     },

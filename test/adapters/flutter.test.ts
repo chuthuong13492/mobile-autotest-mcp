@@ -230,7 +230,7 @@ describe('the default server build ships the Flutter adapter', () => {
     { timeout: 120_000 },
     async () => {
       const { composeServer, builtInAdapters } = await import('@autotest/mcp-server');
-      expect(builtInAdapters().map((a) => a.id)).toEqual(['flutter', 'ios', 'android']);
+      expect(builtInAdapters().map((a) => a.id)).toEqual(['flutter', 'ios', 'android', 'react-native', 'appium']);
       // The CLI keeps its own copy of the list (apps may not import each other): both must agree.
       const { cliAdapters } = await import('@autotest/cli');
       expect(cliAdapters().map((a) => [a.id, a.version])).toEqual(builtInAdapters().map((a) => [a.id, a.version]));

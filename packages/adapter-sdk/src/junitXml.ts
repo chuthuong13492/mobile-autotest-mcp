@@ -1,6 +1,6 @@
 /**
- * JUnit XML reader for Gradle and Android Gradle plugin reports (AND-003, AND-004; corpus
- * `fixtures/android-corpus/agp-9.1.0/`). It reads `testcase` elements with regular expressions over bounded text:
+ * JUnit XML reader shared by adapters (AND-003/004: Gradle and Android Gradle plugin reports, corpus
+ * `fixtures/android-corpus/agp-9.1.0/`; RN-003: Maestro reports). It reads `testcase` elements with regular expressions over bounded text:
  * no DTDs, no external or custom entities (only the five predefined ones and numeric references are decoded), so a
  * report written by repository code cannot expand or reach files.
  */

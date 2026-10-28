@@ -4,7 +4,7 @@ The canonical source for platform behavior is `docs/platform-adapters.md` in the
 
 ## What each release can execute
 
-This build is v1.1: every v0.1 and v1.1 row runs (native Android unit tests on any host with a JDK and the Android SDK). The v1.2 rows are planned work.
+This build is v1.2: every row runs. Native Android unit tests and React Native Jest run on any host; the rest need an AutoTest-owned simulator or emulator.
 
 | Platform / level | Earliest release | Host |
 |---|---|---|
@@ -27,6 +27,8 @@ You may still list a case the current release or host cannot run. The server mar
   - Booting, shutting down, erasing or deleting a simulator the user owns requires human approval. Request it through `request_approval` with kind `device_action`.
   - Physical devices are never erased.
 - **Running on a device.** Flutter `integration_test` cases, native iOS cases and Android instrumented (`src/androidTest`) cases need a device; Android unit (`src/test`) cases run on the host. Create and boot one with `manage_simulator`, then pass its id: `run_tests { devices: [deviceId] }`. Only one device per run, and it must be AutoTest-owned and booted. The run holds the device until its results are imported; delete it afterwards.
+- **Apps for Maestro and Appium.** These runners need the app under test installed. AutoTest does not build apps: the user (or you, with their tools) builds it, then `manage_simulator {action: "install", deviceId, install: {workspace, appPath}}` installs the `.app` or `.apk` on the AutoTest device. Detox installs its own build, which must exist beforehand.
+- **Appium suites.** They run only when the repository pins the Appium server and driver versions in `.autotest/appium.json`; otherwise the inventory lists the scenarios and `run_tests` refuses with `prerequisite_mismatch`. Results are per scenario. Spec documents linked to a scenario appear as a `spec:<name>` tag on its target: use them to write the case text.
 - **Before v1.1.** Device actions return `E_CAPABILITY_UNAVAILABLE`.
 
 ## Choosing the runner

@@ -3,7 +3,7 @@ name: pr-mobile-autotest
 description: Turns a mobile pull request (Flutter host unit and widget tests today; devices, native, React Native and Appium in later releases) into a traceable, risk-based, executed and evidence-backed test report using the Mobile AutoTest MCP server. Use it when someone asks to test a mobile PR or a task, plan tests from a PR description, check PR test coverage, run the relevant tests for a PR, or produce a PR test report.
 compatibility: Requires the Mobile AutoTest MCP server (autotest-mcp, registered as "autotest") in Claude Code. Approvals need a human running the autotest CLI in a terminal.
 metadata:
-  version: "1.1.1"
+  version: "1.2.0"
   spec: "docs/agent-skill-spec.md"
 ---
 

@@ -174,6 +174,7 @@ Credentials are referenced by name in config (`secretRef: keychain:autotest/gith
 3. **Network egress from tests** is not restricted in v1.0.
 4. **Redaction is best effort** for novel secret formats. Screenshots cannot be redacted, so they are never published.
 5. **Client-side controls** such as `requiresUserInteraction` and annotations are advisory and depend on the client.
+6. **v1.1 – v1.2 runners execute more repository code (T-02).** Gradle build scripts (through the wrapper jar), the project's own Jest, Detox and Appium scenario scripts, and the apps under test all run with the user's privileges. Policy keeps their shape narrow: the configured JDK and Node run only the wrapper jar or `node_modules/{jest,detox}` or a workspace script as the first argument; `detox build` (a shell command from the project) is refused; Detox gets `node_modules/.bin` only at the end of PATH; the Appium server binds 127.0.0.1 with insecure features off; apps are installed only from allowlisted workspaces onto AutoTest-owned devices (T-10). Files a run writes (ExecutionSpec `files`) stay in the run directory, and collected outputs are copied without following links.
 
 ## Deployment assumptions
 

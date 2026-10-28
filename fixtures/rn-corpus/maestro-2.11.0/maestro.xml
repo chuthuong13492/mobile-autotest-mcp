@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="emulator-5554" tests="2" failures="1" time="32.446" timestamp="2026-10-26T00:00:00">
+    <testcase id="counter" name="counter" classname="counter" file=".maestro/counter.yaml" time="11.162" timestamp="2026-10-26T00:00:00" status="SUCCESS"/>
+    <testcase id="wrong-count" name="wrong-count" classname="wrong-count" file=".maestro/wrong-count.yaml" time="21.272" timestamp="2026-10-26T00:00:00" status="ERROR">
+      <failure>Assertion is false: "Count: 5" is visible</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -18,6 +18,7 @@
 import {
   buildSpec,
   flag,
+  parseJUnitXml,
   targetId,
   word,
   type CapabilitySet,
@@ -35,7 +36,6 @@ import {
   type RunnerOutputs,
   type TestTarget,
 } from '@autotest/adapter-sdk';
-import { parseJUnitXml } from './junitXml.ts';
 import { customProjectDirs, findAndroidModules, findGradleRoots, testClasses } from './project.ts';
 
 export const ADAPTER_ID = 'android';

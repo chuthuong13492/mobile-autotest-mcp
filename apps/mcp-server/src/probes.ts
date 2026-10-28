@@ -25,6 +25,31 @@ const PROBES: Partial<Record<ProbeKind, ExecutionSpec>> = {
     cancellation: 'process_group',
     requires: { host: 'any', device: 'none' },
   },
+  appium_version: {
+    executable: 'appium',
+    args: [{ kind: 'flag', name: '--version' }],
+    cwd: '.',
+    envNeeds: [],
+    expectedOutputs: [],
+    timeoutMs: 30_000,
+    cancellation: 'process_group',
+    requires: { host: 'any', device: 'none' },
+  },
+  appium_drivers: {
+    executable: 'appium',
+    args: [
+      { kind: 'word', value: 'driver' },
+      { kind: 'word', value: 'list' },
+      { kind: 'flag', name: '--installed' },
+      { kind: 'flag', name: '--json' },
+    ],
+    cwd: '.',
+    envNeeds: [],
+    expectedOutputs: [],
+    timeoutMs: 60_000,
+    cancellation: 'process_group',
+    requires: { host: 'any', device: 'none' },
+  },
 };
 
 export interface ProbePortOptions {
@@ -35,6 +60,8 @@ export interface ProbePortOptions {
   readonly workspaceId: string;
   readonly timeoutMs?: number;
   readonly port?: ExecPort;
+  /** The server's environment: probes see only its policy `env.allow` variables (APM-001: APPIUM_HOME). */
+  readonly parentEnv?: Readonly<Record<string, string | undefined>>;
 }
 
 export function createProbePort(o: ProbePortOptions): ProbePort {
@@ -59,7 +86,7 @@ export function createProbePort(o: ProbePortOptions): ProbePort {
           runId: 'probe',
           workspaceId: o.workspaceId,
           envPolicy: o.config.env,
-          parentEnv: {},
+          parentEnv: o.parentEnv ?? {},
           resolver: envSecretResolver({}),
           home: path.join(dir, 'home'),
           tmpDir: path.join(dir, 'tmp'),

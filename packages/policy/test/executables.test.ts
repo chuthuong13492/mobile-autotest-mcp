@@ -75,6 +75,8 @@ describe('POL-003 validateSpec', () => {
       cwd: ws,
       formId: 'flutter.test',
       class: 'test_runner',
+      env: {},
+      pathAppend: [],
       argv: [
         'test',
         '--no-pub',

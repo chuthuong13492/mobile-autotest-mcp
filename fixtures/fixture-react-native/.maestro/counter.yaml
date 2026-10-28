@@ -1,0 +1,8 @@
+# Maestro flow (RN-003): passes when the counter increments.
+appId: com.fixturern
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: increment
+- assertVisible: 'Count: 1'

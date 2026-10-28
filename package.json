@@ -1,6 +1,6 @@
 {
   "name": "mobile-autotest-mcp",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "Mobile AutoTest MCP: PR-driven, policy-governed mobile test orchestration (MCP server + CLI + Agent Skill).",
@@ -27,8 +27,10 @@
   },
   "devDependencies": {
     "@autotest/adapter-android": "workspace:*",
+    "@autotest/adapter-appium": "workspace:*",
     "@autotest/adapter-flutter": "workspace:*",
     "@autotest/adapter-ios": "workspace:*",
+    "@autotest/adapter-react-native": "workspace:*",
     "@autotest/adapter-sdk": "workspace:*",
     "@autotest/cli": "workspace:*",
     "@autotest/core": "workspace:*",

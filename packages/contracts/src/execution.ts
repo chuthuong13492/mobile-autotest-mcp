@@ -84,6 +84,26 @@ export const ExecutionSpec = z.strictObject({
     )
     .max(5)
     .optional(),
+  /**
+   * A service the following specs need (APM-001: the Appium server). The supervisor starts it, waits until its
+   * standard output contains `readyText` (or fails the attempt when it exits or the wait times out), moves on without
+   * waiting for it to exit, and terminates its process group when the attempt's other specs are done or cancelled.
+   */
+  background: z
+    .strictObject({
+      readyText: z.string().min(1).max(200),
+      readyTimeoutMs: z.number().int().min(1000).max(300_000),
+    })
+    .optional(),
+  /**
+   * Small files the supervisor writes into the run directory just before the spawn (RN-003: a Detox configuration
+   * that extends the project's own and pins the run's device). `rel` is run-directory-relative; files are created
+   * exclusively and never overwrite anything.
+   */
+  files: z
+    .array(z.strictObject({ rel: RelPath, content: z.string().max(64 * 1024) }))
+    .max(5)
+    .optional(),
   timeoutMs: z.number().int().min(1000).max(14_400_000),
   cancellation: z.enum(['process_group', 'graceful_then_group']),
   requires: z.strictObject({ host: HostRequirement, device: DeviceNeed }),

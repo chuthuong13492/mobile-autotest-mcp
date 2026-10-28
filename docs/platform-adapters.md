@@ -273,7 +273,7 @@ Scope: v1.1. Requires macOS.
 
 ## React Native
 
-Scope: v1.2.
+Scope: v1.2 (implemented: RN-001 – RN-003; `packages/adapter-react-native`).
 
 - **Detection signals:**
   - `package.json` with a `react-native` dependency
@@ -283,10 +283,10 @@ Scope: v1.2.
 - **Discovery:**
   - Jest tests (`__tests__/**`, `*.test.(t|j)sx?`) → `unit`/`component`. A file is `component` when it imports `@testing-library/react-native`.
   - Detox configs (`.detoxrc*`) and Maestro flows (`.maestro/**/*.yaml`) → `e2e`.
-- **Commands:**
-  - Jest: `["<node>", "<repo>/node_modules/jest/bin/jest.js", "--ci", "--json", "--outputFile", "<runDir>/.../jest.json", <paths>]`. Invoking the local Jest directly avoids `npx` network fetches (SR-014). These flags are ⚠ to verify in RN-002.
-  - Maestro: `["maestro", "test", "--format", "junit", "--output", "<runDir>/.../maestro.xml", <flowDir>]` ✅ (RL-020).
-  - Detox: `["<node>", "<repo>/node_modules/detox/local-cli/cli.js", "test", "-c", <config>]` ⚠ to verify in RN-003.
+- **Commands** (all ✅, RN 0.88.0 fixture, Jest 29.7, Detox 20.51.4, Maestro 2.11.0):
+  - Jest: `["node", "<ws>/node_modules/jest/bin/jest.js", "--ci", "--json", "--outputFile", "<runDir>/…/jest.json", "--testLocationInResults", "--no-watchman", "--runTestsByPath", <files>]`. The configured Node runs the workspace's own Jest as its first argument; `npx` is never used (SR-014).
+  - Maestro: `["maestro", "test", "--udid", <UDID|emulator-port>, "--format", "JUNIT", "--output", "<runDir>/…/maestro.xml", "--test-output-dir", "<runDir>/…/maestro", "--no-ansi", <flows>]`, with `MAESTRO_CLI_NO_ANALYTICS=1` fixed by policy. The app must be installed on the device first: `manage_simulator {action: "install"}` installs a `.app`/`.apk` built beforehand from an allowlisted workspace, on AutoTest-owned devices only.
+  - Detox: `["node", "<ws>/node_modules/detox/local-cli/cli.js", "test", "--config-path", "<runDir>/…/detox.config.js", "--configuration", <name>, …, "--json", "--outputFile", "<runDir>/…/detox.json", <e2e files>]`. Detox's `--device-name` selects iOS simulators by type only (it could pick a device AutoTest does not own), so the run writes a config (ExecutionSpec `files`) that extends the project's config and pins the configuration to the run's device (`{id: <UDID>}` on iOS, `{adbName: <serial>}` on Android). On iOS, Detox's framework cache lives in HOME, which is per run, so `build-framework-cache` runs first. `detox build` (a shell command from the project) is not allowed: build the app beforehand. Detox starts `jest` by name, so `<ws>/node_modules/.bin` is appended to the end of PATH for that form only.
 - **Results:**
   - Jest JSON is parsed directly; it could also go through a JUnit reporter if one is configured.
   - Maestro produces JUnit.
@@ -299,7 +299,7 @@ Scope: v1.2.
 
 ## Appium
 
-Optional, v1.2.
+Optional, v1.2 (implemented: APM-001, APM-002 mapping; `packages/adapter-appium`).
 
 - **Purpose:** reuse existing Appium suites, such as Autotrader's scenarios, or run cross-platform black-box flows ([ADR-0011](architecture-decisions/ADR-0011.md)).
 - **Detection signals:**
@@ -307,8 +307,8 @@ Optional, v1.2.
   - the `appium_flutter_server` dev dependency
   - `integration_test/appium_test.dart`
   - scenario registries
-- **Version pinning (mandatory).** The project config must declare `appium.serverVersion` and `appium.drivers[{name, version}]`. The adapter probes `appium --version` and `appium driver list --installed --json` (⚠ to verify the flags in APM-001). On any mismatch → `blocked:prerequisite_mismatch`. Compatibility between Appium 3 and `appium-flutter-integration-driver` stays **unverified** (OQ-06). Driver `main` declares peer Appium `^3.0.0` (RL-022).
-- **Execution.** The supervisor starts an Appium server on a run-allocated localhost port as a managed process. The adapter-provided suite command runs as one process per scenario, using the suite's own entrypoint from an allowlisted script map: `{scenarioRunner: ["node", "dist/index.js", "--scenario", "<name>"]}`. The server is stopped in cleanup.
+- **Version pinning (mandatory).** The workspace file `.autotest/appium.json` declares `serverVersion`, `drivers[{name, version}]`, the port (4723 – 4799), the platforms, the runner script and the scenario source (a JSON list or a registry with `case "name":` labels). Before a run is created and again at dispatch, the adapter probes `appium --version` and `appium driver list --installed --json` ✅ (APM-001; `APPIUM_HOME` comes from `env.allow`) and refuses the run on any difference (`prerequisite_mismatch`). Without the file a suite is inventoried but never runs (`appium:not_pinned`).
+- **Execution.** The Appium server (`appium server --address 127.0.0.1 --port <port> --log <runDir>/…`) runs as a background service of the attempt (ExecutionSpec `background`): the supervisor waits for "Appium REST http interface listener started", runs one `node <runner> --scenario <name> [--udid <device>] [--port <port>] --platform <p>` per scenario, and terminates the server's process group at the end of the attempt or on cancel. Insecure features, plugins, other configs and driver installs cannot be passed.
 - **Results.** Many existing suites only emit exit codes and logs. Autotrader's suite emits `status code: N` lines and TSV ([RL-A12](research-log.md#b-autotrader-reference-repository-read-only-inspection-2026-10-22)). The adapter maps exit code 0 to `passed` and any other exit code to `failed` (`failureKind: crash` when no assertion marker is found). The granularity is the **scenario** level, recorded as a limitation.
 - **Limitations.** It is slow and flaky, and it needs devices. Cloud farms are not supported.
 

@@ -11,12 +11,18 @@ importers:
       '@autotest/adapter-android':
         specifier: workspace:*
         version: link:packages/adapter-android
+      '@autotest/adapter-appium':
+        specifier: workspace:*
+        version: link:packages/adapter-appium
       '@autotest/adapter-flutter':
         specifier: workspace:*
         version: link:packages/adapter-flutter
       '@autotest/adapter-ios':
         specifier: workspace:*
         version: link:packages/adapter-ios
+      '@autotest/adapter-react-native':
+        specifier: workspace:*
+        version: link:packages/adapter-react-native
       '@autotest/adapter-sdk':
         specifier: workspace:*
         version: link:packages/adapter-sdk

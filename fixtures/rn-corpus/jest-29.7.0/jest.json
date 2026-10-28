@@ -1,0 +1,160 @@
+{
+ "numFailedTestSuites": 1,
+ "numFailedTests": 1,
+ "numPassedTestSuites": 2,
+ "numPassedTests": 3,
+ "numPendingTestSuites": 0,
+ "numPendingTests": 1,
+ "numRuntimeErrorTestSuites": 0,
+ "numTodoTests": 0,
+ "numTotalTestSuites": 3,
+ "numTotalTests": 5,
+ "openHandles": [],
+ "snapshot": {
+  "added": 0,
+  "didUpdate": false,
+  "failure": false,
+  "filesAdded": 0,
+  "filesRemoved": 0,
+  "filesRemovedList": [],
+  "filesUnmatched": 0,
+  "filesUpdated": 0,
+  "matched": 0,
+  "total": 0,
+  "unchecked": 0,
+  "uncheckedKeysByFile": [],
+  "unmatched": 0,
+  "updated": 0
+ },
+ "startTime": 0,
+ "success": false,
+ "testResults": [
+  {
+   "assertionResults": [
+    {
+     "ancestorTitles": [
+      "calculator"
+     ],
+     "duration": 2,
+     "failureDetails": [],
+     "failureMessages": [],
+     "fullName": "calculator add returns the sum",
+     "invocations": 1,
+     "location": {
+      "column": 3,
+      "line": 4
+     },
+     "numPassingAsserts": 1,
+     "retryReasons": [],
+     "status": "passed",
+     "title": "add returns the sum"
+    },
+    {
+     "ancestorTitles": [
+      "calculator"
+     ],
+     "duration": 0,
+     "failureDetails": [],
+     "failureMessages": [],
+     "fullName": "calculator dividing by zero returns null",
+     "invocations": 1,
+     "location": {
+      "column": 3,
+      "line": 8
+     },
+     "numPassingAsserts": 1,
+     "retryReasons": [],
+     "status": "passed",
+     "title": "dividing by zero returns null"
+    }
+   ],
+   "endTime": 0,
+   "message": "",
+   "name": "/work/fixture-react-native/__tests__/calculator.test.ts",
+   "startTime": 0,
+   "status": "passed",
+   "summary": ""
+  },
+  {
+   "assertionResults": [
+    {
+     "ancestorTitles": [],
+     "duration": 3,
+     "failureDetails": [
+      {
+       "matcherResult": {
+        "actual": 4,
+        "expected": 5,
+        "message": "expect(received).toBe(expected) // Object.is equality\n\nExpected: 5\nReceived: 4",
+        "name": "toBe",
+        "pass": false
+       }
+      }
+     ],
+     "failureMessages": [
+      "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 5\nReceived: 4\n    at Object.toBe (/work/fixture-react-native/__tests__/scenario.test.ts:5:21)\n    at Promise.then.completed (/work/fixture-react-native/node_modules/jest-circus/build/utils.js:298:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/work/fixture-react-native/node_modules/jest-circus/build/utils.js:231:10)\n    at _callCircusTest (/work/fixture-react-native/node_modules/jest-circus/build/run.js:316:40)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at _runTest (/work/fixture-react-native/node_modules/jest-circus/build/run.js:252:3)\n    at _runTestsForDescribeBlock (/work/fixture-react-native/node_modules/jest-circus/build/run.js:126:9)\n    at run (/work/fixture-react-native/node_modules/jest-circus/build/run.js:71:3)\n    at runAndTransformResultsToJestFormat (/work/fixture-react-native/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)\n    at jestAdapter (/work/fixture-react-native/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)\n    at runTestInternal (/work/fixture-react-native/node_modules/jest-runner/build/runTest.js:367:16)\n    at runTest (/work/fixture-react-native/node_modules/jest-runner/build/runTest.js:444:34)\n    at Object.worker (/work/fixture-react-native/node_modules/jest-runner/build/testWorker.js:106:12)"
+     ],
+     "fullName": "add is wrong on purpose",
+     "invocations": 1,
+     "location": {
+      "column": 1,
+      "line": 4
+     },
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "status": "failed",
+     "title": "add is wrong on purpose"
+    },
+    {
+     "ancestorTitles": [],
+     "duration": null,
+     "failureDetails": [],
+     "failureMessages": [],
+     "fullName": "skipped on purpose",
+     "invocations": 1,
+     "location": {
+      "column": 6,
+      "line": 8
+     },
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "status": "pending",
+     "title": "skipped on purpose"
+    }
+   ],
+   "endTime": 0,
+   "message": "  ● add is wrong on purpose\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: 5\n    Received: 4\n\n      3 |\n      4 | test('add is wrong on purpose', () => {\n    > 5 |   expect(add(2, 2)).toBe(5);\n        |                     ^\n      6 | });\n      7 |\n      8 | test.skip('skipped on purpose', () => {});\n\n      at Object.toBe (__tests__/scenario.test.ts:5:21)\n",
+   "name": "/work/fixture-react-native/__tests__/scenario.test.ts",
+   "startTime": 0,
+   "status": "failed",
+   "summary": ""
+  },
+  {
+   "assertionResults": [
+    {
+     "ancestorTitles": [],
+     "duration": 1420,
+     "failureDetails": [],
+     "failureMessages": [],
+     "fullName": "renders the count",
+     "invocations": 1,
+     "location": {
+      "column": 1,
+      "line": 9
+     },
+     "numPassingAsserts": 1,
+     "retryReasons": [],
+     "status": "passed",
+     "title": "renders the count"
+    }
+   ],
+   "endTime": 0,
+   "message": "",
+   "name": "/work/fixture-react-native/__tests__/App.test.tsx",
+   "startTime": 0,
+   "status": "passed",
+   "summary": ""
+  }
+ ],
+ "wasInterrupted": false
+}

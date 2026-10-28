@@ -23,6 +23,7 @@ import {
   type WorkflowPorts,
 } from '@autotest/workflow';
 import { builtInAdapters } from './adapters.ts';
+import { createProbePort } from './probes.ts';
 
 const [runId, dataRoot] = process.argv.slice(2);
 if (!runId || !RunId.safeParse(runId).success || !dataRoot || !path.isAbsolute(dataRoot)) {
@@ -49,14 +50,28 @@ const ports: WorkflowPorts = {
   cursors: createCursorCodec(loadOrCreateKey(dataRoot, 'cursor'), clock),
 };
 const registry = createAdapterRegistry(builtInAdapters());
+const policy = loadPolicyConfig(configText);
 const deps: RunDeps = {
   ports,
-  policy: loadPolicyConfig(configText),
+  policy,
   registry,
   // The server passes AUTOTEST_HOST_ID through, so both processes bind the same environment id.
   serverEnvironment: serverEnvironmentOf(process.env),
   dataRoot,
   host: { os: process.platform === 'darwin' ? 'macos' : 'linux' },
+  // Dispatch re-checks adapter prerequisites with the same probes as run creation (APM-001: pinned Appium versions).
+  ...(policy.ok
+    ? {
+        probes: (ws) =>
+          createProbePort({
+            config: policy.policy.config,
+            dataRoot,
+            workspaceRoot: ws.realPath,
+            workspaceId: ws.id,
+            parentEnv: process.env,
+          }),
+      }
+    : {}),
 };
 const base = defaultHooks(dataRoot, runId, { ...process.env });
 try {

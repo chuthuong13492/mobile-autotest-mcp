@@ -20,6 +20,7 @@ import {
   type HostInfo,
   type NormalizedResult,
   type PlatformAdapter,
+  type ProbePort,
 } from '@autotest/adapter-sdk';
 import {
   derivedId,
@@ -97,6 +98,8 @@ export interface RunDeps {
   readonly heartbeatMs?: number;
   /** Survivor verification window (default 10 min, ADR-0007). */
   readonly cancelVerifyWindowMs?: number;
+  /** Toolchain probes for adapter prerequisites (APM-001: pinned Appium versions); absent, adapters get none. */
+  readonly probes?: (workspace: ResolvedWorkspace) => ProbePort;
 }
 
 const iso = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -253,6 +256,7 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
       const report = await adapter.prerequisites({
         workspace: createWorkspaceReader(execWorkspace!, fsp),
         host: deps.host,
+        ...(deps.probes ? { probes: deps.probes(execWorkspace!) } : {}),
       });
       missing.push(...report.missing);
     }

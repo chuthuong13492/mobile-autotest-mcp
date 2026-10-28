@@ -190,6 +190,8 @@ export async function runSupervisor(opts: SupervisorOptions): Promise<TerminalRe
       emit({ t: 'attempt.start', ts: ts(), attemptNo, specDigests: specs.map((s) => digest(s)) });
       const attemptProcesses: { exitCode?: number; signal?: string }[] = [];
       let current: ProcessIdentity | undefined;
+      // Background services of this attempt (APM-001), stopped when its other specs are done.
+      const services: { identity: ProcessIdentity; exited: Promise<unknown> }[] = [];
       for (const [index, spec] of specs.entries()) {
         if (cancelReason) break;
         const ctx = opts.hooks.spawnContext({
@@ -220,8 +222,21 @@ export async function runSupervisor(opts: SupervisorOptions): Promise<TerminalRe
           pgid: p.identity.pgid,
           startTime: p.identity.startTime,
           executable: p.identity.executable,
-          role: 'runner',
+          role: spec.background ? 'helper' : 'runner',
         });
+        if (spec.background) {
+          const ready = await waitReady(path.join(attemptDir, `stdout-${index}.log`), spec.background, p.exited);
+          services.push({ identity: p.identity, exited: p.exited.catch(() => undefined) });
+          current = undefined;
+          if (!ready) {
+            fs.appendFileSync(paths.log, `${ts()} spec ${index}: background service did not become ready\n`);
+            crashed = true;
+            break;
+          }
+          // Keeps spec indexes and process records aligned for the parser.
+          attemptProcesses.push({});
+          continue;
+        }
         const exit = await Promise.race([p.exited, cancelled.then(() => undefined)]);
         if (!exit) break;
         current = undefined;
@@ -252,6 +267,10 @@ export async function runSupervisor(opts: SupervisorOptions): Promise<TerminalRe
       }
 
       if (cancelReason) await cancelSequence(current);
+      for (const s of services) {
+        await terminateGroup(s.identity, { graceMs: header!.graceMs, port });
+        emit({ t: 'process.exit', ts: ts(), pid: s.identity.pid });
+      }
       const parsed =
         exec && opts.hooks.attempts && !crashed
           ? parseAttempt(attemptNo, targets, attemptProcesses, cancelReason !== undefined)
@@ -325,6 +344,29 @@ export async function runSupervisor(opts: SupervisorOptions): Promise<TerminalRe
       fs.appendFileSync(paths.log, `${ts()} parsing attempt ${attemptNo} failed: ${(e as Error).message}\n`);
       return undefined;
     }
+  }
+
+  /** Waits until a background service prints `readyText`; false when it exits first or the wait times out. */
+  async function waitReady(
+    stdoutPath: string,
+    bg: NonNullable<ExecutionSpec['background']>,
+    exited: Promise<unknown>,
+  ): Promise<boolean> {
+    let gone = false;
+    void exited.then(
+      () => (gone = true),
+      () => (gone = true),
+    );
+    const deadline = Date.now() + bg.readyTimeoutMs;
+    while (Date.now() < deadline && !gone && !cancelReason) {
+      try {
+        if (fs.readFileSync(stdoutPath, 'utf8').includes(bg.readyText)) return true;
+      } catch {
+        // not written yet
+      }
+      await sleep(250);
+    }
+    return false;
   }
 
   /** cancelling → (cancelled | timed_out | cancel_pending → … ) with identity-checked termination. */

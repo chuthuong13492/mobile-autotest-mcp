@@ -61,6 +61,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Owner (role).** Mobile Automation Architect.
 - **Decision phase.** Phase 5 (APM-001), or earlier if capacity allows.
 - **Closure criteria.** A verified compatible pair runs a fixture scenario, and the pinning configuration is documented.
+- **Status.** **Partly answered 2026-10-28 (APM-001).** The pinning mechanism is built and verified: `.autotest/appium.json`, probes, refusal on mismatch, and Appium 3.4.2 with UiAutomator2 8.7.0 running the React Native fixture's scenarios on an emulator. On npm, `appium-flutter-integration-driver` 2.0.3 is published and declares `appium ^3.0.0`. That driver was **not** run: no Flutter Appium fixture exists and Autotrader's suite cannot run here (OQ-14). The question stays open for the Flutter driver only.
 
 ### OQ-07
 - **Closed (2026-10-24):** GHES is out of scope; only github.com is supported.

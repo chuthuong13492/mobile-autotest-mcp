@@ -1,0 +1,6 @@
+# Maestro flow (RN-003): fails on purpose.
+appId: com.fixturern
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'Count: 5'

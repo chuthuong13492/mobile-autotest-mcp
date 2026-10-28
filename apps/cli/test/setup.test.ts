@@ -66,6 +66,8 @@ describe('autotest setup', () => {
       ...(systemGit ? { git: { path: fs.realpathSync(systemGit) } } : {}),
       ...(systemXcrun ? { xcrun: { path: fs.realpathSync(systemXcrun) } } : {}),
       ...(systemXcodebuild ? { xcodebuild: { path: fs.realpathSync(systemXcodebuild) } } : {}),
+      // RN-002: the Node running setup runs a React Native project's own Jest and Detox.
+      node: { path: fs.realpathSync(process.execPath) },
     });
     expect(fs.statSync(path.join(m.data, 'config.yaml')).mode & 0o777).toBe(0o600);
     const calls = fs.readFileSync(m.log, 'utf8').trim().split('\n');

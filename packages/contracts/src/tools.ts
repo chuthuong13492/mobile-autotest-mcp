@@ -538,13 +538,16 @@ export const ManageSimulatorInput = z
     action: SimulatorAction,
     deviceId: S(128).optional(),
     create: z.strictObject({ platform: z.enum(['ios', 'android']), deviceType: S(100), runtime: S(100) }).optional(),
+    /** RN-003: an app built beforehand (`.app` for a simulator, `.apk` for an emulator), inside an allowlisted workspace. */
+    install: z.strictObject({ workspace: S(64), appPath: S(1024) }).optional(),
     runId: RunId.optional(),
     approvalId: ApprovalId.optional(),
   })
   .refine(
     (v) => (v.action === 'create' ? v.create !== undefined : v.deviceId !== undefined),
     'create needs `create`; other actions need `deviceId`',
-  );
+  )
+  .refine((v) => (v.action === 'install') === (v.install !== undefined), 'install (and only install) needs `install`');
 export const ManageSimulatorOutput = z.strictObject({
   action: SimulatorAction,
   deviceId: S(128),

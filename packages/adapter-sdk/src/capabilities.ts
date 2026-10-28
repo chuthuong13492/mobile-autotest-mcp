@@ -20,7 +20,8 @@ export const CapabilitySetSchema = z.strictObject({
   devices: z.strictObject({ needs: DeviceNeed, available: z.boolean() }),
   selection: z.array(SelectorKind).min(1),
   resultFormats: z.array(z.string().min(1).max(64)).min(1),
-  resultGranularity: z.enum(['test', 'file']),
+  // 'scenario' (APM-001): one result per Appium scenario, from its exit code.
+  resultGranularity: z.enum(['test', 'file', 'scenario']),
   cancellation: z.enum(['process_group', 'graceful_then_group']),
   coverage: z.boolean(),
   limitations: z.array(z.string().max(300)).max(50),

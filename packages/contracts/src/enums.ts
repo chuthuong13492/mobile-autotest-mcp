@@ -283,7 +283,7 @@ export type DeviceKind = z.infer<typeof DeviceKind>;
 export const DeviceAvailability = z.enum(['available', 'busy', 'unavailable']);
 export type DeviceAvailability = z.infer<typeof DeviceAvailability>;
 
-export const SimulatorAction = z.enum(['boot', 'shutdown', 'create', 'erase', 'delete']);
+export const SimulatorAction = z.enum(['boot', 'shutdown', 'create', 'erase', 'delete', 'install']);
 export type SimulatorAction = z.infer<typeof SimulatorAction>;
 
 export const DeviceApprovalAction = z.enum(['erase', 'delete', 'shutdown_non_owned', 'boot_non_owned']);

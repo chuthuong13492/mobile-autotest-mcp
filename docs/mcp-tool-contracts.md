@@ -1145,14 +1145,16 @@ output = z.object({
   - Create devices tagged as AutoTest-owned: name prefix `autotest-` plus a lease record.
   - Boot or shut down owned devices.
   - Erase or delete only owned devices without approval. Non-owned devices require P2 approval.
-- **Non-responsibilities:** Physical devices (never erased). Installing runtimes.
+  - v1.2 (RN-003): `install` an app built beforehand (`install: {workspace, appPath}`: a `.app` bundle for a simulator, a `.apk` for an emulator, inside an allowlisted workspace) on a booted device AutoTest owns (P1). Devices AutoTest does not own are refused (`E_DEVICE_NOT_OWNED`), not approved.
+- **Non-responsibilities:** Physical devices (never erased). Installing runtimes. Building apps.
 - **Input schema:**
 
 ```ts
 input = z.object({
-  action: z.enum(["boot", "shutdown", "create", "erase", "delete"]),
+  action: z.enum(["boot", "shutdown", "create", "erase", "delete", "install"]),
   deviceId: z.string().optional(),
   create: z.object({ platform: z.enum(["ios","android"]), deviceType: z.string().max(100), runtime: z.string().max(100) }).strict().optional(),
+  install: z.object({ workspace: z.string().max(64), appPath: z.string().max(1024) }).strict().optional(), // v1.2, action "install" only
   runId: z.string().optional(),
   approvalId: z.string().optional(),
 }).strict()

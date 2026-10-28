@@ -286,6 +286,11 @@ The Autotrader observations (section B) came from read-only inspection: `find`, 
 - **Confidence:** High. The Detox release year is unverified.
 - **Architectural impact:** RN adapter scope ([platform-adapters §React Native](platform-adapters.md#react-native)), Phase 4.
 - **Follow-up:** Re-check versions at the start of Phase 4.
+- **Verified 2026-10-26/28 (RN-001 – RN-003)** on `fixtures/fixture-react-native` (React Native 0.88.0 from `@react-native-community/cli` 20.2.0; Android compileSdk 36 works with the installed SDK, the template asks for 37):
+  - Jest 29.7.0 (template): `node node_modules/jest/bin/jest.js --ci --json --outputFile <file> --testLocationInResults --no-watchman --runTestsByPath <files>` writes one `testResults[]` entry per file with absolute `name` and `assertionResults[]` (`passed`, `failed`, `pending`); a file that fails to load has no assertions and `status: failed`.
+  - Maestro 2.11.0 (GitHub release `cli-2.11.0`, checksum verified): `maestro test --udid <id> --format JUNIT --output <file> --test-output-dir <dir> --no-ansi <flows>`; one `testcase` per flow named after the file, `status="ERROR"` with the assertion in `<failure>`. Analytics are off with `MAESTRO_CLI_NO_ANALYTICS=1`.
+  - Detox 20.51.4: `detox test --config-path <file> --configuration <name> --json --outputFile <file> <files>` forwards unknown options to Jest; Detox starts the runner by name (`jest`) through a shell, so `node_modules/.bin` must be on PATH. `--device-name` maps to the simulator *type* on iOS (`{type: …}`) and to `adbName` on Android; a config that `extends` the project's config and sets `device: {id: <UDID>}` pins one simulator. The iOS framework cache lives in `~/Library/Detox`. Detox on iOS needs `applesimutils`.
+- **Corpus:** `fixtures/rn-corpus/` (jest-29.7.0, maestro-2.11.0, detox-20.51.4; paths replaced).
 
 ### RL-021 — Appium current version
 - **Source:** appium `package.json` (master) — https://raw.githubusercontent.com/appium/appium/master/packages/appium/package.json
@@ -294,6 +299,7 @@ The Autotrader observations (section B) came from read-only inspection: `find`, 
 - **Confidence:** High for 3.8.0.
 - **Architectural impact:** The Appium adapter pins the server and driver versions per project ([ADR-0011](architecture-decisions/ADR-0011.md)).
 - **Follow-up:** None.
+- **Verified 2026-10-28 (APM-001)** with Appium 3.4.2 (installed; 3.8.0 is current): `appium --version` prints the version; `appium driver list --installed --json` prints `{<name>: {version, …}}` for the drivers in `APPIUM_HOME`; `appium server --address 127.0.0.1 --port <p> --log <file> --log-no-colors` prints "Appium REST http interface listener started" when ready. UiAutomator2 driver 8.7.0 (published 2026-09-14, peer `appium ^3.0.0-rc.2`) ran the fixture scenarios on an API 36 emulator.
 
 ### RL-022 — `appium-flutter-integration-driver` and Appium 3
 - **Sources:**
@@ -307,6 +313,7 @@ The Autotrader observations (section B) came from read-only inspection: `find`, 
 - **Confidence:** **Medium.** Appium 3 is the intended peer on `main`. The released-artifact pairing is **Unverified**.
 - **Architectural impact:** Autotrader's README says "Appium 2.x", but it installs Appium with an unpinned `npm i -g appium`, which installs the latest major. The adapter must pin a compatible server/driver pair ([ADR-0011](architecture-decisions/ADR-0011.md)).
 - **Follow-up:** [OQ-06](risks-and-open-questions.md#oq-06).
+- **Re-checked 2026-10-26 (npm registry):** `appium-flutter-integration-driver` 2.0.3 is published with `peerDependencies.appium: ^3.0.0`. The pairing with a running Flutter app was not exercised (Autotrader's suite cannot run here, OQ-14).
 
 ### RL-023 — GitHub Checks API write access
 - **Sources:**
