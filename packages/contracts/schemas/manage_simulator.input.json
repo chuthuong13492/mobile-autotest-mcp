@@ -10,7 +10,8 @@
         "create",
         "erase",
         "delete",
-        "install"
+        "install",
+        "acquire"
       ]
     },
     "deviceId": {
@@ -58,6 +59,34 @@
       "required": [
         "workspace",
         "appPath"
+      ],
+      "additionalProperties": false
+    },
+    "acquire": {
+      "type": "object",
+      "properties": {
+        "platform": {
+          "type": "string",
+          "enum": [
+            "ios",
+            "android"
+          ]
+        },
+        "deviceType": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "runtime": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "allowAdopt": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "platform"
       ],
       "additionalProperties": false
     },

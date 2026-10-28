@@ -3,6 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  matchesRequest,
+  parseAvdConfig,
   parseAdbDevices,
   parseAvdList,
   parseSimctlDevices,
@@ -66,5 +68,42 @@ describe('DEV-001 device listing parsers (Xcode 26.4.1, platform-tools)', () => 
     expect(resolveSystemImage(sdk, 'system-images;android-35;default;x86_64')).toBe(
       'system-images;android-35;default;x86_64',
     );
+  });
+});
+
+describe('B3 device matching facts', () => {
+  it('reads AVD hardware and API level, runtime-supported types, and matches requests', () => {
+    expect(
+      parseAvdConfig('hw.device.name=pixel_7\nimage.sysdir.1=system-images/android-36/google_apis/arm64-v8a/\n'),
+    ).toEqual({ hardware: 'pixel_7', runtime: 'android-36' });
+    expect(parseAvdConfig('avd.ini.encoding=UTF-8\n')).toEqual({ hardware: null, runtime: null });
+    const rts = parseSimctlRuntimes(
+      JSON.stringify({
+        runtimes: [
+          {
+            identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-4',
+            name: 'iOS 26.4',
+            isAvailable: true,
+            supportedDeviceTypes: [{ name: 'iPhone 17 Pro' }, { name: 'iPhone 11' }],
+          },
+        ],
+      }),
+    );
+    expect(rts[0]!.supported).toEqual(['iPhone 17 Pro', 'iPhone 11']);
+    const sim = {
+      deviceId: 'X',
+      platform: 'ios' as const,
+      kind: 'simulator' as const,
+      name: 'Mine',
+      osVersion: 'iOS 26.4',
+      state: 'Booted',
+      usable: true,
+      deviceType: 'com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro',
+      runtime: 'iOS 26.4',
+    };
+    expect(matchesRequest(sim, {})).toBe(true);
+    expect(matchesRequest(sim, { deviceType: 'iPhone 17 Pro', runtime: 'iOS 26.4' })).toBe(true);
+    expect(matchesRequest(sim, { deviceType: 'iPhone 17 Pro Max' })).toBe(false);
+    expect(matchesRequest({ ...sim, deviceType: null }, { deviceType: 'iPhone 17 Pro' })).toBe(false);
   });
 });

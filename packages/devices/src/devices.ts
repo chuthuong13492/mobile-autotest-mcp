@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   parseAdbDevices,
+  parseAvdConfig,
   parseAvdList,
   parseSimctlDevices,
   parseSimctlDeviceTypes,
@@ -26,6 +27,10 @@ export interface ListedDevice {
   readonly osVersion: string | null;
   readonly state: string;
   readonly usable: boolean;
+  /** B3: the device type (simulator type identifier, or the AVD hardware profile), when known. */
+  readonly deviceType: string | null;
+  /** B3: the runtime (`iOS 26.4`, or `android-36` from the AVD config), when known. */
+  readonly runtime: string | null;
 }
 
 export interface Listing {
@@ -62,6 +67,77 @@ function toolProblem(r: ToolResult, what: string): Outcome | undefined {
 
 // ------------------------------------------------------------------ listing
 
+/** An AVD's `config.ini` (read only; `ANDROID_AVD_HOME` or `~/.android/avd`). */
+function avdConfig(ctx: DeviceContext, name: string): { hardware: string | null; runtime: string | null } {
+  const home =
+    ctx.parentEnv['ANDROID_AVD_HOME'] ??
+    path.join(ctx.parentEnv['ANDROID_EMULATOR_HOME'] ?? path.join(ctx.parentEnv['HOME'] ?? '', '.android'), 'avd');
+  try {
+    return parseAvdConfig(fs.readFileSync(path.join(home, `${name}.avd`, 'config.ini'), 'utf8'));
+  } catch {
+    return { hardware: null, runtime: null };
+  }
+}
+
+const norm = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/^com\.apple\.coresimulator\.simdevicetype\./, '')
+    .replace(/[^a-z0-9]/g, '');
+
+/**
+ * B3: whether a listed device matches an acquire request. A device type matches the simulator type (`iPhone 17e` ≙
+ * `…SimDeviceType.iPhone-17e`) or the AVD hardware profile (`pixel_7`); a runtime matches `iOS 26.4` or `android-36`.
+ * Unknown device facts never match a stated requirement.
+ */
+export function matchesRequest(
+  d: ListedDevice,
+  q: { readonly deviceType?: string; readonly runtime?: string },
+): boolean {
+  if (q.deviceType && (!d.deviceType || norm(d.deviceType) !== norm(q.deviceType))) return false;
+  if (q.runtime && (!d.runtime || norm(d.runtime) !== norm(q.runtime))) return false;
+  return true;
+}
+
+/**
+ * B3: what to create when an acquire request names nothing: the newest available iOS runtime with the newest iPhone
+ * type it supports, or the newest installed Android system image with the `pixel_7` profile. Undefined when nothing is installed.
+ */
+export async function defaultDeviceSpec(
+  ctx: DeviceContext,
+  platform: Platform,
+): Promise<{ deviceType: string; runtime: string } | undefined> {
+  const num = (s: string) => (s.match(/\d+/g) ?? []).map(Number);
+  const newer = (a: number[], b: number[]) => {
+    for (let i = 0; i < Math.max(a.length, b.length); i++)
+      if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) - (b[i] ?? 0);
+    return 0;
+  };
+  if (platform === 'ios') {
+    const types = await runTool(ctx, 'xcrun', [word('simctl'), word('list'), word('devicetypes'), word('--json')]);
+    const rts = await runTool(ctx, 'xcrun', [word('simctl'), word('list'), word('runtimes'), word('--json')]);
+    if (types.status !== 'ok' || rts.status !== 'ok') return undefined;
+    const runtime = parseSimctlRuntimes(rts.stdout)
+      .filter((r) => /^iOS \d/.test(r.name))
+      .sort((a, b) => newer(num(b.name), num(a.name)))[0];
+    // The runtime lists the types it supports newest first; the devicetypes list is not in release order.
+    const phone =
+      runtime?.supported?.find((n) => /^iPhone \d/.test(n)) ??
+      parseSimctlDeviceTypes(types.stdout).find((t) => /^iPhone \d/.test(t.name))?.name;
+    return runtime && phone ? { deviceType: phone, runtime: runtime.name } : undefined;
+  }
+  const sdk = ctx.parentEnv['ANDROID_HOME'] ?? ctx.parentEnv['ANDROID_SDK_ROOT'];
+  if (!sdk) return undefined;
+  let levels: string[];
+  try {
+    levels = fs.readdirSync(path.join(sdk, 'system-images')).filter((l) => /^android-\d{2,3}$/.test(l));
+  } catch {
+    return undefined;
+  }
+  const level = levels.filter((l) => resolveSystemImage(sdk, l) !== undefined).sort((a, b) => newer(num(b), num(a)))[0];
+  return level ? { deviceType: 'pixel_7', runtime: level } : undefined;
+}
+
 async function iosDevices(ctx: DeviceContext): Promise<{ list: ListedDevice[]; problem?: string; tool: boolean }> {
   const r = await runTool(ctx, 'xcrun', [word('simctl'), word('list'), word('devices'), word('--json')], {
     timeoutMs: 15_000,
@@ -83,6 +159,8 @@ async function iosDevices(ctx: DeviceContext): Promise<{ list: ListedDevice[]; p
       osVersion: d.osVersion,
       state: d.state,
       usable: d.available,
+      deviceType: d.deviceType,
+      runtime: d.osVersion,
     })),
   };
 }
@@ -121,16 +199,20 @@ async function androidDevices(
   const state = await adbState(ctx);
   if (!state.tool) problems.push('adb is not on the policy allowlist');
   const list: ListedDevice[] = [];
-  for (const name of emulatorOk ? parseAvdList(avds.stdout) : [])
+  for (const name of emulatorOk ? parseAvdList(avds.stdout) : []) {
+    const info = avdConfig(ctx, name);
     list.push({
       deviceId: name,
       platform: 'android',
       kind: 'emulator',
       name,
-      osVersion: null,
+      osVersion: info.runtime,
       state: state.running.has(name) ? 'Booted' : 'Shutdown',
       usable: true,
+      deviceType: info.hardware,
+      runtime: info.runtime,
     });
+  }
   for (const d of state.physical)
     list.push({
       deviceId: d.serial,
@@ -140,6 +222,8 @@ async function androidDevices(
       osVersion: null,
       state: d.state,
       usable: d.state === 'device',
+      deviceType: null,
+      runtime: null,
     });
   return { list, problems, adb: state.tool, emulator: emulatorOk };
 }
@@ -236,6 +320,17 @@ export async function iosBoot(ctx: DeviceContext, udid: string): Promise<Outcome
   const sp = toolProblem(s, 'simctl bootstatus');
   if (sp) return sp;
   return done(udid, (await iosState(ctx, udid)) ?? 'Booted');
+}
+
+/**
+ * B3: waits until a simulator reported `Booted` has finished booting (`simctl bootstatus -b`). A simulator someone just
+ * booted is listed as Booted before it can run apps, and a test runner started too early may never finish.
+ */
+export async function iosWaitBooted(ctx: DeviceContext, udid: string): Promise<Outcome> {
+  const s = await runTool(ctx, 'xcrun', [word('simctl'), word('bootstatus'), word(udid), flag('-b')], {
+    timeoutMs: 180_000,
+  });
+  return toolProblem(s, 'simctl bootstatus') ?? done(udid, 'Booted', false);
 }
 
 export async function iosShutdown(ctx: DeviceContext, udid: string): Promise<Outcome> {

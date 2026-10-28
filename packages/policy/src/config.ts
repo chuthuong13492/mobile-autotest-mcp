@@ -214,6 +214,11 @@ const CoverageGate = z.strictObject({
 
 const Requirement = z.union([AssuranceLevel, z.enum(['none', 'not_allowed'])]);
 const EnvRequirements = z.strictObject({ local: Requirement.optional(), ci: Requirement.optional() });
+/** B3 (1.4.0): devices AutoTest creates; acquire reuses and adopts before it creates, up to this many per platform. */
+const Devices = z.strictObject({
+  maxOwned: z.number().int().min(1).max(10).default(2),
+});
+
 const Approvals = z.strictObject({
   allowWeakApprovals: z.boolean().default(false),
   minAssurance: z
@@ -303,6 +308,7 @@ export const PolicyConfig = z
     risk: Risk.default(() => Risk.parse({})),
     coverageGate: CoverageGate.default(() => CoverageGate.parse({})),
     approvals: Approvals.default(() => Approvals.parse({})),
+    devices: Devices.default(() => Devices.parse({})),
     execution: Execution.default(() => Execution.parse({})),
     retention: Retention.default(() => Retention.parse({})),
     github: GitHub.default(() => GitHub.parse({})),

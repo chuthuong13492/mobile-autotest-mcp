@@ -22,11 +22,14 @@ You may still list a case the current release or host cannot run. The server mar
 ## Devices (v1.1+)
 
 - **Listing devices.** Use `list_devices` to see the simulators, emulators and devices available on the host, and whether the host can run them at all.
-- **Managing simulators.** Prefer letting `manage_simulator` create a simulator owned by AutoTest, then boot it.
+- **Getting a device: always `acquire`, never `create` first.** `manage_simulator {action: "acquire", acquire: {platform, deviceType?, runtime?}}` returns a booted device: a free AutoTest device (`reused`), else one of the user's simulators or AVDs after a human approval (`adopted`), else a new AutoTest device (`created`, at most `devices.maxOwned` per platform). Tell the user which happened.
+  - `E_APPROVAL_REQUIRED` from `acquire` names one of the user's devices: request `{kind: "device_action", deviceAction: {action: "use_non_owned", deviceId}}` and ask them to approve. If they decline, call `acquire` again with `allowAdopt: false`, which creates an AutoTest device instead.
+  - An adopted device stays the user's: AutoTest boots it if needed and installs and runs the app under test, never erases, deletes or shuts it down, and the approval ends with the run.
+- **Managing simulators.**
   - These actions are safe because AutoTest owns the device: `create`, `boot`, and `erase` or `delete` of devices it created.
   - Booting, shutting down, erasing or deleting a simulator the user owns requires human approval. Request it through `request_approval` with kind `device_action`.
   - Physical devices are never erased.
-- **Running on a device.** Flutter `integration_test` cases, native iOS cases and Android instrumented (`src/androidTest`) cases need a device; Android unit (`src/test`) cases run on the host. Create and boot one with `manage_simulator`, then pass its id: `run_tests { devices: [deviceId] }`. Only one device per run, and it must be AutoTest-owned and booted. The run holds the device until its results are imported; delete it afterwards.
+- **Running on a device.** Flutter `integration_test` cases, native iOS cases and Android instrumented (`src/androidTest`) cases need a device; Android unit (`src/test`) cases run on the host. Get one with `acquire`, then pass its id: `run_tests { devices: [deviceId] }`. Only one device per run; it must be AutoTest-owned or adopted, and booted. The run holds the device until its results are imported. Leave AutoTest devices for the next run (`acquire` reuses them); `autotest cleanup` removes expired ones.
 - **Apps for Maestro and Appium.** These runners need the app under test installed. AutoTest does not build apps: the user (or you, with their tools) builds it, then `manage_simulator {action: "install", deviceId, install: {workspace, appPath}}` installs the `.app` or `.apk` on the AutoTest device. Detox installs its own build, which must exist beforehand.
 - **Appium suites.** They run only when the repository pins the Appium server and driver versions in `.autotest/appium.json`; otherwise the inventory lists the scenarios and `run_tests` refuses with `prerequisite_mismatch`. Results are per scenario. Spec documents linked to a scenario appear as a `spec:<name>` tag on its target: use them to write the case text.
 - **Before v1.1.** Device actions return `E_CAPABILITY_UNAVAILABLE`.

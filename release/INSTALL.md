@@ -76,7 +76,13 @@ Every `flutter test` of that workspace then gets `--flavor staging --dart-define
 open approvals stale. Credentials are refused here (keys with SECRET, TOKEN, PASSWORD, API_KEY…): defines are compiled
 into the app and appear in process listings.
 
-## Simulators and emulators (v1.1)
+## Simulators and emulators (v1.1; reuse in 1.4.0)
+
+Since 1.4.0 the agent asks for a device with `acquire`: AutoTest reuses a free device of its own first, then offers to
+use one of yours (you answer `y`/`N` to `autotest approve`; it boots the device if needed and installs and runs the
+app, but never erases, deletes or shuts it down), and creates a new one only when neither is available, up to
+`devices: { maxOwned: 2 }` per platform.
+
 
 `autotest setup` also allowlists `xcrun` (macOS) and, from `ANDROID_HOME`, `adb`, `emulator` and `avdmanager`.
 AutoTest creates its own devices (`autotest-…`) and may boot, erase and delete them; any other simulator or emulator

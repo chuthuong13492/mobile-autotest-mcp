@@ -103,7 +103,10 @@ export function approvalUseCases(deps: ApprovalDeps): Pick<UseCases, 'request_ap
           deviceId: s.deviceAction.deviceId,
           hostId: environment,
         });
-        summary = `${s.deviceAction.action} on device ${s.deviceAction.deviceId}`;
+        summary =
+          s.deviceAction.action === 'use_non_owned'
+            ? `let AutoTest use your device ${s.deviceAction.deviceId} for test runs: it boots it if needed, installs and runs the app under test; it never erases, deletes or shuts it down`
+            : `${s.deviceAction.action} on device ${s.deviceAction.deviceId}`;
       } else {
         if (!s.publish) return invalid('/scope/publish', 'github_publish requires publish {reportId, mechanisms}');
         const target = await publicationTarget(ports, s.publish.reportId, s.publish.mechanisms);

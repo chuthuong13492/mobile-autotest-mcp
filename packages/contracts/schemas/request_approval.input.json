@@ -59,7 +59,8 @@
                 "erase",
                 "delete",
                 "shutdown_non_owned",
-                "boot_non_owned"
+                "boot_non_owned",
+                "use_non_owned"
               ]
             },
             "deviceId": {

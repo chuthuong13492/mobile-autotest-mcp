@@ -23,9 +23,13 @@ import {
   iosDelete,
   iosErase,
   iosShutdown,
+  iosWaitBooted,
+  defaultDeviceSpec,
   installApp,
   listDevices,
+  matchesRequest,
   platformOf,
+  type ListedDevice,
   type DeviceContext,
   type Outcome,
 } from '@autotest/devices';
@@ -116,6 +120,200 @@ export async function listDevicesUseCase(
   return ok({ host: listing.host, devices: devices.slice(0, 100), unsupported: [...listing.unsupported] });
 }
 
+/** Usable simulators and emulators (never physical) matching a request and held by no unfinished run; Booted first. */
+async function freeDevices(
+  deps: DeviceDeps,
+  ctx: DeviceContext,
+  platform: 'ios' | 'android',
+  q: { readonly deviceType?: string; readonly runtime?: string },
+): Promise<{ device: ListedDevice; lease: DeviceLease | undefined }[]> {
+  const listing = await listDevices(ctx, platform, deps.hostOs);
+  const leases = await deps.ports.deviceLeases.list();
+  const out: { device: ListedDevice; lease: DeviceLease | undefined }[] = [];
+  for (const device of listing.devices) {
+    if (device.kind === 'physical' || !device.usable || !matchesRequest(device, q)) continue;
+    const lease = leases.find((l) => l.deviceId === device.deviceId);
+    if (await busy(deps, lease)) continue;
+    out.push({ device, lease });
+  }
+  const rank = (x: { device: ListedDevice }) => (x.device.state === 'Booted' ? 0 : 1);
+  return out.sort((a, b) => rank(a) - rank(b) || (a.device.deviceId < b.device.deviceId ? -1 : 1));
+}
+
+/** Creates an AutoTest device (P1) within `devices.maxOwned` per platform, and records its lease. */
+async function createOwned(
+  deps: DeviceDeps,
+  ctx: DeviceContext,
+  platform: 'ios' | 'android',
+  spec: { readonly deviceType: string; readonly runtime: string },
+  runId: string | undefined,
+): Promise<{ ok: true; lease: DeviceLease; state: string } | { ok: false; error: ToolError }> {
+  const { ports } = deps;
+  const max = deps.policy.ok ? deps.policy.policy.config.devices.maxOwned : 2;
+  const owned = (await ports.deviceLeases.list()).filter(
+    (l) => l.createdByAutotest && platformOf(l.deviceId) === platform,
+  );
+  if (owned.length >= max)
+    return {
+      ok: false,
+      error: toolError(
+        'E_DEVICE_UNAVAILABLE',
+        `AutoTest already owns ${owned.length} ${platform} device(s), the configured maximum (devices.maxOwned)`,
+        ['Free one (manage_simulator delete, or `autotest cleanup`), or wait for a run to release one'],
+      ),
+    };
+  const name = `autotest-${ports.ids.newId('dev').slice(4).toLowerCase()}`;
+  const out =
+    platform === 'ios'
+      ? await iosCreate(ctx, name, spec.deviceType, spec.runtime)
+      : await androidCreate(ctx, name, spec.deviceType, spec.runtime);
+  if (!out.ok) return { ok: false, error: outcomeError(out) };
+  const lease: DeviceLease = {
+    id: ports.ids.newId('lease'),
+    deviceId: out.deviceId,
+    runId: runId ?? null,
+    owned: true,
+    createdByAutotest: true,
+    expiresAt: iso(new Date(ports.clock.now().getTime() + LEASE_TTL_MS)),
+  };
+  await ports.deviceLeases.put(lease);
+  return { ok: true, lease, state: out.state };
+}
+
+/**
+ * `acquire` (B3, 1.4.0): a booted device for a run, creating one only as the last resort.
+ * 1. A free AutoTest device matching the request (Booted first, else booted now, P1) → `reused`.
+ * 2. A device of the user's that this host already approved for use and whose lease is still valid → `adopted`.
+ * 3. A free simulator or AVD of the user's (never a physical device), when `allowAdopt` is not false: it needs a
+ *    single-use `use_non_owned` approval; AutoTest then holds a lease on it (not ownership), may boot it and install and
+ *    run the app under test, and never erases, deletes or shuts it down on its own → `adopted`.
+ * 4. Otherwise a new AutoTest device (the request's type and runtime, or the newest installed defaults), booted,
+ *    within `devices.maxOwned` → `created`.
+ */
+async function acquire(
+  deps: DeviceDeps,
+  ctx: DeviceContext,
+  input: ToolInput<'manage_simulator'>,
+  audit: (deviceId: string, tier: 'P1' | 'P2', approvalId?: string) => Promise<unknown>,
+): Promise<UseCaseResult<ToolOutput<'manage_simulator'>>> {
+  const q = input.acquire!;
+  const { ports } = deps;
+  if (q.platform === 'ios' && deps.hostOs !== 'macos')
+    return fail(toolError('E_CAPABILITY_UNAVAILABLE', 'iOS simulators need macOS', []));
+  const now = ports.clock.now();
+  const finish = async (
+    device: { deviceId: string; state: string },
+    lease: DeviceLease,
+    result: 'reused' | 'adopted' | 'created',
+    approvalId?: string,
+  ): Promise<UseCaseResult<ToolOutput<'manage_simulator'>>> => {
+    let state = device.state;
+    if (state !== 'Booted') {
+      const b = await perform(ctx, 'boot', device.deviceId);
+      if (!b.ok) return fail(outcomeError(b));
+      state = b.state;
+    } else if (q.platform === 'ios') {
+      // Listed as Booted is not yet ready to run apps when someone just booted it.
+      const w = await iosWaitBooted(ctx, device.deviceId);
+      if (!w.ok) return fail(outcomeError(w));
+    }
+    const kept = {
+      ...lease,
+      runId: input.runId ?? lease.runId,
+      expiresAt: iso(new Date(now.getTime() + LEASE_TTL_MS)),
+    };
+    await ports.deviceLeases.put(kept);
+    await audit(device.deviceId, lease.createdByAutotest ? 'P1' : 'P2', approvalId);
+    return ok({
+      action: 'acquire',
+      deviceId: device.deviceId,
+      owned: lease.createdByAutotest,
+      tierApplied: lease.createdByAutotest ? 'P1' : 'P2',
+      result,
+      leaseId: kept.id,
+      state,
+    });
+  };
+
+  const free = await freeDevices(deps, ctx, q.platform, q);
+  const owned = free.find((x) => x.lease?.createdByAutotest);
+  if (owned) return finish(owned.device, owned.lease!, 'reused');
+  const approved = free.find(
+    (x) => x.lease && !x.lease.createdByAutotest && Date.parse(x.lease.expiresAt) > now.getTime(),
+  );
+  if (approved) return finish(approved.device, approved.lease!, 'adopted');
+
+  const candidate = q.allowAdopt === false ? undefined : free.find((x) => !x.lease);
+  if (candidate) {
+    const deviceId = candidate.device.deviceId;
+    const scope = deviceActionScope({ action: 'use_non_owned', deviceId, hostId: deps.serverEnvironment.id });
+    const sel = selectApproval(
+      await ports.approvals.listByScopeDigest(scope.digest),
+      {
+        scope,
+        environment: deps.serverEnvironment.id,
+        policyVersion: deps.policy.ok ? deps.policy.policy.policyVersion : '',
+      },
+      {
+        now,
+        environmentKind: deps.serverEnvironment.kind,
+        overrides: deps.policy.ok ? deps.policy.policy.config.approvals.minAssurance : {},
+        al3: NO_AL3,
+      },
+    );
+    if (!sel.approval)
+      return fail(
+        toolError(
+          'E_APPROVAL_REQUIRED',
+          `${deviceId} (${candidate.device.name}) is the user's device: using it for runs needs a human approval`,
+          [
+            `Call request_approval with scope {kind: "device_action", deviceAction: {action: "use_non_owned", deviceId: "${deviceId}"}}, then a human runs autotest approve`,
+            'If the user declines, call acquire again with allowAdopt: false to create an AutoTest device instead',
+          ],
+          { scopeDigest: scope.digest, deviceId, reasons: [...sel.reasons] },
+        ),
+      );
+    let consumed: { id: string; uses: number };
+    try {
+      consumed = await ports.approvals.consume(sel.approval.id, now);
+    } catch (e) {
+      if (e instanceof PortError && e.code === 'not_usable')
+        return fail(toolError('E_APPROVAL_EXHAUSTED', 'the approval was already used', ['Request a new approval']));
+      throw e;
+    }
+    await ports.audit.append({
+      ts: iso(now),
+      actor: 'server',
+      kind: 'approval.consumed',
+      subjectRefs: [consumed.id, deviceId],
+      data: { approvalId: consumed.id, uses: consumed.uses },
+    });
+    const approvalId = consumed.id;
+    const lease: DeviceLease = {
+      id: ports.ids.newId('lease'),
+      deviceId,
+      runId: input.runId ?? null,
+      owned: false,
+      createdByAutotest: false,
+      expiresAt: iso(new Date(now.getTime() + LEASE_TTL_MS)),
+    };
+    return finish(candidate.device, lease, 'adopted', approvalId);
+  }
+
+  const defaults = q.deviceType && q.runtime ? undefined : await defaultDeviceSpec(ctx, q.platform);
+  const deviceType = q.deviceType ?? defaults?.deviceType;
+  const runtime = q.runtime ?? defaults?.runtime;
+  if (!deviceType || !runtime)
+    return fail(
+      toolError('E_DEVICE_UNAVAILABLE', `no free ${q.platform} device, and no installed runtime to create one from`, [
+        q.platform === 'ios' ? 'Install an iOS simulator runtime in Xcode' : 'Install a system image with sdkmanager',
+      ]),
+    );
+  const made = await createOwned(deps, ctx, q.platform, { deviceType, runtime }, input.runId);
+  if (!made.ok) return fail(made.error);
+  return finish({ deviceId: made.lease.deviceId, state: made.state }, made.lease, 'created');
+}
+
 /**
  * `install` (RN-003): an app built beforehand, from an allowlisted workspace, onto a booted device AutoTest owns
  * (P1). Devices AutoTest does not own are refused rather than approved: installing changes them for good.
@@ -127,10 +325,11 @@ async function install(
   input: ToolInput<'manage_simulator'>,
   audit: (deviceId: string, tier: 'P1' | 'P2') => Promise<unknown>,
 ): Promise<UseCaseResult<ToolOutput<'manage_simulator'>>> {
-  if (!d.owned)
+  // AutoTest devices, and user devices approved for use (`acquire` → adopted, B3).
+  if (!d.owned && !d.lease)
     return fail(
-      toolError('E_DEVICE_NOT_OWNED', `${d.deviceId} is not an AutoTest device: apps are installed only on those`, [
-        'Create one with manage_simulator {action: "create"} and boot it',
+      toolError('E_DEVICE_NOT_OWNED', `${d.deviceId} is neither an AutoTest device nor approved for use`, [
+        'Use manage_simulator {action: "acquire"} to get a device',
       ]),
     );
   if (d.state !== 'Booted')
@@ -212,34 +411,34 @@ export async function manageSimulator(
       data: { action: input.action, deviceId, tier, ...(approvalId ? { approvalId } : {}) },
     });
 
+  if (input.action === 'acquire') return acquire(deps, ctx, input, audit);
   if (input.action === 'create') {
     const c = input.create!;
     if (c.platform === 'ios' && deps.hostOs !== 'macos')
       return fail(toolError('E_CAPABILITY_UNAVAILABLE', 'iOS simulators need macOS', []));
-    const name = `autotest-${ports.ids.newId('dev').slice(4).toLowerCase()}`;
-    const out =
-      c.platform === 'ios'
-        ? await iosCreate(ctx, name, c.deviceType, c.runtime)
-        : await androidCreate(ctx, name, c.deviceType, c.runtime);
-    if (!out.ok) return fail(outcomeError(out));
-    const lease: DeviceLease = {
-      id: ports.ids.newId('lease'),
-      deviceId: out.deviceId,
-      runId: input.runId ?? null,
-      owned: true,
-      createdByAutotest: true,
-      expiresAt: iso(new Date(now.getTime() + LEASE_TTL_MS)),
-    };
-    await ports.deviceLeases.put(lease);
-    await audit(out.deviceId, 'P1');
+    // B3: idempotent — a free AutoTest device of this type and runtime is returned instead of a new one.
+    const reuse = (await freeDevices(deps, ctx, c.platform, c)).find((x) => x.lease?.createdByAutotest);
+    if (reuse)
+      return ok({
+        action: 'create',
+        deviceId: reuse.device.deviceId,
+        owned: true,
+        tierApplied: 'P1',
+        result: 'reused',
+        leaseId: reuse.lease!.id,
+        state: reuse.device.state,
+      });
+    const made = await createOwned(deps, ctx, c.platform, c, input.runId);
+    if (!made.ok) return fail(made.error);
+    await audit(made.lease.deviceId, 'P1');
     return ok({
       action: 'create',
-      deviceId: out.deviceId,
+      deviceId: made.lease.deviceId,
       owned: true,
       tierApplied: 'P1',
       result: 'done',
-      leaseId: lease.id,
-      state: out.state,
+      leaseId: made.lease.id,
+      state: made.state,
     });
   }
 
@@ -349,7 +548,12 @@ export async function cleanupExpiredDevices(
   const now = deps.ports.clock.now();
   const out: { deviceId: string; result: 'deleted' | 'would_delete' | 'gone' | 'failed' }[] = [];
   for (const lease of await deps.ports.deviceLeases.list()) {
-    if (!lease.createdByAutotest || Date.parse(lease.expiresAt) > now.getTime() || (await busy(deps, lease))) continue;
+    if (Date.parse(lease.expiresAt) > now.getTime() || (await busy(deps, lease))) continue;
+    // An expired lease on a user device (B3): only the record goes; the device is never touched.
+    if (!lease.createdByAutotest) {
+      if (!o.dryRun) await deps.ports.deviceLeases.remove(lease.id);
+      continue;
+    }
     if (o.dryRun) {
       out.push({ deviceId: lease.deviceId, result: 'would_delete' });
       continue;
@@ -391,11 +595,14 @@ export async function prepareRunDevice(
   const ctx = deviceContext(deps);
   if (!ctx) return { ok: false, error: policyUnavailable() };
   const lease = await deps.ports.deviceLeases.findByDevice(deviceId);
-  if (!lease?.createdByAutotest)
+  // An AutoTest device, or a user device approved for use whose lease is still valid (B3).
+  const adoptedValid =
+    lease !== undefined && !lease.createdByAutotest && Date.parse(lease.expiresAt) > deps.ports.clock.now().getTime();
+  if (!lease?.createdByAutotest && !adoptedValid)
     return {
       ok: false,
-      error: toolError('E_DEVICE_NOT_OWNED', `${deviceId} is not an AutoTest device`, [
-        'Create one with manage_simulator {action: "create"}, boot it, then pass its deviceId',
+      error: toolError('E_DEVICE_NOT_OWNED', `${deviceId} is neither an AutoTest device nor approved for use`, [
+        'Get one with manage_simulator {action: "acquire"}, then pass its deviceId',
       ]),
     };
   if (await busy(deps, lease))
@@ -424,7 +631,10 @@ export async function prepareRunDevice(
   return { ok: true, device: { deviceId, platform, address, lease } };
 }
 
-/** Releases the run binding of a device lease (the device stays AutoTest's until its lease expires). */
+/**
+ * Releases the run binding of a device lease: an AutoTest device stays AutoTest's until its lease expires; the lease
+ * on an adopted user device ends with the run (B3), so the next run asks again.
+ */
 export async function releaseRunDevices(
   ports: WorkflowPorts,
   runId: string,
@@ -432,6 +642,8 @@ export async function releaseRunDevices(
 ): Promise<void> {
   for (const id of deviceIds) {
     const lease = await ports.deviceLeases.findByDevice(id);
-    if (lease?.runId === runId) await ports.deviceLeases.put({ ...lease, runId: null });
+    if (lease?.runId !== runId) continue;
+    if (lease.createdByAutotest) await ports.deviceLeases.put({ ...lease, runId: null });
+    else await ports.deviceLeases.remove(lease.id);
   }
 }

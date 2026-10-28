@@ -540,20 +540,35 @@ export const ManageSimulatorInput = z
     create: z.strictObject({ platform: z.enum(['ios', 'android']), deviceType: S(100), runtime: S(100) }).optional(),
     /** RN-003: an app built beforehand (`.app` for a simulator, `.apk` for an emulator), inside an allowlisted workspace. */
     install: z.strictObject({ workspace: S(64), appPath: S(1024) }).optional(),
+    /**
+     * B3 (1.4.0): a device for a run, without creating one needlessly: reuse a free AutoTest device, else adopt a free
+     * simulator or emulator of the user's (needs a `use_non_owned` approval; set `allowAdopt: false` to skip), else
+     * create one. `deviceType` and `runtime` narrow the match and name what to create.
+     */
+    acquire: z
+      .strictObject({
+        platform: z.enum(['ios', 'android']),
+        deviceType: S(100).optional(),
+        runtime: S(100).optional(),
+        allowAdopt: z.boolean().default(true),
+      })
+      .optional(),
     runId: RunId.optional(),
     approvalId: ApprovalId.optional(),
   })
   .refine(
-    (v) => (v.action === 'create' ? v.create !== undefined : v.deviceId !== undefined),
-    'create needs `create`; other actions need `deviceId`',
+    (v) => (v.action === 'create' ? v.create !== undefined : v.action === 'acquire' || v.deviceId !== undefined),
+    'create needs `create`; acquire needs `acquire`; other actions need `deviceId`',
   )
-  .refine((v) => (v.action === 'install') === (v.install !== undefined), 'install (and only install) needs `install`');
+  .refine((v) => (v.action === 'install') === (v.install !== undefined), 'install (and only install) needs `install`')
+  .refine((v) => (v.action === 'acquire') === (v.acquire !== undefined), 'acquire (and only acquire) needs `acquire`');
 export const ManageSimulatorOutput = z.strictObject({
   action: SimulatorAction,
   deviceId: S(128),
   owned: z.boolean(),
   tierApplied: z.enum(['P1', 'P2']),
-  result: z.enum(['done', 'already_in_state']),
+  /** `reused`, `adopted`, `created`: how `acquire` (and an idempotent `create`) found the device (B3). */
+  result: z.enum(['done', 'already_in_state', 'reused', 'adopted', 'created']),
   leaseId: LeaseId.nullable(),
   state: S(64),
 });

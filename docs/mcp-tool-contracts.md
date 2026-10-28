@@ -1145,16 +1145,18 @@ output = z.object({
   - Create devices tagged as AutoTest-owned: name prefix `autotest-` plus a lease record.
   - Boot or shut down owned devices.
   - Erase or delete only owned devices without approval. Non-owned devices require P2 approval.
+  - v1.4 (B3): `acquire {platform, deviceType?, runtime?, allowAdopt = true}` returns a booted device for a run: a free AutoTest device (`reused`, P1), else a user simulator or AVD already approved for this host with a valid lease, else one of the user's free simulators or AVDs (never physical) after a single-use `device_action` approval `use_non_owned` (`adopted`, P2; the lease is not ownership and ends with the run; AutoTest never erases, deletes or shuts it down on its own), else a new AutoTest device (`created`; the request's type and runtime or the newest installed defaults; at most `devices.maxOwned`, default 2, per platform, else `E_DEVICE_UNAVAILABLE`). `create` is idempotent: a free AutoTest device of the same type and runtime is returned as `reused`.
   - v1.2 (RN-003): `install` an app built beforehand (`install: {workspace, appPath}`: a `.app` bundle for a simulator, a `.apk` for an emulator, inside an allowlisted workspace) on a booted device AutoTest owns (P1). Devices AutoTest does not own are refused (`E_DEVICE_NOT_OWNED`), not approved.
 - **Non-responsibilities:** Physical devices (never erased). Installing runtimes. Building apps.
 - **Input schema:**
 
 ```ts
 input = z.object({
-  action: z.enum(["boot", "shutdown", "create", "erase", "delete", "install"]),
+  action: z.enum(["boot", "shutdown", "create", "erase", "delete", "install", "acquire"]),
   deviceId: z.string().optional(),
   create: z.object({ platform: z.enum(["ios","android"]), deviceType: z.string().max(100), runtime: z.string().max(100) }).strict().optional(),
   install: z.object({ workspace: z.string().max(64), appPath: z.string().max(1024) }).strict().optional(), // v1.2, action "install" only
+  acquire: z.object({ platform: z.enum(["ios","android"]), deviceType: z.string().max(100).optional(), runtime: z.string().max(100).optional(), allowAdopt: z.boolean().default(true) }).strict().optional(), // v1.4, action "acquire" only
   runId: z.string().optional(),
   approvalId: z.string().optional(),
 }).strict()
