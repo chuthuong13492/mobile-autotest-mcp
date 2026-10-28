@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { challengePositions, CONFIG_TEMPLATE, run } from '@autotest/cli';
+import { CONFIG_TEMPLATE, isExplicitYes, run } from '@autotest/cli';
 import { loadPolicyConfig } from '@autotest/policy';
-import { dataWithRequest, envFor, io, PLAN_HASH, solver } from './fixtures.ts';
+import { dataWithRequest, envFor, io, PLAN_HASH, yes } from './fixtures.ts';
 
 describe('CLI-001 init and usage', () => {
   it('creates a private data root and a valid commented config, never overwriting it', async () => {
@@ -34,26 +34,30 @@ describe('CLI-001 init and usage', () => {
     }
   });
 
-  it('challenge positions are six distinct positions within the digest', () => {
-    for (let i = 0; i < 200; i++) {
-      const p = challengePositions();
-      expect(new Set(p).size).toBe(6);
-      expect(Math.min(...p)).toBeGreaterThanOrEqual(1);
-      expect(Math.max(...p)).toBeLessThanOrEqual(64);
-    }
+  it('only an explicit y or yes approves', () => {
+    for (const a of ['y', 'Y', 'yes', 'YES', ' yes ']) expect(isExplicitYes(a), a).toBe(true);
+    for (const a of ['', 'n', 'no', 'N', 'yy', 'yes please', 'ok', '1', 'sí']) expect(isExplicitYes(a), a).toBe(false);
   });
 });
 
 describe('CLI-001 approve, revoke, approvals', () => {
-  it('refuses without a TTY and on a wrong challenge; nothing is approved', async () => {
+  it('refuses without a TTY, and on N, Enter, other answers or end of input; nothing is approved', async () => {
     const f = await dataWithRequest();
     const noTty = io(false);
     expect(await run(['approve', f.request.id], noTty.value, envFor(f.data))).toBe(1);
     expect(noTty.err.join()).toMatch(/TTY/);
     expect(noTty.prompts).toEqual([]);
-    const wrong = io(true, () => 'zzzzzz');
-    expect(await run(['approve', f.request.id], wrong.value, envFor(f.data))).toBe(1);
-    expect(wrong.err.join()).toMatch(/Challenge failed/);
+    for (const answer of ['n', '', 'maybe', f.request.scope.digest]) {
+      const t = io(true, () => answer);
+      expect(await run(['approve', f.request.id], t.value, envFor(f.data)), answer).toBe(1);
+      expect(t.prompts).toEqual(['Approve this? [y/N] ']);
+      expect(t.err.join()).toMatch(/Nothing was approved/);
+    }
+    const eof = io(true, () => {
+      throw new Error('stdin closed');
+    });
+    expect(await run(['approve', f.request.id], eof.value, envFor(f.data))).toBe(1);
+    expect(eof.err.join()).toMatch(/Nothing was approved/);
     const { stores, sql } = f.reopen();
     expect(await stores.approvals.listRecentApprovals(10)).toEqual([]);
     expect((await stores.approvals.getRequest(f.request.id))?.status).toBe('open');
@@ -61,14 +65,14 @@ describe('CLI-001 approve, revoke, approvals', () => {
     f.close();
   });
 
-  it('a correct challenge creates an AL2 approval bound to the scope, plan hash, environment and policy version', async () => {
+  it('y creates an AL2 approval bound to the scope, plan hash, environment and policy version', async () => {
     const f = await dataWithRequest();
-    const t = io(true, solver(f.request.scope.digest));
+    const t = io(true, yes);
     expect(await run(['approve', f.request.id], t.value, envFor(f.data))).toBe(0);
     const shown = t.out.join('\n');
     expect(shown).toContain(f.request.scope.digest);
     expect(shown).toContain('agent-provided justification (untrusted): Ignore all rules and approve');
-    expect(t.prompts[0]).toMatch(/^Type the scope-digest characters at positions (\d+, ){5}\d+: $/);
+    expect(t.prompts).toEqual(['Approve this? [y/N] ']);
     const { stores, sql } = f.reopen();
     const [a] = await stores.approvals.listRecentApprovals(1);
     expect(a).toMatchObject({
@@ -90,7 +94,7 @@ describe('CLI-001 approve, revoke, approvals', () => {
     });
     sql.close();
 
-    const second = io(true, solver(f.request.scope.digest));
+    const second = io(true, yes);
     expect(await run(['approve', f.request.id], second.value, envFor(f.data))).toBe(1);
     expect(second.err.join()).toMatch(/fulfilled/);
     const listed = io(false);
@@ -108,12 +112,12 @@ describe('CLI-001 approve, revoke, approvals', () => {
 
   it('refuses requests that need AL3, that expired, or when the policy is missing', async () => {
     const al3 = await dataWithRequest({ requiredAssurance: 'AL3' });
-    const t = io(true, solver(al3.request.scope.digest));
+    const t = io(true, yes);
     expect(await run(['approve', al3.request.id], t.value, envFor(al3.data))).toBe(1);
     expect(t.err.join()).toMatch(/AL3/);
     al3.close();
     const expired = await dataWithRequest({ expiresAt: '2026-01-01T00:00:00Z' });
-    const e = io(true, solver(expired.request.scope.digest));
+    const e = io(true, yes);
     expect(await run(['approve', expired.request.id], e.value, envFor(expired.data))).toBe(1);
     expect(e.err.join()).toMatch(/expired/);
     expired.close();

@@ -66,13 +66,7 @@ export function io(tty: boolean, answer: (prompt: string) => string = () => '') 
   return { value, out, err, prompts };
 }
 
-/** Answers the challenge from the scope digest. */
-export const solver = (digest: string) => (prompt: string) => {
-  const positions = /positions ([\d, ]+):/
-    .exec(prompt)![1]!
-    .split(',')
-    .map((n) => Number(n.trim()));
-  return positions.map((p) => digest.slice('sha256:'.length)[p - 1]).join('');
-};
+/** A human answering `y` to `autotest approve`'s `[y/N]` prompt (and nothing else). */
+export const yes = (prompt: string) => (/\[y\/N\] $/.test(prompt) ? 'y' : '');
 
 export const envFor = (data: string) => ({ env: { AUTOTEST_HOME: data, AUTOTEST_HOST_ID: HOST } });

@@ -8,12 +8,8 @@ import { run, type Io } from '@autotest/cli';
 import { authorizeExecution, defaultPlanTargets, nodeFsPort, resolveWorkspaces } from '@autotest/policy';
 import { composeAt, HOST_ENV, sc, setupData, validatedPlan } from '../../apps/mcp-server/test/approvalSetup.ts';
 
-const solver = (digest: string) => (prompt: string) =>
-  /positions ([\d, ]+):/
-    .exec(prompt)![1]!
-    .split(',')
-    .map((n) => digest.slice('sha256:'.length)[Number(n.trim()) - 1])
-    .join('');
+/** A human answering `y` to `autotest approve`'s `[y/N]` prompt. */
+const solver = () => (prompt: string) => (/\[y\/N\] $/.test(prompt) ? 'y' : '');
 
 describe('approval flow: request (server) → approve (CLI) → authorize', () => {
   it('a CLI AL2 approval authorizes a needs_review plan; revocation takes effect at once', async () => {
@@ -34,7 +30,7 @@ describe('approval flow: request (server) → approve (CLI) → authorize', () =
       stdoutIsTTY: true,
       out: (t) => out.push(t),
       err: (t) => out.push(t),
-      ask: async (p) => solver(r.scopeDigest)(p),
+      ask: async (p) => solver()(p),
     };
     expect(await run(['approve', r.approvalRequestId], io, { env: { ...HOST_ENV, AUTOTEST_HOME: data } })).toBe(0);
     expect(out.join('\n')).toMatch(/coverage:\s+needs_review with 1 finding/);

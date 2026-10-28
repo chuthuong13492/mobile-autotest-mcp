@@ -85,18 +85,12 @@ async function approveIfNeeded(c: C, data: string, plan: { planId: string; planH
       offerElicitation: false,
     }),
   );
-  const digest = req.scopeDigest.slice('sha256:'.length);
   const io: Io = {
     stdinIsTTY: true,
     stdoutIsTTY: true,
     out: () => undefined,
     err: () => undefined,
-    ask: async (p) =>
-      /positions ([\d, ]+):/
-        .exec(p)![1]!
-        .split(',')
-        .map((n) => digest[Number(n.trim()) - 1])
-        .join(''),
+    ask: async (p) => (/\[y\/N\] $/.test(p) ? 'y' : ''),
   };
   expect(await cli(['approve', req.approvalRequestId], io, { env: { ...HOST, AUTOTEST_HOME: data } })).toBe(0);
 }

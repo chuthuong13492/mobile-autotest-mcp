@@ -33,13 +33,8 @@ async function autotest(data: string, args: string[], answer?: (prompt: string) 
   const code = await cli(args, io, { env: { ...HOST_ENV, AUTOTEST_HOME: data, HOME: path.dirname(data) } });
   return { code, text: out.join('\n') };
 }
-/** The human answering `autotest approve`'s challenge from the digest shown by request_approval. */
-const challenge = (scopeDigest: string) => (p: string) =>
-  /positions ([\d, ]+):/
-    .exec(p)![1]!
-    .split(',')
-    .map((n) => scopeDigest.slice('sha256:'.length)[Number(n.trim()) - 1])
-    .join('');
+/** The human answering `y` to `autotest approve`'s `[y/N]` prompt. */
+const challenge = () => (p: string) => (/\[y\/N\] $/.test(p) ? 'y' : '');
 const err = (r: { structuredContent: Record<string, unknown> }) =>
   (r.structuredContent as { error?: { code: string } }).error?.code;
 
@@ -122,7 +117,7 @@ describe('OPS-007 operations drills (operations §4)', () => {
         }),
       );
     const r1 = await request();
-    expect((await autotest(f.data, ['approve', r1.approvalRequestId], challenge(r1.scopeDigest))).code).toBe(0);
+    expect((await autotest(f.data, ['approve', r1.approvalRequestId], challenge())).code).toBe(0);
     const file = fs.readdirSync(path.join(f.data, 'approvals'))[0]!;
     const p = path.join(f.data, 'approvals', file);
     const record = JSON.parse(fs.readFileSync(p, 'utf8')) as { maxUses: number };
@@ -133,7 +128,7 @@ describe('OPS-007 operations drills (operations §4)', () => {
     const rv = await autotest(f.data, ['revoke', approvalId]);
     expect(rv.code, rv.text).toBe(0);
     const r2 = await request();
-    expect((await autotest(f.data, ['approve', r2.approvalRequestId], challenge(r2.scopeDigest))).code).toBe(0);
+    expect((await autotest(f.data, ['approve', r2.approvalRequestId], challenge())).code).toBe(0);
     const ok = sc<{ runId: string }>(await c.call('run_tests', { planId: plan.planId, planHash: plan.planHash }));
     expect(await waitTerminal(c, ok.runId)).toMatchObject({ state: 'completed' });
   });

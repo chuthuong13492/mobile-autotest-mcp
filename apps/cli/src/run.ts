@@ -56,7 +56,7 @@ export async function run(argv: readonly string[], io: Io, e: CliEnv): Promise<n
   }
   const ctx = openCli(e);
   try {
-    if (cmd === 'approve') return await approve(arg!, ctx, io, e);
+    if (cmd === 'approve') return await approve(arg!, ctx, io);
     if (cmd === 'revoke') return await revoke(arg!, ctx, io);
     if (cmd === 'cleanup') return await cleanup(ctx, io, flags);
     if (cmd === 'known-failures' && arg === 'add') return await addKnownFailure(ctx, io, parseAddFlags(rest)!);

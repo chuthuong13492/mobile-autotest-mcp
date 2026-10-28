@@ -3,29 +3,23 @@
  *
  * The command refuses unless both stdin and stdout are terminals. It shows what is being approved — summary, scope
  * kind and digest, plan hash, environment, the coverage decision and its review findings for plan execution, and
- * the agent's justification labelled as untrusted — then asks the human to type the digest characters at six
- * random positions. Only a correct answer creates an AL2 approval bound to the scope digest, plan hash, this
- * host's environment id and the current policy version.
+ * the agent's justification labelled as untrusted — then asks `Approve this? [y/N]`. Only `y` or `yes` (any case)
+ * creates an AL2 approval bound to the scope digest, plan hash, this host's environment id and the current policy
+ * version; Enter, any other answer, end of input or a read error refuses (the default is No).
  *
  * This resists approval by an agent that drives a non-interactive shell; it does not prove that a human acted.
- * An agent with an unrestricted interactive shell as the same OS user could still answer (RK-01): use the
- * recommended Claude Code deny rules, a sandbox, or AL3.
+ * An agent with an unrestricted interactive shell as the same OS user could still answer (RK-01; the digest
+ * challenge this replaced in 1.3.0 did not stop that either): use the recommended Claude Code deny rules, a sandbox,
+ * or AL3. There is deliberately no `--yes` flag.
  */
-import { randomInt } from 'node:crypto';
 import { grantApproval } from '@autotest/workflow';
-import type { CliContext, CliEnv } from '../context.ts';
+import type { CliContext } from '../context.ts';
 import type { Io } from '../io.ts';
 
-const POSITIONS = 6;
+/** True only for an explicit yes: `y` or `yes`, any case, surrounding spaces ignored. */
+export const isExplicitYes = (answer: string) => /^(?:y|yes)$/i.test(answer.trim());
 
-/** Six distinct 1-based positions in a 64-character hex digest, ascending. */
-export function challengePositions(rand: (max: number) => number = randomInt): number[] {
-  const set = new Set<number>();
-  while (set.size < POSITIONS) set.add(rand(64) + 1);
-  return [...set].sort((a, b) => a - b);
-}
-
-export async function approve(requestId: string, ctx: CliContext, io: Io, e: CliEnv): Promise<number> {
+export async function approve(requestId: string, ctx: CliContext, io: Io): Promise<number> {
   if (!io.stdinIsTTY || !io.stdoutIsTTY) {
     io.err(
       'autotest approve must run interactively in a terminal (stdin and stdout must be a TTY). Nothing was approved.',
@@ -53,7 +47,6 @@ export async function approve(requestId: string, ctx: CliContext, io: Io, e: Cli
   }
 
   const p = request.scope.params;
-  const digestHex = request.scope.digest.slice('sha256:'.length);
   io.out('AutoTest approval request');
   io.out(`  request:      ${request.id} (expires ${request.expiresAt})`);
   io.out(`  what:         ${request.display?.summary ?? request.scope.kind}`);
@@ -82,13 +75,10 @@ export async function approve(requestId: string, ctx: CliContext, io: Io, e: Cli
   }
   io.out(`  agent-provided justification (untrusted): ${request.display?.justification || '—'}`);
 
-  const positions = challengePositions(e.randomInt);
-  const expected = positions.map((i) => digestHex[i - 1]).join('');
-  const answer = (await io.ask(`Type the scope-digest characters at positions ${positions.join(', ')}: `))
-    .replace(/\s+/g, '')
-    .toLowerCase();
-  if (answer !== expected) {
-    io.err('Challenge failed. Nothing was approved.');
+  // A read error or end of input is a No.
+  const answer = await io.ask('Approve this? [y/N] ').catch(() => '');
+  if (!isExplicitYes(answer)) {
+    io.err('Not approved. Nothing was approved.');
     return 1;
   }
   const granted = await grantApproval(ctx.ports, {

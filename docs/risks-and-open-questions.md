@@ -179,11 +179,11 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **L/I.** M / H.
 - **Mitigation.**
   - Claude Code deny rules and sandbox mode.
-  - A TTY challenge in the CLI.
+  - An interactive `[y/N]` confirmation in a TTY (default No; a digest-character challenge until 1.3.0).
   - Approval-file integrity checks.
   - Requiring AL3 for sensitive scopes (DISC-003).
   - Every approval is audited.
-- **Residual.** The CLI-001 TTY challenge (6 digest characters at random positions) stops an agent that cannot drive a terminal. It does not prove a human acted: a process that allocates a pseudo-terminal can answer it. Only AL3 closes this.
+- **Residual.** The CLI-001 TTY confirmation stops an agent that cannot drive a terminal. It does not prove a human acted: a process that allocates a pseudo-terminal can answer it. Until 1.3.0 the CLI asked for 6 digest characters at random positions; that only guarded against blind or accidental confirmation, since the digest is printed in full, so 1.3.0 replaced it with `Approve this? [y/N]` (default No, no `--yes` flag). The deny rules and AL3 remain the real mitigations; only AL3 closes this.
 - **Owner (role).** Security Engineer.
 - **Phase.** 0–3.
 - **Closure criteria.** AL3 is available, and the default policy for sensitive scopes requires it. Alternatively, the residual risk is accepted in writing at SEC-004.
@@ -265,7 +265,7 @@ This document is the canonical home for open questions (OQ-NN) and project risks
 - **Risk.** Rubber-stamp approvals: humans approve `needs_review` plans without reviewing them.
 - **L/I.** M / M.
 - **Mitigation.**
-  - The CLI shows the findings and the scope and requires typing a challenge.
+  - The CLI shows the findings and the scope and requires an explicit `y`.
   - R3 always requires review.
   - Approvals are audited.
   - Reports state each approval's assurance level and the findings that were approved.

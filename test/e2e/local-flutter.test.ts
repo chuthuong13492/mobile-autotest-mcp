@@ -104,18 +104,12 @@ suite(`E2E-002 local Flutter end to end (${FLUTTER || 'no Flutter SDK found'})`,
           offerElicitation: false,
         }),
       );
-      const digest = req.scopeDigest.slice('sha256:'.length);
       const io: Io = {
         stdinIsTTY: true,
         stdoutIsTTY: true,
         out: () => undefined,
         err: () => undefined,
-        ask: async (p) =>
-          /positions ([\d, ]+):/
-            .exec(p)![1]!
-            .split(',')
-            .map((n) => digest[Number(n.trim()) - 1])
-            .join(''),
+        ask: async (p) => (/\[y\/N\] $/.test(p) ? 'y' : ''),
       };
       expect(await cli(['approve', req.approvalRequestId], io, { env: { ...HOST, AUTOTEST_HOME: f.data } })).toBe(0);
       const runId = sc<{ runId: string }>(

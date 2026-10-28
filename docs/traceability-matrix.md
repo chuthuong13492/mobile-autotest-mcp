@@ -80,7 +80,7 @@ The requirement text and IDs themselves live in [product-requirements.md](produc
 | FR-040 | github | ADR-0013 | TL-18; Skill 14 | GH-003, GH-005 | E2E-004 | One comment after republish |
 | FR-041 | github | ADR-0013 | TL-18 | GH-004, GH-005 | GHES fixtures (checks disabled) | Fallback works and is reported |
 | FR-042 | cli, workflow | ADR-0012 | CLI `ci run` | CI-001, CLI-004, CI-002 | E2E-004 | Same plan hash; never auto-approves |
-| FR-043 | cli | ADR-0006 | CLI `approve` | CLI-001 | pty tests, SEC-003 | AL2 after TTY challenge; non-TTY fails |
+| FR-043 | cli | ADR-0006 | CLI `approve` | CLI-001 | pty tests, SEC-003 | AL2 after an explicit TTY `y` (default No); non-TTY fails |
 | FR-044 | cli | — | CLI `doctor`/`cleanup` | CLI-002, CLI-003, OPS-004 | Integration | Remediations shown; dry-run equals actual |
 | FR-045 | core, storage, mcp-server | — | All tools | OBS-002, MCP-002 | Audit-chain tests | Tampering detected |
 | FR-046 | skill | — | Skill 1–15 | SKL-001, SKL-002 | Skill evaluation | Forbidden behaviors absent |

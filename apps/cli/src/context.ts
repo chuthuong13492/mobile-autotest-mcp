@@ -9,8 +9,6 @@ import { serverEnvironmentOf, type WorkflowPorts } from '@autotest/workflow';
 
 export interface CliEnv {
   readonly env: Readonly<Record<string, string | undefined>>;
-  /** Injected for tests; defaults to crypto-secure randomness. */
-  readonly randomInt?: (maxExclusive: number) => number;
   readonly now?: () => Date;
 }
 
