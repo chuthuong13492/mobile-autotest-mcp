@@ -9,7 +9,8 @@ import { z } from 'zod';
 import { ArtifactKind, DeviceNeed, HostRequirement } from './enums.ts';
 
 /** Logical executable names are mapped to absolute paths by policy, never looked up on PATH at spawn time. */
-export const LogicalExecutable = z.string().regex(/^[a-z][a-z0-9-]{0,31}$/);
+/** A configured executable: a name with a built-in schema, or an alias of one (`flutter@3.47.1`, B2 1.4.0). */
+export const LogicalExecutable = z.string().regex(/^[a-z][a-z0-9-]{0,31}(?:@[A-Za-z0-9._-]{1,32})?$/);
 export type LogicalExecutable = z.infer<typeof LogicalExecutable>;
 
 const RelPath = z

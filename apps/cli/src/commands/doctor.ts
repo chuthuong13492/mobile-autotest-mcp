@@ -20,6 +20,7 @@ import {
   type PolicyConfig,
 } from '@autotest/policy';
 import { openDataRoot, verifyAuditFiles } from '@autotest/storage';
+import { pubspecEnvironment, satisfiesConstraint } from '@autotest/adapter-flutter';
 import { dataRootOf, type CliEnv } from '../context.ts';
 import type { Io } from '../io.ts';
 
@@ -370,6 +371,7 @@ export async function doctorChecks(e: CliEnv): Promise<Check[]> {
       name: 'executables',
       detail: `${name} → ${exe.realPath}${exe.sha256 ? ' (pinned)' : ''}`,
     });
+  checks.push(...flutterSdkChecks(registry, ws.workspaces));
   for (const p of registry.problems)
     checks.push({
       status: 'FAIL',
@@ -530,6 +532,72 @@ export function suggestFlutter(
     seen.set(real, sdkVersion(path.dirname(path.dirname(real))));
   }
   return [...seen].map(([p, version]) => ({ path: p, version }));
+}
+
+/**
+ * B2: every configured Flutter SDK with its Flutter and Dart versions (read from its files, no process started), and
+ * per Flutter workspace the SDK that runs it: the bound one (`flutterSdk`), the only one, or the one its pins select.
+ * A workspace whose pubspec Dart constraint the SDK does not satisfy, or that no single SDK fits, is a warning.
+ */
+function flutterSdkChecks(
+  registry: ReturnType<typeof buildRegistry>,
+  workspaces: readonly { id: string; realPath: string; flutterSdk?: string }[],
+): Check[] {
+  const sdks = [...registry.executables]
+    .filter(([name]) => name === 'flutter' || name.startsWith('flutter@'))
+    .map(([name, exe]) => ({ name, ...sdkVersions(path.dirname(path.dirname(exe.realPath))) }))
+    .sort((a, b) => (a.name < b.name ? -1 : 1));
+  const checks: Check[] = sdks.map((s) => ({
+    status: 'INFO',
+    name: 'flutter-sdk',
+    detail: `${s.name}: Flutter ${s.flutter ?? '?'}, Dart ${s.dart ?? '?'}`,
+  }));
+  if (sdks.length === 0) return checks;
+  for (const w of workspaces) {
+    let pubspec: string;
+    try {
+      pubspec = fs.readFileSync(path.join(w.realPath, 'pubspec.yaml'), 'utf8');
+    } catch {
+      continue;
+    }
+    const constraint = pubspecEnvironment(pubspec).sdk;
+    const fits = (s: (typeof sdks)[number]) =>
+      !constraint || (s.dart ? satisfiesConstraint(s.dart, constraint) : false);
+    const chosen = w.flutterSdk
+      ? sdks.filter((s) => s.name === w.flutterSdk)
+      : sdks.length === 1
+        ? sdks
+        : sdks.filter(fits);
+    if (chosen.length === 1 && fits(chosen[0]!))
+      checks.push({ status: 'PASS', name: 'flutter-sdk', detail: `${w.id} runs with ${chosen[0]!.name}` });
+    else
+      checks.push({
+        status: 'WARN',
+        name: 'flutter-sdk',
+        detail:
+          chosen.length === 1
+            ? `${w.id}: ${chosen[0]!.name} (Dart ${chosen[0]!.dart ?? '?'}) does not satisfy the pubspec Dart constraint ${constraint}`
+            : `${w.id}: ${chosen.length === 0 ? 'no' : 'several'} configured Flutter SDKs satisfy Dart ${constraint ?? '(any)'}`,
+        fix: 'Register a matching SDK (`autotest setup --flutter <label>=<path>`) or bind one (`--workspace-sdk <ws>=<label>`)',
+      });
+  }
+  return checks;
+}
+
+/** Flutter and Dart versions of an SDK from `bin/cache/flutter.version.json`. */
+function sdkVersions(sdkRoot: string): { flutter?: string; dart?: string } {
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(sdkRoot, 'bin', 'cache', 'flutter.version.json'), 'utf8')) as {
+      frameworkVersion?: unknown;
+      dartSdkVersion?: unknown;
+    };
+    return {
+      ...(typeof j.frameworkVersion === 'string' ? { flutter: j.frameworkVersion.slice(0, 40) } : {}),
+      ...(typeof j.dartSdkVersion === 'string' ? { dart: j.dartSdkVersion.split(' ')[0]!.slice(0, 40) } : {}),
+    };
+  } catch {
+    return {};
+  }
 }
 
 /**

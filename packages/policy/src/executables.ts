@@ -8,7 +8,7 @@
  */
 import path from 'node:path';
 import type { ExecutionSpec } from '@autotest/contracts';
-import { ARG_SCHEMAS, type ArgSchema, type CommandForm, type ExecClass, type FlagRule } from './argschemas/index.ts';
+import { schemaFor, type ArgSchema, type CommandForm, type ExecClass, type FlagRule } from './argschemas/index.ts';
 import type { PolicyConfig } from './config.ts';
 import { checkPath, type FsPort } from './paths.ts';
 
@@ -103,7 +103,7 @@ export type SpecValidation =
 /** Validates a spec and renders argv. Every token must be accounted for by the matched form. */
 export function validateSpec(spec: ExecutionSpec, ctx: ValidationContext): SpecValidation {
   const exe = ctx.registry.executables.get(spec.executable);
-  const schema = ARG_SCHEMAS[spec.executable];
+  const schema = schemaFor(spec.executable);
   if (!exe || !schema) return deny('unknown_executable', spec.executable);
 
   const cwd = checkPath(ctx.fs, ctx.workspaceRoot, spec.cwd, { mustExist: true });

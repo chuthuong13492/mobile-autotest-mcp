@@ -5,6 +5,7 @@
  * `--no-pub` is always present so runs never resolve dependencies over the network (SR-014). Targets selected by
  * test name get their own spec with `--plain-name`. Integration targets run on the run's device (`deviceSpecs`).
  * The workspace's run options (1.3.0) add `--flavor <f>` and one `--dart-define=K=V` per define, sorted by key.
+ * The executable is the SDK selected for the workspace (B2 1.4.0: `flutter` or an alias such as `flutter@3.47.1`).
  */
 import {
   buildSpec,
@@ -41,7 +42,7 @@ function spec(req: ExecutionRequest, paths: readonly string[], results: string, 
   const lcov = runnerOutput(req.attemptNo, LCOV_FILE);
   const coverage = req.options.coverage && plainName === undefined;
   return buildSpec({
-    executable: 'flutter',
+    executable: req.options.executable ?? 'flutter',
     args: [
       word('test'),
       flag('--no-pub'),
@@ -98,7 +99,7 @@ function deviceSpecs(req: ExecutionRequest): ExecutionSpec[] {
   const out = runnerOutput(req.attemptNo, DEVICE_RESULTS_FILE);
   return [
     buildSpec({
-      executable: 'flutter',
+      executable: req.options.executable ?? 'flutter',
       args: [
         word('test'),
         flag('--no-pub'),

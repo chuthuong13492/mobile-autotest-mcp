@@ -76,7 +76,7 @@ workspaces:
 
 - Executables come from `executables:` in the config. Each entry is a logical name mapped to an absolute path, with an optional SHA-256 pin.
 - The `doctor` command can propose entries found on the user's `PATH`. The user confirms each one before it is saved, because the server never trusts `PATH` at spawn time ([ADR-0014](architecture-decisions/ADR-0014.md)).
-- FVM-managed SDKs are recorded per workspace (`flutterSdk: fvm`). The adapter then resolves the project's FVM SDK path under policy.
+- Several SDKs (1.4.0): register each as `flutter@<label>` and bind a workspace with `flutterSdk: flutter@<label>`, or let the workspace's pins select one ([platform-adapters](platform-adapters.md#flutter)). FVM SDKs are registered by their path (`~/fvm/versions/<v>/bin/flutter`).
 
 ### 1.5 Simulator and emulator ownership (v1.1)
 

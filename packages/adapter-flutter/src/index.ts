@@ -7,3 +7,4 @@ export { classifyLevel, fileTags, inventoryFlutter } from './inventory.ts';
 export { buildFlutterExecution, LCOV_FILE, RESULTS_FILE } from './execution.ts';
 export { parseFlutterResults, runnerFiles } from './parse.ts';
 export { flutterEvidenceHints, flutterFailureSignals } from './evidence.ts';
+export { satisfiesConstraint, selectFlutterExecutable } from './sdk.ts';

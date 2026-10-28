@@ -13,7 +13,7 @@
 import { z } from 'zod';
 import { AssuranceLevel, RepositoryIdentity, Sha256, digest, toolError, type ToolError } from '@autotest/contracts';
 import { isAlias, isCollection, isScalar, parseDocument, visit } from 'yaml';
-import { ARG_SCHEMAS } from './argschemas/index.ts';
+import { schemaFor } from './argschemas/index.ts';
 import { checkAssuranceOverrides } from './tiers.ts';
 
 const MAX_CONFIG_BYTES = 256 * 1024;
@@ -83,6 +83,14 @@ const Workspace = z.strictObject({
   path: AbsPath,
   github: RepositoryIdentity.optional(),
   run: WorkspaceRun.optional(),
+  /**
+   * B2 (1.4.0): the Flutter SDK this workspace runs with, `flutter` or an alias such as `flutter@3.47.1` from
+   * `executables`. Without it the adapter selects one from the workspace's pins; it never falls back silently.
+   */
+  flutterSdk: z
+    .string()
+    .regex(/^flutter(?:@[A-Za-z0-9._-]{1,32})?$/)
+    .optional(),
   /** Inspection only: run_tests denies with workspace_not_allowed. */
   readOnlyReference: z.boolean().default(false),
 });
@@ -301,7 +309,7 @@ export const PolicyConfig = z
   })
   .superRefine((c, ctx) => {
     for (const name of Object.keys(c.executables)) {
-      if (!ARG_SCHEMAS[name])
+      if (!schemaFor(name))
         ctx.addIssue({
           code: 'custom',
           path: ['executables', name],
@@ -313,6 +321,12 @@ export const PolicyConfig = z
       if (ids.has(w.id))
         ctx.addIssue({ code: 'custom', path: ['workspaces', i, 'id'], message: 'duplicate workspace id' });
       ids.add(w.id);
+      if (w.flutterSdk && !(w.flutterSdk in c.executables))
+        ctx.addIssue({
+          code: 'custom',
+          path: ['workspaces', i, 'flutterSdk'],
+          message: `no executable ${w.flutterSdk} is configured`,
+        });
     }
     for (const [i, s] of c.env.secrets.entries()) {
       for (const ws of s.workspaces)

@@ -184,3 +184,55 @@ describe('autotest setup and doctor with GitHub (gh)', () => {
     expect(parseSetupFlags(['--github-host', 'ghe.x=http://ghe.x/api/v3'])).toBeUndefined();
   });
 });
+
+describe('B2 several Flutter SDKs in setup and doctor', () => {
+  it('registers named SDKs, binds a workspace, and doctor shows versions and flags a mismatch', async () => {
+    const m = machine();
+    const sdk = (label: string, flutter: string, dart: string) => {
+      const root = path.join(m.base, `sdk-${label}`);
+      fs.mkdirSync(path.join(root, 'bin', 'cache'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'bin', 'flutter'), '#!/bin/sh\n', { mode: 0o755 });
+      fs.writeFileSync(
+        path.join(root, 'bin', 'cache', 'flutter.version.json'),
+        JSON.stringify({ frameworkVersion: flutter, dartSdkVersion: `${dart} (stable)` }),
+      );
+      return path.join(root, 'bin', 'flutter');
+    };
+    const old = sdk('old', '3.41.9', '3.11.5');
+    const neu = sdk('new', '3.47.1', '3.13.1');
+    fs.writeFileSync(path.join(m.app, 'pubspec.yaml'), 'name: app\nenvironment:\n  sdk: ^3.13.0\n');
+    const t = io(false);
+    const args = [
+      'setup',
+      '--yes',
+      '--skip-claude',
+      '--workspace',
+      m.app,
+      '--flutter',
+      `3.41.9=${old}`,
+      '--flutter',
+      `3.47.1=${neu}`,
+    ];
+    expect(await run([...args, '--workspace-sdk', 'ws_my_app=3.41.9'], t.value, m.env)).toBe(0);
+    const policy = loadPolicyConfig(fs.readFileSync(path.join(m.data, 'config.yaml'), 'utf8'));
+    if (!policy.ok) throw new Error(policy.error.error.message);
+    expect(policy.policy.config.executables['flutter@3.47.1']).toEqual({ path: fs.realpathSync(neu) });
+    expect(policy.policy.config.executables['flutter']).toBeUndefined();
+    expect(policy.policy.config.workspaces[0]!.flutterSdk).toBe('flutter@3.41.9');
+    const d = io(false);
+    await run(['doctor'], d.value, m.env);
+    const out = d.out.join('\n');
+    expect(out).toMatch(/flutter@3\.41\.9: Flutter 3\.41\.9, Dart 3\.11\.5/);
+    expect(out).toMatch(
+      /WARN {2}flutter-sdk\s+ws_my_app: flutter@3\.41\.9 \(Dart 3\.11\.5\) does not satisfy .*\^3\.13\.0/,
+    );
+    // Unbound, the pins select the newer SDK.
+    const cfg = path.join(m.data, 'config.yaml');
+    fs.writeFileSync(cfg, fs.readFileSync(cfg, 'utf8').replace(/\n\s*flutterSdk: flutter@3\.41\.9/, ''));
+    const d2 = io(false);
+    await run(['doctor'], d2.value, m.env);
+    expect(d2.out.join('\n')).toMatch(/PASS {2}flutter-sdk\s+ws_my_app runs with flutter@3\.47\.1/);
+    expect(parseSetupFlags(['--flutter', 'bad label=/x'])).toBeUndefined();
+    expect(parseSetupFlags(['--workspace-sdk', 'nope'])).toBeUndefined();
+  });
+});

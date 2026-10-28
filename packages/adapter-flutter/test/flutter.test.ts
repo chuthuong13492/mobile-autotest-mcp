@@ -14,6 +14,8 @@ import {
   parseFlutterMachineVersion,
   parseFlutterResults,
   pubspecEnvironment,
+  satisfiesConstraint,
+  selectFlutterExecutable,
 } from '@autotest/adapter-flutter';
 import { memoryWorkspace, outputs, probeReturning, PUBSPEC, reporter } from './helpers.ts';
 
@@ -246,6 +248,71 @@ describe('1.3.0 workspace run options', () => {
     expect((await detectFlutter({ ...ctx, workspace: ws })).limitations.map((l) => l.code)).toContain(
       'flutter:appium_entry_point',
     );
+  });
+});
+
+describe('B2 Flutter SDK selection', () => {
+  const probes = (map: Record<string, [string, string]>) => ({
+    async probe(_kind: string, exe?: string) {
+      const v = map[exe ?? 'flutter'];
+      return v
+        ? {
+            available: true as const,
+            exitCode: 0,
+            stdout: JSON.stringify({ frameworkVersion: v[0], dartSdkVersion: v[1] }),
+          }
+        : { available: false as const, reason: 'missing' };
+    },
+  });
+  const sdks = { 'flutter@3.41.9': ['3.41.9', '3.11.5'], 'flutter@3.47.1': ['3.47.1', '3.13.1 (stable)'] } as Record<
+    string,
+    [string, string]
+  >;
+  const pubspec = (sdk: string, extra = '') =>
+    memoryWorkspace({
+      'pubspec.yaml': `name: a\nenvironment:\n  sdk: "${sdk}"\n`,
+      ...(extra ? { '.fvmrc': extra } : {}),
+    });
+  const select = (ws: ReturnType<typeof memoryWorkspace>, configured = Object.keys(sdks), preferred?: string) =>
+    selectFlutterExecutable({
+      workspace: ws,
+      host: { os: 'macos' },
+      probes: probes(sdks),
+      configured: ['gh', ...configured],
+      ...(preferred ? { preferred } : {}),
+    });
+
+  it('reads pub version constraints', () => {
+    for (const [v, c, ok] of [
+      ['3.13.1', '^3.13.1', true],
+      ['3.14.0', '^3.13.1', true],
+      ['4.0.0', '^3.13.1', false],
+      ['3.11.5', '>=3.5.0 <4.0.0', true],
+      ['3.11.5', '>=3.12.0 <4.0.0', false],
+      ['0.3.1', '^0.3.0', true],
+      ['0.4.0', '^0.3.0', false],
+      ['3.10.3', 'any', true],
+      ['3.10.3', '3.10.3', true],
+      ['3.10.3', 'nonsense', false],
+    ] as const)
+      expect(satisfiesConstraint(v, c), `${v} ${c}`).toBe(ok);
+  });
+
+  it('keeps a single SDK without probing, follows pins, and fails closed otherwise', async () => {
+    expect(await select(pubspec('^3.13.1'), ['flutter'])).toEqual({ ok: true, executable: 'flutter' });
+    expect(await select(pubspec('^3.13.1'))).toMatchObject({ ok: true, executable: 'flutter@3.47.1' });
+    expect(await select(pubspec('>=3.5.0 <4.0.0', '{"flutter":"3.41.9"}'))).toMatchObject({
+      ok: true,
+      executable: 'flutter@3.41.9',
+    });
+    expect(await select(pubspec('>=3.5.0 <4.0.0'))).toMatchObject({ ok: false, code: 'sdk_mismatch' });
+    expect(await select(pubspec('^3.20.0'))).toMatchObject({ ok: false, code: 'sdk_mismatch' });
+    expect(await select(pubspec('>=3.5.0 <4.0.0', '{"flutter":"3.38.4"}'))).toMatchObject({ ok: false });
+    expect(await select(pubspec('^3.20.0'), Object.keys(sdks), 'flutter@3.41.9')).toMatchObject({
+      ok: true,
+      executable: 'flutter@3.41.9',
+    });
+    expect(await select(pubspec('^3.20.0'), Object.keys(sdks), 'flutter@1.0.0')).toMatchObject({ ok: false });
   });
 });
 

@@ -315,9 +315,12 @@ function executablesAllowed(
   allowed: ReadonlyMap<string, unknown>,
 ): boolean {
   try {
-    return adapter
-      .buildExecution({ attemptNo: 1, targets: [target], options: { coverage: false, timeoutMs: 60_000 } })
-      .every((s) => allowed.has(s.executable));
+    return (
+      adapter
+        .buildExecution({ attemptNo: 1, targets: [target], options: { coverage: false, timeoutMs: 60_000 } })
+        // B2: an alias (`flutter@3.47.1`) makes its base executable available; run_tests selects which one runs.
+        .every((s) => allowed.has(s.executable) || [...allowed.keys()].some((k) => k.startsWith(`${s.executable}@`)))
+    );
   } catch {
     return false;
   }

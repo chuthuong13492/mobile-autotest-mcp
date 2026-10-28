@@ -69,9 +69,13 @@ export function createProbePort(o: ProbePortOptions): ProbePort {
   const registry = buildRegistry(fsp, o.config.executables);
   const ids = createIdGenerator();
   return {
-    async probe(kind) {
-      const spec = PROBES[kind];
-      if (!spec) return { available: false, reason: 'no_probe_schema' };
+    async probe(kind, executable) {
+      const base = PROBES[kind];
+      if (!base) return { available: false, reason: 'no_probe_schema' };
+      // An alias of the probe's own executable only (`flutter@<label>` for `flutter`).
+      if (executable && executable !== base.executable && !executable.startsWith(`${base.executable}@`))
+        return { available: false, reason: 'executable_mismatch' };
+      const spec = executable ? { ...base, executable } : base;
       if (!registry.executables.has(spec.executable)) return { available: false, reason: 'executable_not_allowlisted' };
       const dir = path.join(o.dataRoot, 'tmp', 'probes', ids.newId('prb'));
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });

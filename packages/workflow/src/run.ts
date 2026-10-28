@@ -116,6 +116,8 @@ export interface GatheredAuthorization {
   readonly targets: readonly TestTarget[];
   /** Attempt-1 specs (built at creation; the header's specs at dispatch). */
   readonly specs: readonly ExecutionSpec[];
+  /** B2: the executable the adapter selected for this workspace (creation only). */
+  readonly executable?: string;
   readonly prerequisites: readonly { readonly code: string; readonly message: string }[];
   /** Why the request could not even be assembled (mixed adapters, missing inventory). */
   readonly problem?: ToolError;
@@ -226,9 +228,26 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
   let specs: readonly ExecutionSpec[] = a.specs ?? [];
   let commandsOk = false;
   const missing: { code: string; message: string }[] = [];
+  let executable: string | undefined;
   if (!problem && adapter && workspace && policy && targets.length > 0) {
+    // B2: the adapter selects which configured executable (Flutter SDK) runs this workspace; a failed selection is
+    // an unsatisfied prerequisite. Dispatch reuses the specs authorized at creation, so it does not select again.
+    if (!a.specs && adapter.selectExecutable) {
+      const sel = await adapter.selectExecutable({
+        workspace: createWorkspaceReader(execWorkspace!, fsp),
+        host: deps.host,
+        configured: Object.keys(policy.config.executables),
+        ...(adapter.id === 'flutter' && workspace.flutterSdk ? { preferred: workspace.flutterSdk } : {}),
+        ...(deps.probes ? { probes: deps.probes(execWorkspace!) } : {}),
+      });
+      if (sel.ok) executable = sel.executable;
+      else
+        problem = toolError('E_PREREQUISITE_MISSING', sel.message, [
+          'Bind the workspace to one SDK with `flutterSdk` in ~/.autotest/config.yaml, or register an SDK that matches',
+        ]);
+    }
     try {
-      if (!a.specs)
+      if (!a.specs && !problem)
         specs = adapter.buildExecution({
           attemptNo: 1,
           targets,
@@ -236,6 +255,7 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
             coverage: a.coverage,
             timeoutMs: policy.config.execution.defaultTimeoutMs,
             ...(workspace.run ? { run: workspace.run } : {}),
+            ...(executable ? { executable } : {}),
           },
           ...(a.device ? { device: { platform: a.device.platform, id: a.device.address } } : {}),
         });
@@ -298,6 +318,7 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
     targets,
     specs,
     prerequisites: missing,
+    ...(executable ? { executable } : {}),
     ...(problem ? { problem } : {}),
   };
 }
@@ -519,6 +540,7 @@ export async function createRun(
       retryOn: [...DEFAULT_RETRY_ON],
       ...(device ? { device: { platform: device.platform, id: device.address } } : {}),
       ...(g.workspace!.run ? { run: g.workspace!.run } : {}),
+      ...(g.executable ? { executable: g.executable } : {}),
     },
     ...(baseline ? { baseline: { commit: baseline.commit, dir: 'baseline' as const } } : {}),
   };

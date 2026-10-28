@@ -43,6 +43,20 @@ is not on your `PATH`, call the bins by their full path (`$(npm prefix -g)/bin/a
 
 Run `autotest setup --workspace <path>` again for each further repository. `--yes` never asks questions.
 
+### Several Flutter SDKs (1.4.0)
+
+Repositories that need different Flutter versions can share one AutoTest: register each SDK under a label and
+optionally bind a workspace to one.
+
+```bash
+autotest setup --flutter 3.41.9=$HOME/fvm/versions/3.41.9/bin/flutter --flutter 3.47.1=$HOME/fvm/versions/3.47.1/bin/flutter
+```
+
+Without a binding, the workspace's `.fvmrc` pin, or else its `pubspec.yaml` Dart constraint, must match exactly one
+SDK; otherwise `run_tests` refuses and says why. Bind one with `--workspace-sdk ws_myapp=3.47.1` (or `flutterSdk:
+flutter@3.47.1` in the workspace entry). `autotest doctor` lists every SDK with its Dart version and the SDK each
+workspace runs with.
+
 ### Flavors and dart-defines (1.3.0)
 
 An app whose tests need a flavor or `--dart-define` values gets them from the workspace entry in

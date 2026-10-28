@@ -28,3 +28,17 @@ export const ARG_SCHEMAS: Readonly<Record<string, ArgSchema>> = {
 };
 
 export { OWNED_DEVICE_NAME } from './devices.ts';
+
+/** Executables that may be registered several times under aliases (`flutter@<label>`, B2 1.4.0). */
+export const ALIASABLE: readonly string[] = ['flutter'];
+const ALIAS = /^([a-z][a-z0-9-]{0,31})@([A-Za-z0-9._-]{1,32})$/;
+
+/**
+ * The argument schema of a configured executable name: its own, or for an alias of an aliasable executable the
+ * schema of the base name. An alias never reaches a different schema, so registering one cannot widen policy.
+ */
+export function schemaFor(name: string): ArgSchema | undefined {
+  const m = ALIAS.exec(name);
+  if (!m) return ARG_SCHEMAS[name];
+  return ALIASABLE.includes(m[1]!) ? ARG_SCHEMAS[m[1]!] : undefined;
+}

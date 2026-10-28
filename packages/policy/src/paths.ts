@@ -123,6 +123,8 @@ export interface ResolvedWorkspace {
   readonly github?: PolicyConfig['workspaces'][number]['github'];
   /** Run options from the user config (1.3.0). */
   readonly run?: PolicyConfig['workspaces'][number]['run'];
+  /** B2 (1.4.0): the Flutter executable bound to this workspace. */
+  readonly flutterSdk?: string;
 }
 
 export interface WorkspaceResolution {
@@ -146,6 +148,7 @@ export function resolveWorkspaces(fsp: FsPort, workspaces: PolicyConfig['workspa
         readOnlyReference: w.readOnlyReference,
         ...(w.github ? { github: w.github } : {}),
         ...(w.run ? { run: w.run } : {}),
+        ...(w.flutterSdk ? { flutterSdk: w.flutterSdk } : {}),
       });
     } catch {
       unavailable.push(w.id);

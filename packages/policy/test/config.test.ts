@@ -4,6 +4,7 @@ import {
   loadPolicyObject,
   parseRepoConfig,
   parseYamlSafely,
+  schemaFor,
   UnsafeYamlError,
 } from '@autotest/policy';
 
@@ -152,6 +153,19 @@ describe('POL-001 policy config', () => {
     expect(issues(ws('{ flutter: { flavor: "a b" } }')).length).toBeGreaterThan(0);
     expect(issues(ws('{ flutter: { dartDefines: { ENV: "a\\nb" } } }')).length).toBeGreaterThan(0);
     expect(issues(ws('{ gradle: {} }')).length).toBeGreaterThan(0);
+  });
+
+  it('B2: Flutter SDK aliases share the flutter schema; other aliases and unknown bindings are refused', () => {
+    const two = 'executables:\n  "flutter@3.41.9": { path: /a/flutter }\n  "flutter@3.47.1": { path: /b/flutter }\n';
+    const ok = load(`version: 1\n${two}workspaces: [{ id: ws_a, path: /tmp, flutterSdk: "flutter@3.47.1" }]\n`);
+    expect(Object.keys(ok.config.executables)).toEqual(['flutter@3.41.9', 'flutter@3.47.1']);
+    expect(schemaFor('flutter@3.47.1')).toBe(schemaFor('flutter'));
+    expect(schemaFor('gh@other')).toBeUndefined();
+    expect(schemaFor('bash@1')).toBeUndefined();
+    expect(issues('version: 1\nexecutables: { "gh@x": { path: /usr/bin/gh } }\n').join()).toMatch(/executables\/gh@x/);
+    expect(
+      issues(`version: 1\n${two}workspaces: [{ id: ws_a, path: /tmp, flutterSdk: "flutter@9.9.9" }]\n`).join(),
+    ).toMatch(/no executable flutter@9\.9\.9/);
   });
 
   it('loadPolicyObject validates plain objects too', () => {

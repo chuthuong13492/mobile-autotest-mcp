@@ -55,7 +55,8 @@ export type ProbeResult =
   | { readonly available: false; readonly reason: string };
 
 export interface ProbePort {
-  probe(kind: ProbeKind): Promise<ProbeResult>;
+  /** `executable` runs the probe with an alias of its executable (B2: `flutter@3.47.1` for `flutter_version`). */
+  probe(kind: ProbeKind, executable?: string): Promise<ProbeResult>;
 }
 
 export interface HostInfo {
@@ -141,8 +142,22 @@ export interface ExecutionRequest {
     readonly run?: {
       readonly flutter?: { readonly flavor?: string; readonly dartDefines?: Readonly<Record<string, string>> };
     };
+    /** B2 (1.4.0): the executable the adapter's runner uses (an SDK alias it selected); absent: its default. */
+    readonly executable?: string;
   };
 }
+
+/** Input of {@link PlatformAdapter.selectExecutable} (B2). */
+export interface ExecutableSelectionContext extends DetectContext {
+  /** Every executable name configured in policy (the adapter picks among its own and their aliases). */
+  readonly configured: readonly string[];
+  /** The workspace's explicit choice from the user config, if any. */
+  readonly preferred?: string;
+}
+
+export type ExecutableSelection =
+  | { readonly ok: true; readonly executable: string; readonly detail?: string }
+  | { readonly ok: false; readonly code: string; readonly message: string };
 
 /** Runner outputs collected by `execution` for one attempt; contents are already size-bounded and read for the adapter. */
 export interface RunnerOutputs {
@@ -223,6 +238,11 @@ export interface PlatformAdapter {
   cleanupSpecs?(ctx: CleanupContext): ExecutionSpec[];
   /** Runtime prerequisites; absent means none beyond the allowlisted executable. */
   prerequisites?(ctx: DetectContext): Promise<PrerequisiteReport>;
+  /**
+   * B2 (1.4.0): which configured executable (for example which Flutter SDK alias) runs this workspace. Absent: the
+   * adapter always uses its default executable name. A failed selection blocks the run as a prerequisite.
+   */
+  selectExecutable?(ctx: ExecutableSelectionContext): Promise<ExecutableSelection>;
   /**
    * ANL-002: how a baseline worktree reuses the workspace's resolved dependencies (runs never resolve them). The
    * listed files are copied from the workspace into the worktree, and only when every lock file is byte-identical

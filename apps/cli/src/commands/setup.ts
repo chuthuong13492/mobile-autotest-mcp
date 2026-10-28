@@ -37,6 +37,10 @@ export interface SetupFlags {
   readonly yes: boolean;
   readonly workspaces: readonly string[];
   readonly flutter?: string;
+  /** B2: named Flutter SDKs, `--flutter <label>=<path>` → executable `flutter@<label>`. */
+  readonly flutterSdks?: readonly { readonly label: string; readonly path: string }[];
+  /** B2: `--workspace-sdk <workspace id>=<label>` binds a workspace to `flutter@<label>`. */
+  readonly workspaceSdks?: readonly { readonly id: string; readonly label: string }[];
   readonly skipClaude: boolean;
   /** Turn on GitHub writes (comment, check run, commit status); each write still needs a human approval. */
   readonly enablePublication?: boolean;
@@ -51,8 +55,24 @@ export function parseSetupFlags(args: readonly string[]): SetupFlags | undefined
   let skipClaude = false;
   let enablePublication = false;
   const githubHosts: { host: string; apiBaseUrl?: string }[] = [];
+  const flutterSdks: { label: string; path: string }[] = [];
+  const workspaceSdks: { id: string; label: string }[] = [];
+  const LABEL = /^[A-Za-z0-9._-]{1,32}$/;
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
+    const named = a === '--flutter' && args[i + 1] ? /^([^=/]{1,32})=(\/.+)$/.exec(args[i + 1]!) : null;
+    if (named) {
+      if (!LABEL.test(named[1]!)) return undefined;
+      flutterSdks.push({ label: named[1]!, path: named[2]! });
+      i++;
+      continue;
+    }
+    if (a === '--workspace-sdk' && args[i + 1]) {
+      const m = /^(ws_[a-z0-9_]{1,60})=([A-Za-z0-9._-]{1,32})$/.exec(args[++i]!);
+      if (!m) return undefined;
+      workspaceSdks.push({ id: m[1]!, label: m[2]! });
+      continue;
+    }
     if (a === '--github-host' && args[i + 1] && !args[i + 1]!.startsWith('--')) {
       const m = /^([a-z0-9.-]{1,253})(?:=(https:\/\/\S+))?$/i.exec(args[++i]!);
       if (!m) return undefined;
@@ -72,6 +92,8 @@ export function parseSetupFlags(args: readonly string[]): SetupFlags | undefined
     skipClaude,
     ...(enablePublication ? { enablePublication } : {}),
     ...(githubHosts.length ? { githubHosts } : {}),
+    ...(flutterSdks.length ? { flutterSdks } : {}),
+    ...(workspaceSdks.length ? { workspaceSdks } : {}),
   };
 }
 
@@ -115,6 +137,8 @@ export function updateConfig(
     devices?: Readonly<Record<string, string>>;
     enablePublication?: boolean;
     githubHosts?: readonly { readonly host: string; readonly apiBaseUrl?: string }[];
+    flutterSdks?: readonly { readonly label: string; readonly path: string }[];
+    workspaceSdks?: readonly { readonly id: string; readonly label: string }[];
   },
 ): string[] {
   const doc = parseDocument(fs.readFileSync(file, 'utf8'));
@@ -172,6 +196,23 @@ export function updateConfig(
     (ex as { flow?: boolean }).flow = false;
     doc.setIn(['executables', 'flutter'], doc.createNode({ path: add.flutter }));
     changes.push(`executable flutter → ${add.flutter}`);
+  }
+  // B2: named SDKs side by side; registering one changes the policy version (open approvals become stale).
+  for (const sdk of add.flutterSdks ?? []) {
+    if (!isMap(doc.get('executables', true))) doc.set('executables', doc.createNode({}));
+    (doc.get('executables', true) as { flow?: boolean }).flow = false;
+    doc.setIn(['executables', `flutter@${sdk.label}`], doc.createNode({ path: sdk.path }));
+    changes.push(`executable flutter@${sdk.label} → ${sdk.path}`);
+  }
+  for (const b of add.workspaceSdks ?? []) {
+    const list = ((doc.toJS() as { workspaces?: { id: string }[] }).workspaces ?? []).map((w) => w.id);
+    const i = list.indexOf(b.id);
+    if (i < 0) {
+      changes.push(`workspace ${b.id} not found: flutterSdk not set`);
+      continue;
+    }
+    doc.setIn(['workspaces', i, 'flutterSdk'], `flutter@${b.label}`);
+    changes.push(`workspace ${b.id} → flutterSdk flutter@${b.label}`);
   }
   if (add.gh && !doc.hasIn(['executables', 'gh'])) {
     if (!isMap(doc.get('executables', true))) doc.set('executables', doc.createNode({}));
@@ -343,7 +384,8 @@ export async function setup(e: CliEnv, io: Io, flags: SetupFlags): Promise<numbe
     }
 
   let flutter = flags.flutter;
-  if (!flutter) {
+  // Named SDKs replace the single-SDK auto-detection.
+  if (!flutter && !flags.flutterSdks?.length) {
     const found = suggestFlutter(e.env);
     if (found.length === 1 && (flags.yes || !io.stdinIsTTY)) flutter = found[0]!.path;
     else if (found.length >= 1 && io.stdinIsTTY && !flags.yes) {
@@ -357,6 +399,11 @@ export async function setup(e: CliEnv, io: Io, flags: SetupFlags): Promise<numbe
     io.err('--flutter needs an absolute path');
     return 1;
   }
+  for (const s of flags.flutterSdks ?? [])
+    if (!fs.existsSync(s.path) || !fs.statSync(s.path).isFile()) {
+      io.err(`--flutter ${s.label}=…: ${s.path} is not a file`);
+      return 1;
+    }
   // gh is allowlisted for reading the user's GitHub login (github.com PRs, GH-001); PATH is used only here, once.
   const ghOnPath = findOnPath('gh', e.env);
   const gh = ghOnPath ? fs.realpathSync(ghOnPath) : undefined;
@@ -372,6 +419,10 @@ export async function setup(e: CliEnv, io: Io, flags: SetupFlags): Promise<numbe
     devices,
     ...(flags.enablePublication ? { enablePublication: true } : {}),
     ...(flags.githubHosts ? { githubHosts: flags.githubHosts } : {}),
+    ...(flags.flutterSdks
+      ? { flutterSdks: flags.flutterSdks.map((s) => ({ ...s, path: fs.realpathSync(s.path) })) }
+      : {}),
+    ...(flags.workspaceSdks ? { workspaceSdks: flags.workspaceSdks } : {}),
   }))
     io.out(`config: ${c}`);
   if (!gh)

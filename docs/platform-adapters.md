@@ -126,7 +126,8 @@ The contract test kit (ADP-001) requires every adapter to pass all of the follow
   - CI config hints (configurable patterns, e.g. `bitrise.yml` `FLUTTER_VERSION` variables, workflow `flutter-version`)
   - the `flutter --version --machine` probe ✅ (RL-034). It reports fields including `frameworkVersion`, `dartSdkVersion` and `flutterRoot`.
 
-  If the sources disagree, the adapter reports a conflict and does not pick one. Execution uses the explicitly configured SDK path. When FVM is configured, that path is the FVM-managed SDK for the project. When neither is set, execution uses the allowlisted `flutter`. The version used is recorded in provenance.
+  If the sources disagree, the adapter reports a conflict and does not pick one.
+- **Several SDKs (B2, 1.4.0).** Policy may register SDKs side by side as `flutter` and `flutter@<label>` (each pinned by real path; an alias shares the `flutter` argument schema and cannot reach another). Per run, the adapter selects one (`selectExecutable`): the workspace's `flutterSdk` binding if set; the only SDK when there is one (nothing is probed, as before 1.4.0); otherwise each SDK is probed (`flutter --version --machine`) and the workspace's exact Flutter pin (`.fvmrc`, `.fvm/fvm_config.json`, `.tool-versions`, an exact `environment.flutter`) or, without one, its `environment.sdk` Dart constraint must match exactly one SDK. No match or several matches refuse the run with `E_PREREQUISITE_MISSING` (`sdk_mismatch`); another SDK is never used silently. The selected name is recorded in the run header and used by every attempt; process events record the binary that ran ✅ (FVM 3.41.9 and 3.47.1, `test/e2e/flutter-sdks.test.ts`).
 - **Test discovery:**
   - `test/**/*_test.dart` gives levels `unit`/`widget`. Classification is a heuristic: a file is `widget` when it contains `testWidgets(` (bounded scan ≤ 256 KiB per file), and `unit` otherwise.
   - `integration_test/**/*_test.dart` gives level `integration` (v1.1).

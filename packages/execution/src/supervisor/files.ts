@@ -80,6 +80,11 @@ export const RunHeader = z.strictObject({
       device: z
         .strictObject({ platform: z.enum(['ios', 'android']), id: z.string().regex(/^[A-Za-z0-9-]{1,64}$/) })
         .optional(),
+      /** B2 (1.4.0): the executable (Flutter SDK alias) selected at creation; later attempts use the same one. */
+      executable: z
+        .string()
+        .regex(/^[a-z][a-z0-9-]{0,31}(?:@[A-Za-z0-9._-]{1,32})?$/)
+        .optional(),
       /** 1.3.0: the workspace run options authorized with the run (later attempts use the same ones). */
       run: z
         .strictObject({

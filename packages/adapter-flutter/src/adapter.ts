@@ -6,6 +6,7 @@ import type { CapabilitySet, PlatformAdapter } from '@autotest/adapter-sdk';
 import { ADAPTER_ID, detectFlutter } from './detect.ts';
 import { flutterEvidenceHints, flutterFailureSignals } from './evidence.ts';
 import { buildFlutterExecution } from './execution.ts';
+import { selectFlutterExecutable } from './sdk.ts';
 import { inventoryFlutter } from './inventory.ts';
 import { parseFlutterResults } from './parse.ts';
 
@@ -57,6 +58,7 @@ export function createFlutterAdapter(): PlatformAdapter {
         '.flutter-plugins-dependencies',
       ],
     },
+    selectExecutable: selectFlutterExecutable,
     async prerequisites(ctx) {
       // Runs use --no-pub (SR-014): dependencies must already be resolved in the workspace.
       const resolved = ctx.workspace.exists('.dart_tool/package_config.json');

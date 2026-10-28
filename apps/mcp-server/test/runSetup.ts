@@ -26,6 +26,12 @@ const FAKE_FLUTTER = `#!${process.execPath}
 const fs = require('node:fs');
 const path = require('node:path');
 const args = process.argv.slice(2);
+// B2: \`--version --machine\` answers from version.json next to this script (one fake per SDK).
+if (args.includes('--version')) {
+  const v = path.join(__dirname, 'version.json');
+  process.stdout.write(fs.existsSync(v) ? fs.readFileSync(v, 'utf8') : '{"frameworkVersion":"3.47.1","dartSdkVersion":"3.13.1"}');
+  process.exit(0);
+}
 const rep = args[args.indexOf('--file-reporter') + 1].slice('json:'.length);
 const files = args.filter((a) => a.endsWith('_test.dart'));
 const out = fs.openSync(rep, 'a');
