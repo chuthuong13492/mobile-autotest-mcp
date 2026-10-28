@@ -1,6 +1,6 @@
 {
   "name": "mobile-autotest",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "PR-driven, policy-governed mobile test orchestration: the pr-mobile-autotest Skill and the autotest MCP server.",
   "author": { "name": "Mobile AutoTest MCP" },
   "license": "UNLICENSED",

@@ -19,12 +19,12 @@ Maestro and Detox on devices) and pinned Appium suites.
 Download the package from the GitHub Release (or use a `.tgz` you were given), check it, and install it:
 
 ```bash
-gh release download v1.3.0 -R chuthuong13492/mobile-autotest-mcp -p '*.tgz' -p SHA256SUMS
+gh release download v1.4.0 -R chuthuong13492/mobile-autotest-mcp -p '*.tgz' -p SHA256SUMS
 shasum -a 256 -c SHA256SUMS --ignore-missing
 ```
 
 ```bash
-npm install -g ./mobile-autotest-mcp-1.3.0.tgz
+npm install -g ./mobile-autotest-mcp-1.4.0.tgz
 autotest setup --workspace /path/to/your/flutter/repo
 autotest doctor
 ```

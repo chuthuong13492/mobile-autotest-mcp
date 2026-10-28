@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.4.0
+
+Several Flutter SDKs, and devices that are reused instead of piling up.
+
+- Several Flutter SDKs side by side: `autotest setup --flutter 3.41.9=<path> --flutter 3.47.1=<path>` registers
+  `flutter@3.41.9` and `flutter@3.47.1`. A workspace runs with its `flutterSdk` binding (`--workspace-sdk
+  ws_app=3.47.1`), or with the one SDK its `.fvmrc` pin or `pubspec.yaml` Dart constraint selects; none or several
+  matches refuse the run and say why. `autotest doctor` lists every SDK with its Dart version and the SDK each
+  workspace runs with. Adding an SDK changes the policy version, so open approvals become stale.
+- `manage_simulator {action: "acquire"}`: a free AutoTest device is reused first; otherwise one of your simulators or
+  AVDs is offered for use after `autotest approve` (AutoTest boots it if needed and installs and runs the app, but
+  never erases, deletes or shuts it down; the approval ends with the run); a new AutoTest device is created only when
+  neither exists, up to `devices: { maxOwned: 2 }` per platform. `create` returns a matching free AutoTest device
+  instead of making another. Physical devices are never used.
+- `acquire` waits until a Booted iOS simulator has finished booting: a test runner started on a simulator that was
+  still booting could run forever.
+- Defaults for new simulators come from the runtime's own list of supported device types.
+- Verified with real SDKs (FVM 3.41.9 and 3.47.1) and real simulators; adopting an Android AVD is covered by tests
+  with fake tools only.
+
 ## 1.3.0
 
 Real-app reach: approval prompt, Flutter run options, GitHub Enterprise.

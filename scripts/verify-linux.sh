@@ -5,7 +5,7 @@
 # Usage: scripts/verify-linux.sh [tarball]   Env: FLUTTER_IMAGE (default ghcr.io/cirruslabs/flutter:3.47.1)
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-TGZ=${1:-$ROOT/release/out/mobile-autotest-mcp-1.3.0.tgz}
+TGZ=${1:-$ROOT/release/out/mobile-autotest-mcp-1.4.0.tgz}
 IMAGE=${FLUTTER_IMAGE:-ghcr.io/cirruslabs/flutter:3.47.1}
 docker run --rm --user root \
   -v "$TGZ":/pkg/autotest.tgz:ro \
