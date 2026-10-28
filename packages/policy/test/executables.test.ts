@@ -116,13 +116,36 @@ describe('POL-003 validateSpec', () => {
     ]);
   });
 
+  it('1.3.0: accepts --flavor and repeated inline --dart-define', () => {
+    const v = validateSpec(
+      spec(
+        testArgs(
+          f('--flavor', 'staging'),
+          { kind: 'flag', name: '--dart-define', value: 'ENV=staging', inline: true },
+          { kind: 'flag', name: '--dart-define', value: 'BASE=-x', inline: true },
+        ),
+      ),
+      ctx,
+    );
+    expect(v.ok && v.argv.filter((x) => /flavor|staging|dart-define/.test(x))).toEqual([
+      '--flavor',
+      'staging',
+      '--dart-define=ENV=staging',
+      '--dart-define=BASE=-x',
+    ]);
+  });
+
   const smuggling: [string, ExecutionSpec, string[]][] = [
     ['unknown executable', spec(testArgs(), { executable: 'bash' }), ['unknown_executable:bash']],
     ['unknown subcommand', spec([w('run'), f('--no-pub')]), ['unknown_form:flutter']],
     ['extra word after form', spec(testArgs(w('; rm -rf /'))), ['unexpected_token:#2']],
     ['forbidden --update-goldens', spec(testArgs(f('--update-goldens'))), ['forbidden_flag:--update-goldens']],
     ['forbidden --start-paused', spec(testArgs(f('--start-paused'))), ['forbidden_flag:--start-paused']],
-    ['unknown flag', spec(testArgs(f('--dart-define', 'X=1'))), ['unknown_flag:--dart-define']],
+    ['unknown flag', spec(testArgs(f('--target', 'lib/main.dart'))), ['unknown_flag:--target']],
+    ['dart-define short form', spec(testArgs(f('-D', 'X=1'))), ['forbidden_flag:-D']],
+    ['dart-define without a key', spec(testArgs(f('--dart-define', '=1'))), ['bad_value:--dart-define']],
+    ['dart-define with a newline', spec(testArgs(f('--dart-define', 'X=a\nb'))), ['bad_value:--dart-define']],
+    ['flavor with a space', spec(testArgs(f('--flavor', 'a b'))), ['bad_value:--flavor']],
     ['missing --no-pub', spec([w('test')]), ['missing_flag:--no-pub']],
     ['value on a boolean flag', spec(testArgs(f('--coverage', 'yes'))), ['bad_value:--coverage']],
     ['enum violation', spec(testArgs(f('--reporter', 'html'))), ['bad_value:--reporter']],

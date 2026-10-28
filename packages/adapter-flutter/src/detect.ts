@@ -72,8 +72,14 @@ export async function detectFlutter(ctx: DetectContext): Promise<DetectionResult
     });
   if (ws.exists('integration_test'))
     limitations.push({
-      code: 'flutter:integration_test_v1_1',
-      message: 'integration_test/ is inventoried but runs on devices only from v1.1 (FL-006)',
+      code: 'flutter:integration_test_needs_device',
+      message: 'integration_test/ runs on an AutoTest-owned simulator or emulator (pass its id to run_tests devices)',
+    });
+  if (ws.exists('integration_test/appium_test.dart'))
+    limitations.push({
+      code: 'flutter:appium_entry_point',
+      message:
+        'integration_test/appium_test.dart starts the app for Appium; it is not run as a Flutter test (Appium adapter)',
     });
   const platforms = [
     { platform: 'host' as const, status: 'present' as const, evidence: ['pubspec.yaml'] },

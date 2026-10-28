@@ -121,6 +121,8 @@ export interface ResolvedWorkspace {
   readonly realPath: string;
   readonly readOnlyReference: boolean;
   readonly github?: PolicyConfig['workspaces'][number]['github'];
+  /** Run options from the user config (1.3.0). */
+  readonly run?: PolicyConfig['workspaces'][number]['run'];
 }
 
 export interface WorkspaceResolution {
@@ -143,6 +145,7 @@ export function resolveWorkspaces(fsp: FsPort, workspaces: PolicyConfig['workspa
         realPath,
         readOnlyReference: w.readOnlyReference,
         ...(w.github ? { github: w.github } : {}),
+        ...(w.run ? { run: w.run } : {}),
       });
     } catch {
       unavailable.push(w.id);

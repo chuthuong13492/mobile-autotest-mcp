@@ -4,6 +4,7 @@
  * [--coverage --coverage-path <lcov>] [--total-shards N --shard-index I] <sorted test paths>`.
  * `--no-pub` is always present so runs never resolve dependencies over the network (SR-014). Targets selected by
  * test name get their own spec with `--plain-name`. Integration targets run on the run's device (`deviceSpecs`).
+ * The workspace's run options (1.3.0) add `--flavor <f>` and one `--dart-define=K=V` per define, sorted by key.
  */
 import {
   buildSpec,
@@ -23,6 +24,18 @@ export const LCOV_FILE = 'lcov.info';
 
 const hostTarget = (t: TestTarget) => t.requires.device === 'none' && t.level !== 'integration';
 
+/** `--flavor` and `--dart-define` from the workspace run options (inline, so a value may start with `-`). */
+function runFlags(req: ExecutionRequest) {
+  const f = req.options.run?.flutter;
+  if (!f) return [];
+  return [
+    ...(f.flavor ? [flag('--flavor', f.flavor)] : []),
+    ...Object.keys(f.dartDefines ?? {})
+      .sort()
+      .map((k) => flag('--dart-define', `${k}=${f.dartDefines![k]}`, true)),
+  ];
+}
+
 function spec(req: ExecutionRequest, paths: readonly string[], results: string, plainName?: string): ExecutionSpec {
   const out = runnerOutput(req.attemptNo, results);
   const lcov = runnerOutput(req.attemptNo, LCOV_FILE);
@@ -34,6 +47,7 @@ function spec(req: ExecutionRequest, paths: readonly string[], results: string, 
       flag('--no-pub'),
       flagRunPath('--file-reporter', out, 'json:'),
       flag('--reporter', 'expanded'),
+      ...runFlags(req),
       ...(plainName === undefined ? [] : [flag('--plain-name', plainName)]),
       ...(coverage ? [flag('--coverage'), flagRunPath('--coverage-path', lcov)] : []),
       ...(req.options.shard
@@ -91,6 +105,7 @@ function deviceSpecs(req: ExecutionRequest): ExecutionSpec[] {
         flag('-d', device.id),
         flagRunPath('--file-reporter', out, 'json:'),
         flag('--reporter', 'expanded'),
+        ...runFlags(req),
         ...sortedPaths(targets.map((t) => t.path)).map(workspacePath),
       ],
       cwd: '.',

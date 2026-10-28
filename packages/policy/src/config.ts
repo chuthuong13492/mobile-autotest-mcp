@@ -43,10 +43,46 @@ export const SecretRef = z
     'expected keychain:<service/account> or env:<NAME>',
   );
 
+/** Keys that look like credentials: they must not be compiled into a test build as dart-defines. */
+const SECRET_LIKE_DEFINE = /(?:SECRET|TOKEN|PASSWORD|PASSWD|API_?KEY|PRIVATE|CREDENTIAL)/i;
+
+/**
+ * Per-workspace run options (1.3.0): `flutter test --flavor <flavor> --dart-define K=V …` for every Flutter run of
+ * this workspace. They live in the user config, outside the repository (T-20), and are part of the policy version, so
+ * changing them makes existing approvals stale. Values are plain text in argv and compiled into the app: secrets are
+ * refused here.
+ */
+const WorkspaceRun = z.strictObject({
+  flutter: z
+    .strictObject({
+      flavor: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_]{0,40}$/)
+        .optional(),
+      dartDefines: z
+        .record(
+          z.string().regex(/^[A-Za-z_][A-Za-z0-9_.]{0,63}$/),
+          z
+            .string()
+            .max(500)
+            .regex(/^[^\0\n\r]*$/),
+        )
+        .refine((r) => Object.keys(r).length <= 50, 'at most 50 dart-defines')
+        .refine(
+          (r) => !Object.keys(r).some((k) => SECRET_LIKE_DEFINE.test(k)),
+          'a key looks like a secret: dart-defines are compiled into the app and visible in argv, not for credentials',
+        )
+        .optional(),
+    })
+    .optional(),
+});
+export type WorkspaceRunOptions = z.infer<typeof WorkspaceRun>;
+
 const Workspace = z.strictObject({
   id: WorkspaceId,
   path: AbsPath,
   github: RepositoryIdentity.optional(),
+  run: WorkspaceRun.optional(),
   /** Inspection only: run_tests denies with workspace_not_allowed. */
   readOnlyReference: z.boolean().default(false),
 });

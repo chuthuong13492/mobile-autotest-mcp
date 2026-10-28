@@ -232,7 +232,11 @@ export async function gatherAuthorization(deps: RunDeps, a: GatherArgs): Promise
         specs = adapter.buildExecution({
           attemptNo: 1,
           targets,
-          options: { coverage: a.coverage, timeoutMs: policy.config.execution.defaultTimeoutMs },
+          options: {
+            coverage: a.coverage,
+            timeoutMs: policy.config.execution.defaultTimeoutMs,
+            ...(workspace.run ? { run: workspace.run } : {}),
+          },
           ...(a.device ? { device: { platform: a.device.platform, id: a.device.address } } : {}),
         });
       const registry = buildRegistry(fsp, policy.config.executables);
@@ -514,6 +518,7 @@ export async function createRun(
       maxAttempts,
       retryOn: [...DEFAULT_RETRY_ON],
       ...(device ? { device: { platform: device.platform, id: device.address } } : {}),
+      ...(g.workspace!.run ? { run: g.workspace!.run } : {}),
     },
     ...(baseline ? { baseline: { commit: baseline.commit, dir: 'baseline' as const } } : {}),
   };

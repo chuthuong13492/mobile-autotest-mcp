@@ -80,6 +80,17 @@ export const RunHeader = z.strictObject({
       device: z
         .strictObject({ platform: z.enum(['ios', 'android']), id: z.string().regex(/^[A-Za-z0-9-]{1,64}$/) })
         .optional(),
+      /** 1.3.0: the workspace run options authorized with the run (later attempts use the same ones). */
+      run: z
+        .strictObject({
+          flutter: z
+            .strictObject({
+              flavor: z.string().max(41).optional(),
+              dartDefines: z.record(z.string().max(64), z.string().max(500)).optional(),
+            })
+            .optional(),
+        })
+        .optional(),
     })
     .optional(),
   /**

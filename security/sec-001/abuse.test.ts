@@ -56,7 +56,10 @@ describe('SEC-001 command, path, environment and artifact abuse', () => {
       });
       for (const extra of [
         [{ kind: 'flag' as const, name: '--update-goldens' }],
-        [{ kind: 'flag' as const, name: '--dart-define', value: 'X=1' }],
+        // 1.3.0 allows `--dart-define=K=V` from the user config; files, the short form and multi-line values stay out.
+        [{ kind: 'flag' as const, name: '--dart-define-from-file', value: 'defines.json' }],
+        [{ kind: 'flag' as const, name: '-D', value: 'X=1' }],
+        [{ kind: 'flag' as const, name: '--dart-define', value: 'X=1\n--update-goldens' }],
         [{ kind: 'flag' as const, name: '--enable-vmservice' }],
         [{ kind: 'word' as const, value: 'pub' }],
         [{ kind: 'runPath' as const, rel: 'x' }],

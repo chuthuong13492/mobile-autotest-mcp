@@ -137,6 +137,10 @@ export interface ExecutionRequest {
     readonly coverage: boolean;
     readonly timeoutMs: number;
     readonly shard?: { readonly total: number; readonly index: number };
+    /** The workspace's run options from the user config (1.3.0), captured when the run was created. */
+    readonly run?: {
+      readonly flutter?: { readonly flavor?: string; readonly dartDefines?: Readonly<Record<string, string>> };
+    };
   };
 }
 

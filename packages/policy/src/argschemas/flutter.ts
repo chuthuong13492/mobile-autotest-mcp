@@ -6,6 +6,10 @@
 import type { ArgSchema } from './types.ts';
 
 const INT = /^(0|[1-9]\d{0,3})$/;
+/** A build flavor (Android product flavor / Xcode scheme). */
+export const FLAVOR = /^[A-Za-z][A-Za-z0-9_]{0,40}$/;
+/** `KEY=value` for `--dart-define`; the value is compiled into the app, so secrets never belong here. */
+export const DART_DEFINE = /^[A-Za-z_][A-Za-z0-9_.]{0,63}=[^\0\n\r]{0,500}$/;
 /** Dart test tag expressions: identifiers combined with ! && || and parentheses. */
 const TAG_EXPR = /^[A-Za-z0-9_\-!&|() ]{1,200}$/;
 
@@ -19,6 +23,7 @@ export const FLUTTER_SCHEMA: ArgSchema = {
     '--dds-port',
     '--debug-logs-dir',
     '--dart-define-from-file',
+    '-D',
   ],
   forms: [
     {
@@ -44,6 +49,9 @@ export const FLUTTER_SCHEMA: ArgSchema = {
         { name: '--total-shards', value: { kind: 'pattern', pattern: INT } },
         { name: '--shard-index', value: { kind: 'pattern', pattern: INT } },
         { name: '--concurrency', value: { kind: 'pattern', pattern: INT } },
+        // B (1.3.0): the workspace's run options from the user config (policy `workspaces[].run.flutter`).
+        { name: '--flavor', value: { kind: 'pattern', pattern: FLAVOR } },
+        { name: '--dart-define', value: { kind: 'pattern', pattern: DART_DEFINE }, repeatable: true },
         // FL-006: the device of an integration_test run (a simulator UDID or an emulator serial).
         {
           name: '-d',

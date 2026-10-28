@@ -43,6 +43,25 @@ is not on your `PATH`, call the bins by their full path (`$(npm prefix -g)/bin/a
 
 Run `autotest setup --workspace <path>` again for each further repository. `--yes` never asks questions.
 
+### Flavors and dart-defines (1.3.0)
+
+An app whose tests need a flavor or `--dart-define` values gets them from the workspace entry in
+`~/.autotest/config.yaml` (never from the repository):
+
+```yaml
+workspaces:
+  - id: ws_myapp
+    path: /path/to/myapp
+    run:
+      flutter:
+        flavor: staging
+        dartDefines: { ENV: staging, INTEGRATION_TEST: "false" }
+```
+
+Every `flutter test` of that workspace then gets `--flavor staging --dart-define=ENV=staging …`. Changing these makes
+open approvals stale. Credentials are refused here (keys with SECRET, TOKEN, PASSWORD, API_KEY…): defines are compiled
+into the app and appear in process listings.
+
 ## Simulators and emulators (v1.1)
 
 `autotest setup` also allowlists `xcrun` (macOS) and, from `ANDROID_HOME`, `adb`, `emulator` and `avdmanager`.

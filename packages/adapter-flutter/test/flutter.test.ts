@@ -48,7 +48,7 @@ describe('FL-001 detection and SDK resolution', () => {
       'ios',
     ]);
     expect(d.runners).toEqual([{ kind: 'flutter_test', configured: true, evidence: ['pubspec.yaml'] }]);
-    expect(d.limitations.map((l) => l.code)).toEqual(['flutter:integration_test_v1_1']);
+    expect(d.limitations.map((l) => l.code)).toEqual(['flutter:integration_test_needs_device']);
   });
 
   it('does not detect plain Dart packages or a missing pubspec', async () => {
@@ -101,7 +101,7 @@ describe('FL-001 detection and SDK resolution', () => {
     expect(codes).toEqual([
       'flutter:monorepo_packages',
       'flutter:melos_not_orchestrated',
-      'flutter:integration_test_v1_1',
+      'flutter:integration_test_needs_device',
     ]);
   });
 });
@@ -215,6 +215,37 @@ describe('FL-003 execution specs', () => {
     expect(
       buildFlutterExecution({ attemptNo: 1, targets: [integration], options: { coverage: false, timeoutMs: 60_000 } }),
     ).toEqual([]);
+  });
+});
+
+describe('1.3.0 workspace run options', () => {
+  it('adds --flavor and sorted --dart-define flags to host and device specs', async () => {
+    const all = (await inventoryFlutter({ ...ctx, limits })).targets;
+    const run = { flutter: { flavor: 'staging', dartDefines: { ENV: 'staging', API_BASE: '-x' } } };
+    const specs = buildFlutterExecution({
+      attemptNo: 1,
+      targets: all,
+      options: { coverage: false, timeoutMs: 60_000, run },
+      device: { platform: 'android', id: 'emulator-5554' },
+    });
+    for (const spec of specs)
+      expect(spec.args.filter((a) => a.kind === 'flag' && /flavor|dart-define/.test(a.name))).toEqual([
+        { kind: 'flag', name: '--flavor', value: 'staging' },
+        { kind: 'flag', name: '--dart-define', value: 'API_BASE=-x', inline: true },
+        { kind: 'flag', name: '--dart-define', value: 'ENV=staging', inline: true },
+      ]);
+  });
+
+  it('leaves an Appium entry point in integration_test/ to the Appium adapter', async () => {
+    const ws = memoryWorkspace({
+      ...FILES,
+      'integration_test/appium_test.dart': "import 'package:appium_flutter_server/appium_flutter_server.dart';",
+    });
+    const targets = (await inventoryFlutter({ ...ctx, workspace: ws, limits })).targets;
+    expect(targets.some((t) => t.path.endsWith('appium_test.dart'))).toBe(false);
+    expect((await detectFlutter({ ...ctx, workspace: ws })).limitations.map((l) => l.code)).toContain(
+      'flutter:appium_entry_point',
+    );
   });
 });
 

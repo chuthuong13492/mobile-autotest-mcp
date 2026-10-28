@@ -141,6 +141,19 @@ describe('POL-001 policy config', () => {
     );
   });
 
+  it('1.3.0 workspace run options: flavor and dart-defines, never secrets; they change the policy version', () => {
+    const ws = (run: string) => `version: 1\nworkspaces: [{ id: ws_a, path: /tmp, run: ${run} }]\n`;
+    const a = load(ws('{ flutter: { flavor: staging, dartDefines: { ENV: staging } } }'));
+    expect(a.config.workspaces[0]!.run).toEqual({ flutter: { flavor: 'staging', dartDefines: { ENV: 'staging' } } });
+    const b = load(ws('{ flutter: { flavor: prod, dartDefines: { ENV: staging } } }'));
+    expect(b.policyVersion).not.toBe(a.policyVersion);
+    expect(issues(ws('{ flutter: { dartDefines: { NEWRELIC_API_KEY: x } } }')).join()).toMatch(/secret/);
+    expect(issues(ws('{ flutter: { dartDefines: { AUTH_TOKEN: x } } }')).join()).toMatch(/secret/);
+    expect(issues(ws('{ flutter: { flavor: "a b" } }')).length).toBeGreaterThan(0);
+    expect(issues(ws('{ flutter: { dartDefines: { ENV: "a\\nb" } } }')).length).toBeGreaterThan(0);
+    expect(issues(ws('{ gradle: {} }')).length).toBeGreaterThan(0);
+  });
+
   it('loadPolicyObject validates plain objects too', () => {
     expect(loadPolicyObject({ version: 1 }).ok).toBe(true);
     expect(loadPolicyObject(null).ok).toBe(false);

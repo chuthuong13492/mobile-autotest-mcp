@@ -58,6 +58,8 @@ export async function inventoryFlutter(ctx: InventoryContext): Promise<Inventory
       source = r.binary ? '' : r.text;
     } else reasons.add('max_read_bytes');
     const tags = fileTags(source);
+    // An Appium entry point (appium_flutter_server) starts the app for an external driver: not a Flutter test.
+    if (integration && (path.endsWith('/appium_test.dart') || /package:appium_flutter_server\//.test(source))) continue;
     if (!integration) {
       targets.push({
         id: targetId(ADAPTER_ID, path),

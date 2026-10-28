@@ -37,7 +37,11 @@ export function adapterAttemptHooks(registry: AdapterRegistry): AttemptHooks {
       return adapterFor(header).buildExecution({
         attemptNo,
         targets,
-        options: { coverage: header.execution?.coverage ?? false, timeoutMs: header.timeouts.runMs },
+        options: {
+          coverage: header.execution?.coverage ?? false,
+          timeoutMs: header.timeouts.runMs,
+          ...(header.execution?.run ? { run: header.execution.run } : {}),
+        },
         ...(header.execution?.device ? { device: header.execution.device } : {}),
       });
     },
